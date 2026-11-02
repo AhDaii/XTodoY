@@ -14,9 +14,9 @@
 ## 文档
 
 - [项目规划](docs/PROJECT_PLAN.md)
-- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（P1，评审中）
+- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（v1.0 已定稿）
 - 界面原型：`design/`（P2 阶段产出，使用 ui-ux-pro-max 设计）
 
 ## 状态
 
-当前处于 P1 阶段：SRS v0.9 评审稿已完成，待评审后定稿为 v1.0。
+当前处于 P2 阶段：SRS v1.0 已定稿，正在进行界面原型设计。
