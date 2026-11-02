@@ -14,10 +14,24 @@
 ## 文档
 
 - [项目规划](docs/PROJECT_PLAN.md)
-- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（v1.0 已定稿）
+- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（v1.1 已定稿）
 - [设计系统](design/design-system.md) 与 [设计令牌](design/tokens.css)（P2，使用 ui-ux-pro-max 设计）
 - 交互原型：运行 `python design/scripts/serve.py` 后打开 http://127.0.0.1:5178/prototype/index.html
 
+## 开发
+
+需要 Node.js 24+ 与 pnpm 12。
+
+```bash
+pnpm install        # 安装依赖
+pnpm dev            # 开发模式启动
+pnpm test           # 单元测试
+pnpm build && pnpm test:e2e   # 端到端测试
+pnpm dist           # 打包 Windows 安装包到 release/
+```
+
+架构与接口见 [docs/design/](docs/design/)。
+
 ## 状态
 
-当前处于 P2 阶段：SRS v1.0 已定稿，正在进行界面原型设计。
+当前处于 P3 阶段：技术设计与验证完成，工程脚手架与 CI 已就绪，下一步进入 P4 开发迭代。

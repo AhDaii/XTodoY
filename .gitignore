@@ -24,3 +24,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Local preview config
+.claude/launch.json
+release/
+test-results/
+playwright-report/

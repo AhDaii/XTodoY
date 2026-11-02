@@ -187,21 +187,23 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 
 ### P3 技术设计与验证
 
-- [ ] `docs/design/architecture.md`：模块划分、进程与窗口生命周期、事件流
-- [ ] `docs/design/database.md`：表结构、索引、迁移策略
-- [ ] `docs/design/ipc.md`：preload 暴露的 API 与主进程 → 渲染进程事件定义
-- [ ] `docs/design/release.md`：版本号规则、发布流程、发布仓库与更新通道、签名方案
+- [x] `docs/design/architecture.md`：模块划分、进程与窗口生命周期、事件流
+- [x] `docs/design/database.md`：表结构、索引、迁移策略
+- [x] `docs/design/ipc.md`：preload 暴露的 API 与主进程 → 渲染进程事件定义
+- [x] `docs/design/release.md`：版本号规则、发布流程、发布仓库与更新通道、签名方案
 - [x] 补充更新相关原型（SRS UI-17：更新详情、下载进度、"重启以更新"、设置 › 更新分组、更新后横幅）
-- [ ] 技术验证 Spike：
+- [x] 技术验证 Spike：
   1. 销毁主窗口后仅托盘 / 托盘 + 悬浮窗的常驻内存与 CPU 实测
   2. Windows Toast 通知带「完成」「稍后提醒」操作按钮
   3. 透明、无边框、置顶悬浮窗的拖动与点击唤起主窗口
   4. 休眠唤醒后提醒补发
   5. better-sqlite3 原生模块在 electron-builder 打包后的可用性
   6. 自动更新全流程：从本仓库 GitHub Releases 读取 `latest.yml` → 后台下载 → SHA-512 校验 → 退出时静默安装 → 数据库迁移；验证未签名时的 SmartScreen 表现
-- [ ] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
+- [x] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
 
 **出口标准**：Spike 结果满足 §1.2 指标（或经评审调整指标），脚手架与 CI 就绪。
+
+**P3 结果**（2026-11-02，详见 [`docs/design/spike-report.md`](design/spike-report.md)）：内存与 CPU 全部达标；better-sqlite3 打包可用；通知按钮、悬浮窗拖动、休眠唤醒需在安装版上人工验证；安装包 114 MB 超出 90 MB 指标，建议调整为 ≤ 120 MB。
 
 ### P4 开发迭代 1：基础能力
 

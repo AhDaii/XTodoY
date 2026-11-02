@@ -1,0 +1,68 @@
+/* 悬浮窗：只用到少量颜色，直接内联令牌值，避免加载完整 tokens.css 与框架（性能预算见 architecture.md §6） */
+:root {
+  --bg: #ffffff;
+  --border: #dae3f3;
+  --fg-muted: #44536b;
+  --fg-subtle: #5f6f88;
+  --primary: #2563eb;
+  --success: #15803d;
+  color-scheme: light;
+}
+:root.dark {
+  --bg: #162036;
+  --border: #1f2b44;
+  --fg-muted: #a3b1c8;
+  --fg-subtle: #7c8ba5;
+  --primary: #60a5fa;
+  --success: #4ade80;
+  color-scheme: dark;
+}
+html,
+body {
+  margin: 0;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+.tile {
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+}
+.tile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
+}
+.n {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.n.small {
+  font-size: 22px;
+}
+.lbl {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+.tile.is-done .n {
+  color: var(--success);
+}
+.tile.is-empty .n {
+  color: var(--fg-subtle);
+}
