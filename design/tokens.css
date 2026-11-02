@@ -1,0 +1,225 @@
+/*
+ * XTodoY 设计令牌 v1.0
+ * 来源：ui-ux-pro-max「Productivity Tool」配色 + Minimalism & Swiss Style，按桌面端与 WCAG AA 调整。
+ * 用法：浅色为 :root 默认值；在 <html> 上加 class="dark" 切换深色。
+ * 前端（Tailwind v4 / shadcn）通过 @theme inline 把这些变量映射为工具类，组件内禁止硬编码颜色。
+ */
+
+:root {
+  /* ---------- 字体 ---------- */
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+    "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+  --font-num: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; /* 数字用 tabular-nums */
+
+  /* 字号阶梯（桌面端：正文 14px，最小 12px） */
+  --text-xs: 12px;   /* 辅助信息：时间、计数、标签胶囊 */
+  --text-sm: 13px;   /* 次要文本、表单说明 */
+  --text-base: 14px; /* 正文、列表标题 */
+  --text-md: 16px;   /* 面板标题、对话框标题 */
+  --text-lg: 20px;   /* 页面标题 */
+  --text-xl: 28px;   /* 统计大数字 */
+  --text-2xl: 36px;  /* 悬浮窗数字 */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---------- 间距（4px 基准） ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---------- 尺寸 ---------- */
+  --size-control-sm: 28px;  /* 紧凑按钮、标签树行高 */
+  --size-control: 32px;     /* 默认按钮、输入框 */
+  --size-control-lg: 40px;  /* 快速输入框 */
+  --size-row: 44px;         /* 待办列表行（≥ 44px 点击区域） */
+  --size-checkbox: 18px;    /* 圆形单选框可视尺寸，点击区域扩展到 32px */
+  --size-sidebar: 240px;
+  --size-detail: 360px;
+  --size-floating: 64px;    /* 悬浮窗 */
+
+  /* ---------- 圆角 ---------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* ---------- 动效 ---------- */
+  --duration-fast: 120ms;   /* hover、按下 */
+  --duration-base: 200ms;   /* 面板、弹层进入 */
+  --duration-slow: 300ms;   /* 完成动画（上限） */
+  --duration-exit: 150ms;   /* 退出比进入快 */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---------- 层级 ---------- */
+  --z-dropdown: 20;
+  --z-panel: 30;
+  --z-dialog: 40;
+  --z-toast: 50;
+
+  /* ---------- 语义色：浅色 ---------- */
+  --background: #f6f8f8;          /* 窗口底色 */
+  --surface: #ffffff;             /* 列表、卡片、面板 */
+  --surface-sunken: #eef2f1;      /* 侧边栏、输入框底 */
+  --surface-raised: #ffffff;      /* 弹层、对话框、菜单 */
+  --surface-hover: #e7eeec;
+  --surface-selected: #d9ecea;
+
+  --foreground: #0f1f1d;          /* 正文 17.0:1 on surface */
+  --foreground-muted: #4f5d5b;    /* 次要文本 6.9:1 */
+  --foreground-subtle: #6b7876;   /* 占位、禁用说明 4.59:1 */
+  --foreground-inverse: #ffffff;
+
+  --border: #dbe3e1;
+  --border-strong: #b9c6c3;       /* 单选框边框、输入框边框 ≥ 3:1 对比需求见 --control-border */
+  --control-border: #7d8b88;      /* ≥ 3:1 on surface，满足非文本对比 */
+
+  --primary: #0f766e;             /* 主操作；白字 5.5:1 */
+  --primary-hover: #115e59;
+  --primary-foreground: #ffffff;
+  --primary-soft: #ccebe7;        /* 选中态、主色浅底 */
+  --primary-soft-foreground: #0b4f49;
+
+  --accent: #c2410c;              /* 强调/行动橙：逾期日期、警示；5.2:1 */
+  --accent-soft: #fde7da;
+  --success: #15803d;             /* 完成、全部完成 5.0:1 */
+  --success-soft: #dcf5e4;
+  --warning: #a16207;
+  --warning-soft: #fdf1cf;
+  --destructive: #dc2626;         /* 删除；白字 4.8:1 */
+  --destructive-hover: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fde2e2;
+
+  --ring: #0f766e;                /* 焦点环 2px + 2px offset */
+  --overlay: rgba(15, 31, 29, 0.32);
+
+  /* 优先级（单选框边框色） */
+  --priority-high: #dc2626;
+  --priority-medium: #c2410c;
+  --priority-low: #2563eb;
+  --priority-none: var(--control-border);
+
+  /* 阴影：克制、清晰 */
+  --shadow-sm: 0 1px 2px rgba(15, 31, 29, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 31, 29, 0.08), 0 1px 3px rgba(15, 31, 29, 0.06);
+  --shadow-lg: 0 12px 32px rgba(15, 31, 29, 0.14), 0 2px 6px rgba(15, 31, 29, 0.08);
+
+  /* 图表 */
+  --chart-1: #0f766e;
+  --chart-2: #2563eb;
+  --chart-3: #c2410c;
+  --chart-4: #7c3aed;
+  --chart-5: #a16207;
+  --chart-6: #be185d;
+  --chart-grid: #e3e9e8;
+
+  /* 标签色板（12 色）：fg = 胶囊文字/圆点，bg = 胶囊底；fg on bg ≥ 4.5:1 */
+  --tag-teal-fg: #0b5f58;    --tag-teal-bg: #d5f0ec;
+  --tag-blue-fg: #1d4ed8;    --tag-blue-bg: #dde8fd;
+  --tag-indigo-fg: #4338ca;  --tag-indigo-bg: #e3e3fc;
+  --tag-violet-fg: #6d28d9;  --tag-violet-bg: #ece3fd;
+  --tag-pink-fg: #be185d;    --tag-pink-bg: #fbe1ee;
+  --tag-red-fg: #b91c1c;     --tag-red-bg: #fde2e2;
+  --tag-orange-fg: #b03a0a;  --tag-orange-bg: #fde7da;
+  --tag-amber-fg: #8a5300;   --tag-amber-bg: #fcefc9;
+  --tag-lime-fg: #3f6212;    --tag-lime-bg: #e7f5cf;
+  --tag-green-fg: #15703a;   --tag-green-bg: #dcf5e4;
+  --tag-cyan-fg: #0e6a85;    --tag-cyan-bg: #d6f1f8;
+  --tag-slate-fg: #3f4b5a;   --tag-slate-bg: #e4e8ee;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* ---------- 语义色：深色 ---------- */
+  --background: #0c1211;
+  --surface: #131a19;
+  --surface-sunken: #0f1615;
+  --surface-raised: #1a2322;
+  --surface-hover: #1f2928;
+  --surface-selected: #183533;
+
+  --foreground: #e5eeec;          /* 14.9:1 on surface */
+  --foreground-muted: #a3b1ae;    /* 8.0:1 */
+  --foreground-subtle: #7f8d8a;   /* 5.1:1 */
+  --foreground-inverse: #0c1211;
+
+  --border: #263130;
+  --border-strong: #34413f;
+  --control-border: #6b7a77;      /* 3.6:1 on surface */
+
+  --primary: #2dd4bf;             /* 深色下提亮；深字 9.6:1 */
+  --primary-hover: #5eead4;
+  --primary-foreground: #04302b;
+  --primary-soft: #133b37;
+  --primary-soft-foreground: #8ff0e1;
+
+  --accent: #fb923c;              /* 7.9:1 on surface */
+  --accent-soft: #3a2316;
+  --success: #4ade80;
+  --success-soft: #133222;
+  --warning: #facc15;
+  --warning-soft: #352d0e;
+  --destructive: #f87171;
+  --destructive-hover: #fca5a5;
+  --destructive-foreground: #2a0a0a;
+  --destructive-soft: #3a1818;
+
+  --ring: #2dd4bf;
+  --overlay: rgba(0, 0, 0, 0.55);
+
+  --priority-high: #f87171;
+  --priority-medium: #fb923c;
+  --priority-low: #60a5fa;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+
+  --chart-1: #2dd4bf;
+  --chart-2: #60a5fa;
+  --chart-3: #fb923c;
+  --chart-4: #a78bfa;
+  --chart-5: #facc15;
+  --chart-6: #f472b6;
+  --chart-grid: #222c2b;
+
+  --tag-teal-fg: #7ee8d8;    --tag-teal-bg: #12332f;
+  --tag-blue-fg: #93b8fb;    --tag-blue-bg: #172a4a;
+  --tag-indigo-fg: #aeb0fa;  --tag-indigo-bg: #1f1f4a;
+  --tag-violet-fg: #c4a8fb;  --tag-violet-bg: #2a1c4a;
+  --tag-pink-fg: #f6a5c9;    --tag-pink-bg: #3d1729;
+  --tag-red-fg: #fca5a5;     --tag-red-bg: #3d1717;
+  --tag-orange-fg: #fdb38a;  --tag-orange-bg: #3d2115;
+  --tag-amber-fg: #f9d36e;   --tag-amber-bg: #3a2c0c;
+  --tag-lime-fg: #bce57f;    --tag-lime-bg: #24330f;
+  --tag-green-fg: #86e3a8;   --tag-green-bg: #113522;
+  --tag-cyan-fg: #84d9ef;    --tag-cyan-bg: #0f3341;
+  --tag-slate-fg: #c0c9d4;   --tag-slate-bg: #262e38;
+
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-exit: 0ms;
+  }
+}
