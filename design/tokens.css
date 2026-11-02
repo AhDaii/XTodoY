@@ -1,6 +1,6 @@
 /*
- * XTodoY 设计令牌 v1.0
- * 来源：ui-ux-pro-max「Productivity Tool」配色 + Minimalism & Swiss Style，按桌面端与 WCAG AA 调整。
+ * XTodoY 设计令牌 v1.1（蓝色系）
+ * 来源：ui-ux-pro-max 蓝色系配色（Productivity / B2B Blue）+ Minimalism & Swiss Style，按桌面端与 WCAG AA 调整。
  * 用法：浅色为 :root 默认值；在 <html> 上加 class="dark" 切换深色。
  * 前端（Tailwind v4 / shadcn）通过 @theme inline 把这些变量映射为工具类，组件内禁止硬编码颜色。
  */
@@ -71,62 +71,72 @@
   --z-dialog: 40;
   --z-toast: 50;
 
-  /* ---------- 语义色：浅色 ---------- */
-  --background: #f6f8f8;          /* 窗口底色 */
+  /* ---------- 语义色：浅色（蓝色系） ---------- */
+  --background: #f4f7ff;          /* 窗口底色：极浅蓝，避免发灰 */
   --surface: #ffffff;             /* 列表、卡片、面板 */
-  --surface-sunken: #eef2f1;      /* 侧边栏、输入框底 */
+  --surface-sunken: #eaf0fd;      /* 侧边栏、输入框底 */
   --surface-raised: #ffffff;      /* 弹层、对话框、菜单 */
-  --surface-hover: #e7eeec;
-  --surface-selected: #d9ecea;
+  --surface-hover: #e1eafc;
+  --surface-selected: #d6e4ff;
 
-  --foreground: #0f1f1d;          /* 正文 17.0:1 on surface */
-  --foreground-muted: #4f5d5b;    /* 次要文本 6.9:1 */
-  --foreground-subtle: #6b7876;   /* 占位、禁用说明 4.59:1 */
+  --foreground: #0f172a;          /* 正文 */
+  --foreground-muted: #44536b;    /* 次要文本 */
+  --foreground-subtle: #5f6f88;   /* 占位、辅助 */
   --foreground-inverse: #ffffff;
 
-  --border: #dbe3e1;
-  --border-strong: #b9c6c3;       /* 单选框边框、输入框边框 ≥ 3:1 对比需求见 --control-border */
-  --control-border: #7d8b88;      /* ≥ 3:1 on surface，满足非文本对比 */
+  --border: #dae3f3;
+  --border-strong: #b8c7e0;
+  --control-border: #7d8cab;      /* 单选框、输入框边框，非文本 ≥ 3:1 */
 
-  --primary: #0f766e;             /* 主操作；白字 5.5:1 */
-  --primary-hover: #115e59;
+  --primary: #2563eb;             /* 主操作：Blue 600，白字 ≥ 4.5:1 */
+  --primary-hover: #1d4ed8;
   --primary-foreground: #ffffff;
-  --primary-soft: #ccebe7;        /* 选中态、主色浅底 */
-  --primary-soft-foreground: #0b4f49;
+  --primary-soft: #dbe8ff;        /* 选中态、主色浅底 */
+  --primary-soft-foreground: #1e3a8a;
+  --secondary: #0ea5e9;           /* 辅助蓝（天蓝），用于图表第二系列与装饰 */
 
-  --accent: #c2410c;              /* 强调/行动橙：逾期日期、警示；5.2:1 */
-  --accent-soft: #fde7da;
-  --success: #15803d;             /* 完成、全部完成 5.0:1 */
-  --success-soft: #dcf5e4;
+  --accent: #c2410c;              /* 强调橙：逾期、警示 */
+  --accent-soft: #ffedd5;
+  --success: #15803d;
+  --success-soft: #dcfce7;
   --warning: #a16207;
-  --warning-soft: #fdf1cf;
-  --destructive: #dc2626;         /* 删除；白字 4.8:1 */
+  --warning-soft: #fef3c7;
+  --destructive: #dc2626;
   --destructive-hover: #b91c1c;
   --destructive-foreground: #ffffff;
-  --destructive-soft: #fde2e2;
+  --destructive-soft: #fee2e2;
 
-  --ring: #0f766e;                /* 焦点环 2px + 2px offset */
-  --overlay: rgba(15, 31, 29, 0.32);
+  --ring: #2563eb;                /* 焦点环 2px + 2px offset */
+  --overlay: rgba(15, 23, 42, 0.36);
 
   /* 优先级（单选框边框色） */
   --priority-high: #dc2626;
-  --priority-medium: #c2410c;
-  --priority-low: #2563eb;
+  --priority-medium: #ea580c;
+  --priority-low: #0891b2;
   --priority-none: var(--control-border);
 
-  /* 阴影：克制、清晰 */
-  --shadow-sm: 0 1px 2px rgba(15, 31, 29, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 31, 29, 0.08), 0 1px 3px rgba(15, 31, 29, 0.06);
-  --shadow-lg: 0 12px 32px rgba(15, 31, 29, 0.14), 0 2px 6px rgba(15, 31, 29, 0.08);
+  /* 阴影：带一点蓝调 */
+  --shadow-sm: 0 1px 2px rgba(30, 58, 138, 0.06);
+  --shadow-md: 0 4px 12px rgba(30, 58, 138, 0.08), 0 1px 3px rgba(30, 58, 138, 0.06);
+  --shadow-lg: 0 12px 32px rgba(30, 58, 138, 0.14), 0 2px 6px rgba(30, 58, 138, 0.08);
 
   /* 图表 */
-  --chart-1: #0f766e;
-  --chart-2: #2563eb;
-  --chart-3: #c2410c;
-  --chart-4: #7c3aed;
-  --chart-5: #a16207;
-  --chart-6: #be185d;
-  --chart-grid: #e3e9e8;
+  --chart-1: #2563eb;
+  --chart-2: #0ea5e9;
+  --chart-3: #8b5cf6;
+  --chart-4: #14b8a6;
+  --chart-5: #f59e0b;
+  --chart-6: #ec4899;
+  --chart-grid: #e3eaf6;
+  --chart-area-from: rgba(37, 99, 235, 0.22);
+  --chart-area-to: rgba(37, 99, 235, 0);
+  /* 热力图 5 级（0 = 无完成） */
+  --heat-0: #edf2fc;
+  --heat-1: #c7dbff;
+  --heat-2: #8fb6fb;
+  --heat-3: #3a6ee0;
+  --heat-4: #1d4ed8;
+  --heat-0-fg: #44536b; --heat-1-fg: #0f172a; --heat-2-fg: #0f172a; --heat-3-fg: #ffffff; --heat-4-fg: #ffffff;
 
   /* 标签色板（12 色）：fg = 胶囊文字/圆点，bg = 胶囊底；fg on bg ≥ 4.5:1 */
   --tag-teal-fg: #0b5f58;    --tag-teal-bg: #d5f0ec;
@@ -146,33 +156,34 @@
 }
 
 .dark {
-  /* ---------- 语义色：深色 ---------- */
-  --background: #0c1211;
-  --surface: #131a19;
-  --surface-sunken: #0f1615;
-  --surface-raised: #1a2322;
-  --surface-hover: #1f2928;
-  --surface-selected: #183533;
+  /* ---------- 语义色：深色（蓝色系） ---------- */
+  --background: #0a1020;
+  --surface: #0f172a;
+  --surface-sunken: #0c1324;
+  --surface-raised: #162036;
+  --surface-hover: #1a2640;
+  --surface-selected: #1c3264;
 
-  --foreground: #e5eeec;          /* 14.9:1 on surface */
-  --foreground-muted: #a3b1ae;    /* 8.0:1 */
-  --foreground-subtle: #7f8d8a;   /* 5.1:1 */
-  --foreground-inverse: #0c1211;
+  --foreground: #e2e8f0;
+  --foreground-muted: #a3b1c8;
+  --foreground-subtle: #7c8ba5;
+  --foreground-inverse: #0a1020;
 
-  --border: #263130;
-  --border-strong: #34413f;
-  --control-border: #6b7a77;      /* 3.6:1 on surface */
+  --border: #1f2b44;
+  --border-strong: #2d3d5e;
+  --control-border: #64779c;
 
-  --primary: #2dd4bf;             /* 深色下提亮；深字 9.6:1 */
-  --primary-hover: #5eead4;
-  --primary-foreground: #04302b;
-  --primary-soft: #133b37;
-  --primary-soft-foreground: #8ff0e1;
+  --primary: #60a5fa;             /* 深色下提亮：Blue 400，配深色文字 */
+  --primary-hover: #93c5fd;
+  --primary-foreground: #0a1730;
+  --primary-soft: #172c55;
+  --primary-soft-foreground: #bfdbfe;
+  --secondary: #38bdf8;
 
-  --accent: #fb923c;              /* 7.9:1 on surface */
+  --accent: #fb923c;
   --accent-soft: #3a2316;
   --success: #4ade80;
-  --success-soft: #133222;
+  --success-soft: #12301f;
   --warning: #facc15;
   --warning-soft: #352d0e;
   --destructive: #f87171;
@@ -180,24 +191,32 @@
   --destructive-foreground: #2a0a0a;
   --destructive-soft: #3a1818;
 
-  --ring: #2dd4bf;
+  --ring: #60a5fa;
   --overlay: rgba(0, 0, 0, 0.55);
 
   --priority-high: #f87171;
   --priority-medium: #fb923c;
-  --priority-low: #60a5fa;
+  --priority-low: #22d3ee;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 
-  --chart-1: #2dd4bf;
-  --chart-2: #60a5fa;
-  --chart-3: #fb923c;
-  --chart-4: #a78bfa;
-  --chart-5: #facc15;
+  --chart-1: #60a5fa;
+  --chart-2: #38bdf8;
+  --chart-3: #a78bfa;
+  --chart-4: #2dd4bf;
+  --chart-5: #fbbf24;
   --chart-6: #f472b6;
-  --chart-grid: #222c2b;
+  --chart-grid: #1c2740;
+  --chart-area-from: rgba(96, 165, 250, 0.28);
+  --chart-area-to: rgba(96, 165, 250, 0);
+  --heat-0: #162036;
+  --heat-1: #1a3566;
+  --heat-2: #1f4fa8;
+  --heat-3: #3b7ae6;
+  --heat-4: #93c5fd;
+  --heat-0-fg: #a3b1c8; --heat-1-fg: #e2e8f0; --heat-2-fg: #ffffff; --heat-3-fg: #0a1020; --heat-4-fg: #0a1020;
 
   --tag-teal-fg: #7ee8d8;    --tag-teal-bg: #12332f;
   --tag-blue-fg: #93b8fb;    --tag-blue-bg: #172a4a;

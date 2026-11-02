@@ -550,17 +550,121 @@ function renderTagManager() {
 /* ---------- 统计 ---------- */
 function statsPeriod() {
   const tab = state.statsTab, off = state.statsOffset;
-  if (tab === 'day') { const d = addDays(TODAY, off); return { from: d, to: d, label: off === 0 ? '今天' : friendlyDate(d) + ' · ' + d, prevFrom: addDays(d, -1), prevTo: addDays(d, -1) }; }
-  if (tab === 'week') { const s = addDays(weekStartOf(TODAY), off * 7); const e = addDays(s, 6); return { from: s, to: e, label: off === 0 ? '本周' : off === -1 ? '上周' : `${s} ~ ${e}`, prevFrom: addDays(s, -7), prevTo: addDays(s, -1) }; }
+  if (tab === 'day') { const d = addDays(TODAY, off); return { from: d, to: d, label: off === 0 ? '今天' : off === -1 ? '昨天' : d, unit: '天', prevFrom: addDays(d, -1), prevTo: addDays(d, -1), prevName: off === 0 ? '昨天' : '前一天' }; }
+  if (tab === 'week') { const s = addDays(weekStartOf(TODAY), off * 7); const e = addDays(s, 6); return { from: s, to: e, label: off === 0 ? '本周' : off === -1 ? '上周' : `${s.slice(5)} ~ ${e.slice(5)}`, unit: '周', prevFrom: addDays(s, -7), prevTo: addDays(s, -1), prevName: '上周同期' }; }
   const base = parse(TODAY); const m = new Date(base.getFullYear(), base.getMonth() + off, 1);
   const s = ymd(m); const e = ymd(new Date(m.getFullYear(), m.getMonth() + 1, 0));
   const pm = new Date(m.getFullYear(), m.getMonth() - 1, 1);
-  return { from: s, to: e, label: off === 0 ? '本月' : `${m.getFullYear()} 年 ${m.getMonth() + 1} 月`, prevFrom: ymd(pm), prevTo: ymd(new Date(m.getFullYear(), m.getMonth(), 0)) };
+  return { from: s, to: e, label: off === 0 ? '本月' : `${m.getFullYear()} 年 ${m.getMonth() + 1} 月`, unit: '月', prevFrom: ymd(pm), prevTo: ymd(new Date(m.getFullYear(), m.getMonth(), 0)), prevName: '上月同期' };
 }
 function allLogs() {
   const live = state.todos.filter((t) => t.done && t.doneAt).map((t) => ({ title: t.title, tag: t.tags[0] || null, at: t.doneAt }));
   return [...state.logs, ...live];
 }
+const countOn = (logs, d) => logs.filter((l) => l.at.startsWith(d)).length;
+function streaks(logs) {
+  const days = new Set(logs.map((l) => l.at.slice(0, 10)));
+  let cur = 0; let d = days.has(TODAY) ? TODAY : addDays(TODAY, -1);
+  while (days.has(d)) { cur++; d = addDays(d, -1); }
+  let best = 0, run = 0; const sorted = [...days].sort();
+  sorted.forEach((x, i) => { run = i && diffDays(x, sorted[i - 1]) === 1 ? run + 1 : 1; best = Math.max(best, run); });
+  return { cur, best, last7: [...Array(7)].map((_, i) => { const day = addDays(TODAY, i - 6); return { day, on: days.has(day) }; }) };
+}
+// 平滑曲线（Catmull-Rom → 三次贝塞尔）
+function smooth(pts) {
+  if (pts.length < 2) return '';
+  let p = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    p += ` C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
+  }
+  return p;
+}
+function ring(pct, size = 88, stroke = 9) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--primary-soft)" stroke-width="${stroke}"/>
+    ${pct > 0 ? `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--primary)" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${(c * pct) / 100} ${c}" transform="rotate(-90 ${size / 2} ${size / 2})"/>` : ''}</svg>`;
+}
+function donut(segs, size = 132, stroke = 18) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, total = segs.reduce((n, s) => n + s.v, 0) || 1;
+  let acc = 0; const gap = segs.length > 1 ? 2 : 0;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--surface-sunken)" stroke-width="${stroke}"/>
+    ${segs.map((s) => { const len = (c * s.v) / total; const el = `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${stroke}" stroke-dasharray="${Math.max(len - gap, 0.5)} ${c}" stroke-dashoffset="${-acc}" transform="rotate(-90 ${size / 2} ${size / 2})"/>`; acc += len; return el; }).join('')}
+  </svg>`;
+}
+const heatLevel = (n, max) => (n <= 0 ? 0 : Math.min(4, Math.ceil((n / Math.max(max, 1)) * 4)));
+
+// 周：平滑面积折线 + 上周虚线对比
+function weekTrend(p, logs) {
+  const days = [...Array(7)].map((_, i) => addDays(p.from, i));
+  const cur = days.map((d) => ({ d, v: countOn(logs, d), future: d > TODAY }));
+  const prev = days.map((_, i) => countOn(logs, addDays(p.prevFrom, i)));
+  const max = Math.max(4, ...cur.map((x) => x.v), ...prev);
+  const W = 680, H = 220, L = 32, R = 20, T = 28, B = 28;
+  const x = (i) => L + (i * (W - L - R)) / 6, y = (v) => T + (1 - v / max) * (H - T - B);
+  const past = cur.filter((c) => !c.future);
+  const pts = past.map((c, i) => [x(i), y(c.v)]);
+  const prevPts = prev.map((v, i) => [x(i), y(v)]);
+  const area = pts.length > 1 ? `${smooth(pts)} L${pts[pts.length - 1][0]},${H - B} L${pts[0][0]},${H - B} Z` : '';
+  const ticks = [0, Math.round(max / 2), max];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${p.label}每天完成数折线图，虚线为前一周">
+    <defs><linearGradient id="area-grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--chart-area-from)"/><stop offset="1" stop-color="var(--chart-area-to)"/></linearGradient></defs>
+    ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${t}</text>`).join('')}
+    <path d="${smooth(prevPts)}" class="line-prev"/>
+    ${area ? `<path d="${area}" fill="url(#area-grad)"/>` : ''}
+    ${pts.length > 1 ? `<path d="${smooth(pts)}" class="line-cur"/>` : ''}
+    ${cur.map((c, i) => `
+      <g class="pt" tabindex="${c.future ? -1 : 0}">
+        <title>${c.d} 周${WEEK[parse(c.d).getDay()]}：${c.future ? '未到' : `完成 ${c.v} 项`} · 前一周同日 ${prev[i]} 项</title>
+        ${c.future ? `<circle cx="${x(i)}" cy="${H - B}" r="3" class="dot-future"/>` : `<circle cx="${x(i)}" cy="${y(c.v)}" r="${c.d === TODAY ? 6 : 4.5}" class="dot ${c.d === TODAY ? 'today' : ''}"/><text class="val" x="${x(i)}" y="${y(c.v) - 12}" text-anchor="middle">${c.v}</text>`}
+        <text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="${c.d === TODAY ? 'xl-today' : ''}">${c.d === TODAY ? '今天' : '周' + WEEK[parse(c.d).getDay()]}</text>
+      </g>`).join('')}
+  </svg>
+  <div class="legend"><span><i class="sw line"></i>${p.label}</span><span><i class="sw dash"></i>${state.statsOffset === 0 ? '上周' : '前一周'}</span></div>`;
+}
+
+// 月：日历热力图
+function monthHeatmap(p, logs) {
+  const ws = state.settings.weekStart;
+  const pad = (parse(p.from).getDay() - ws + 7) % 7;
+  const days = diffDays(p.to, p.from) + 1;
+  const counts = [...Array(days)].map((_, i) => countOn(logs, addDays(p.from, i)));
+  const max = Math.max(...counts, 1);
+  const cells = [];
+  for (let i = 0; i < pad; i++) cells.push('<div class="hm-cell blank" aria-hidden="true"></div>');
+  counts.forEach((n, i) => {
+    const d = addDays(p.from, i);
+    const future = d > TODAY;
+    cells.push(`<div class="hm-cell ${future ? 'future' : `lv${heatLevel(n, max)}`} ${d === TODAY ? 'is-today' : ''}" role="gridcell" tabindex="${future ? -1 : 0}" title="${d}：${future ? '未到' : `完成 ${n} 项`}" aria-label="${d} ${future ? '未到' : `完成 ${n} 项`}">
+      <span class="dd">${i + 1}</span>${!future && n ? `<span class="nn">${n}</span>` : ''}</div>`);
+  });
+  return `
+    <div class="hm" role="grid" aria-label="${p.label}每日完成热力图">
+      ${[...Array(7)].map((_, i) => `<div class="hm-wd">周${WEEK[(i + ws) % 7]}</div>`).join('')}
+      ${cells.join('')}
+    </div>
+    <div class="legend"><span>少</span>${[0, 1, 2, 3, 4].map((l) => `<i class="hm-sw lv${l}"></i>`).join('')}<span>多</span><span class="help">· 格内右下角数字为当天完成数</span></div>`;
+}
+
+// 日：小时分布条 + 完成时间线
+function dayTimeline(cur) {
+  const hours = [...Array(24)].map((_, h) => cur.filter((l) => Number(l.at.slice(11, 13)) === h).length);
+  const max = Math.max(...hours, 1);
+  const items = [...cur].sort((a, b) => a.at.localeCompare(b.at));
+  return `
+    <div class="hour-strip" role="img" aria-label="按小时分布">
+      ${hours.map((n, h) => `<div class="hs-cell lv${heatLevel(n, max)}" title="${h}:00–${h + 1}:00 完成 ${n} 项"></div>`).join('')}
+    </div>
+    <div class="hour-axis"><span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+    ${items.length ? `<ol class="timeline">${items.map((l) => { const tg = l.tag && tagById(l.tag); return `<li><time class="num">${l.at.slice(11)}</time><span class="node">${icon('check', 10)}</span><span class="tl-title">${esc(l.title)}</span>${tg ? `<span class="chip tc-${tg.color}"><span class="dot"></span><span>${esc(tg.name)}</span></span>` : ''}</li>`; }).join('')}</ol>`
+      : `<div class="empty" style="padding:32px"><div class="badge">${icon('clock', 24)}</div><h2>这一天还没有完成记录</h2></div>`}`;
+}
+
 function renderStats() {
   const p = statsPeriod();
   const logs = allLogs();
@@ -573,64 +677,80 @@ function renderStats() {
   const prev = logs.filter((l) => inRange(l, p.prevFrom, prevEnd));
   const delta = cur.length - prev.length;
   const due = liveTodos().filter((t) => t.date && t.date >= p.from && t.date <= p.to);
-  const rate = due.length ? Math.round((due.filter((t) => t.done).length / due.length) * 100) + '%' : '—';
-
-  // 柱状图数据
-  let bars;
-  if (state.statsTab === 'day') bars = [...Array(24)].map((_, h) => ({ label: String(h), v: cur.filter((l) => Number(l.at.slice(11, 13)) === h).length, key: `${h}:00` }));
-  else bars = [...Array(days)].map((_, i) => { const d = addDays(p.from, i); return { label: state.statsTab === 'week' ? '周' + WEEK[parse(d).getDay()] : String(Number(d.slice(8))), v: cur.filter((l) => l.at.startsWith(d)).length, key: d, today: d === TODAY, future: d > TODAY }; });
-  const max = Math.max(4, ...bars.map((b) => b.v));
-  const W = 640, H = 200, padL = 28, padB = 24, bw = (W - padL) / bars.length;
-  const ticks = [0, Math.ceil(max / 2), max];
-  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${p.label}每${state.statsTab === 'day' ? '小时' : '天'}完成数柱状图">
-    ${ticks.map((tk) => { const y = H - padB - (tk / max) * (H - padB - 12); return `<line class="grid" x1="${padL}" x2="${W}" y1="${y}" y2="${y}"/><text x="${padL - 6}" y="${y + 4}" text-anchor="end">${tk}</text>`; }).join('')}
-    ${bars.map((b, i) => {
-      const h = (b.v / max) * (H - padB - 12); const x = padL + i * bw + bw * 0.18; const w = bw * 0.64; const y = H - padB - h;
-      const showLabel = bars.length <= 12 || i % (state.statsTab === 'day' ? 3 : 5) === 0 || b.today;
-      return `<rect class="bar ${b.today ? 'today' : ''}" x="${x}" y="${y}" width="${w}" height="${Math.max(h, b.v ? 2 : 0)}" rx="3" tabindex="0"><title>${b.key}：完成 ${b.v} 项</title></rect>
-        ${b.v && bars.length <= 12 ? `<text class="val" x="${x + w / 2}" y="${y - 4}" text-anchor="middle">${b.v}</text>` : ''}
-        ${showLabel ? `<text x="${x + w / 2}" y="${H - 6}" text-anchor="middle">${b.label}</text>` : ''}`;
-    }).join('')}
-  </svg>`;
+  const dueDone = due.filter((t) => t.done).length;
+  const pct = due.length ? Math.round((dueDone / due.length) * 100) : null;
+  const st = streaks(logs);
+  let best = null;
+  for (let i = 0; i < elapsed; i++) { const d = addDays(p.from, i); const n = countOn(cur, d); if (!best || n > best.n) best = { d, n }; }
+  const hourCounts = [...Array(24)].map((_, h) => cur.filter((l) => Number(l.at.slice(11, 13)) === h).length);
+  const peak = hourCounts.indexOf(Math.max(...hourCounts));
 
   // 标签分布（按根标签）
   const rootOf = (id) => { let t = tagById(id); while (t && t.parent) t = tagById(t.parent); return t; };
   const dist = {};
   for (const l of cur) { const r = l.tag ? rootOf(l.tag) : null; const k = r ? r.id : 'none'; dist[k] = (dist[k] || 0) + 1; }
-  const distRows = Object.entries(dist).sort((a, b) => b[1] - a[1]);
-  const dmax = Math.max(1, ...distRows.map((x) => x[1]));
+  const segs = Object.entries(dist).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const tg = tagById(k); return { v, name: tg ? tg.name : '无标签', color: tg ? `var(--tag-${tg.color}-fg)` : 'var(--control-border)' }; });
+
+  const main = state.statsTab === 'week' ? `<div class="panel chart"><h2>每日完成趋势<span class="help">虚线为前一周，悬停圆点查看同日对比</span></h2>${weekTrend(p, logs)}</div>`
+    : state.statsTab === 'month' ? `<div class="panel"><h2>完成日历<span class="help">颜色越深，完成越多</span></h2>${monthHeatmap(p, logs)}</div>`
+    : `<div class="panel"><h2>完成时间线<span class="help">${cur.length ? `最活跃时段 ${peak}:00–${peak + 1}:00` : ''}</span></h2>${dayTimeline(cur)}</div>`;
+
+  const byDay = {};
+  for (const l of cur) (byDay[l.at.slice(0, 10)] ||= []).push(l);
+  const deltaText = delta > 0 ? `↑ ${delta}` : delta < 0 ? `↓ ${-delta}` : '持平';
 
   return `
     <main class="main" aria-label="统计">
       <header class="main-header">
         <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
-        <div><h1>统计</h1><div class="sub">${p.from === p.to ? p.from : `${p.from} ~ ${p.to}`}</div></div>
+        <div><h1>统计</h1><div class="sub">${p.from === p.to ? `${p.from} 周${WEEK[parse(p.from).getDay()]}` : `${p.from} ~ ${p.to}`}</div></div>
         <span class="spacer"></span>
         <div class="seg" role="group" aria-label="统计维度">
           ${[['day', '日'], ['week', '周'], ['month', '月']].map(([v, l]) => `<button aria-pressed="${state.statsTab === v}" data-action="stats-tab" data-val="${v}">${l}</button>`).join('')}
         </div>
-        <div class="row" style="display:flex;align-items:center;gap:4px">
-          <button class="icon-btn" data-action="stats-nav" data-val="-1" aria-label="上一期">${icon('chevronLeft')}</button>
-          <span style="min-width:72px;text-align:center;font-size:var(--text-sm);font-weight:600">${p.label}</span>
-          <button class="icon-btn" data-action="stats-nav" data-val="1" aria-label="下一期" ${state.statsOffset >= 0 ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>${icon('chevronRight')}</button>
+        <div class="period-nav">
+          <button class="icon-btn" data-action="stats-nav" data-val="-1" aria-label="上一${p.unit}">${icon('chevronLeft')}</button>
+          <span class="period">${p.label}</span>
+          <button class="icon-btn" data-action="stats-nav" data-val="1" aria-label="下一${p.unit}" ${state.statsOffset >= 0 ? 'disabled' : ''}>${icon('chevronRight')}</button>
           ${state.statsOffset ? '<button class="btn sm ghost" data-action="stats-nav" data-val="0">回到本期</button>' : ''}
         </div>
       </header>
       <div class="main-scroll">
-        <div class="kpis">
-          <div class="kpi"><div class="k">完成数</div><div class="v">${cur.length}</div><div class="d">${p.label}</div></div>
-          <div class="kpi"><div class="k">${state.statsTab === 'day' ? '最活跃时段' : '日均完成'}</div><div class="v">${state.statsTab === 'day' ? (cur.length ? bars.reduce((a, b) => (b.v > a.v ? b : a)).key : '—') : (cur.length / elapsed).toFixed(1)}</div><div class="d">${state.statsTab === 'day' ? '按完成时间' : `按已过 ${elapsed} 天计`}</div></div>
-          <div class="kpi"><div class="k">较上期同期</div><div class="v">${delta > 0 ? '+' : ''}${delta}</div><div class="d ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta > 0 ? '↑ 多完成' : delta < 0 ? '↓ 少完成' : '持平'} · 上期同期 ${prev.length}</div></div>
-          <div class="kpi"><div class="k">到期完成率</div><div class="v">${rate}</div><div class="d">截止日期在本期内的事项</div></div>
+        <div class="stats-hero">
+          <section class="hero-card hero-main" aria-label="完成数">
+            <div class="k">${/\d/.test(p.label) ? p.label + ' ' : p.label}完成</div>
+            <div class="hero-num"><span class="num">${cur.length}</span><span class="unit">项</span>
+              <span class="pill ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}" title="${p.prevName} ${prev.length} 项">${deltaText}<span class="sr-only">，与${p.prevName}相比</span></span>
+            </div>
+            <div class="hero-sub">${state.statsTab === 'day'
+              ? `${p.prevName} ${prev.length} 项${cur.length ? ` · 最活跃 ${peak}:00–${peak + 1}:00` : ''}`
+              : `日均 <b class="num">${(cur.length / elapsed).toFixed(1)}</b> 项 · 最多 <b>${best && best.n ? `${friendlyDate(best.d)} ${best.n} 项` : '—'}</b> · ${p.prevName} ${prev.length} 项`}</div>
+          </section>
+          <section class="hero-card hero-ring" aria-label="到期完成率">
+            <div class="ring-wrap">${ring(pct ?? 0)}<span class="ring-txt num">${pct == null ? '—' : pct + '%'}</span></div>
+            <div><div class="k">到期完成率</div><div class="hero-sub">${due.length ? `截止在${/\d/.test(p.label) ? ' ' + p.label + ' ' : p.label}的 ${due.length} 项中<br>已完成 ${dueDone} 项` : `${p.label}没有到期事项`}</div></div>
+          </section>
+          <section class="hero-card hero-streak" aria-label="连续完成天数">
+            <div class="k">连续完成</div>
+            <div class="hero-num"><span class="num">${st.cur}</span><span class="unit">天</span></div>
+            <div class="streak-dots" aria-label="最近 7 天">${st.last7.map((x) => `<span class="sd ${x.on ? 'on' : ''} ${x.day === TODAY ? 'today' : ''}" title="${x.day}${x.on ? ' 有完成' : ' 无完成'}">${WEEK[parse(x.day).getDay()]}</span>`).join('')}</div>
+            <div class="hero-sub">最长纪录 ${st.best} 天</div>
+          </section>
         </div>
-        <div class="panel chart"><h2>完成趋势</h2>${svg}</div>
-        <div class="two-col">
-          <div class="panel"><h2>完成明细 <span class="help">${cur.length} 条</span></h2>
-            ${cur.length ? `<ul class="log-list">${cur.slice(0, 60).map((l) => { const tg = l.tag && tagById(l.tag); return `<li><span class="t">${state.statsTab === 'day' ? l.at.slice(11) : l.at.slice(5)}</span><span class="ok">${icon('checkCircle', 14)}</span><span style="flex:1">${esc(l.title)}</span>${tg ? `<span class="chip tc-${tg.color}"><span class="dot"></span><span>${esc(tg.name)}</span></span>` : ''}</li>`; }).join('')}</ul>` : '<p class="help">本期还没有完成记录</p>'}
+        ${main}
+        <div class="${state.statsTab === 'day' ? '' : 'two-col'}">
+          <div class="panel"><h2>按标签分布<span class="help">按根标签汇总</span></h2>
+            ${segs.length ? `<div class="donut-wrap">
+              <div class="donut">${donut(segs)}<div class="donut-center"><b class="num">${cur.length}</b><span>项</span></div></div>
+              <ul class="donut-legend">${segs.map((s) => `<li><span class="dot" style="background:${s.color}"></span><span class="nm">${esc(s.name)}</span><span class="num">${s.v}</span><span class="pc num">${Math.round((s.v / cur.length) * 100)}%</span></li>`).join('')}</ul>
+            </div>` : '<p class="help">暂无数据</p>'}
           </div>
-          <div class="panel"><h2>按标签分布</h2>
-            <div class="dist">${distRows.map(([k, n]) => { const tg = tagById(k); return `<div class="dist-row ${tg ? 'tc-' + tg.color : ''}"><span style="display:flex;align-items:center;gap:6px"><span class="dot"></span>${tg ? esc(tg.name) : '无标签'}</span><span class="track"><span class="fill" style="display:block;width:${(n / dmax) * 100}%"></span></span><span class="n">${n}</span></div>`; }).join('') || '<p class="help">暂无数据</p>'}</div>
-          </div>
+          ${state.statsTab === 'day' ? '' : `<div class="panel"><h2>完成明细<span class="help">${cur.length} 条</span></h2>
+            ${cur.length ? `<div class="log-groups">${Object.entries(byDay).slice(0, 14).map(([d, ls]) => `
+              <div class="lg-day">${state.statsTab === 'day' ? '' : `<div class="lg-head">${friendlyDate(d)}<span>${d.slice(5)} · ${ls.length} 项</span></div>`}
+                <ul class="log-list">${ls.map((l) => { const tg = l.tag && tagById(l.tag); return `<li><span class="t">${l.at.slice(11)}</span><span class="ok">${icon('checkCircle', 14)}</span><span class="lt">${esc(l.title)}</span>${tg ? `<span class="chip tc-${tg.color}"><span class="dot"></span><span>${esc(tg.name)}</span></span>` : ''}</li>`; }).join('')}</ul>
+              </div>`).join('')}</div>` : '<p class="help">本期还没有完成记录</p>'}
+          </div>`}
         </div>
       </div>
     </main>`;

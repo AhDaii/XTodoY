@@ -31,7 +31,7 @@ PAIRS = [
     ("priority-high", "surface", 3.0),
     ("priority-medium", "surface", 3.0),
     ("priority-low", "surface", 3.0),
-] + [(f"tag-{c}-fg", f"tag-{c}-bg", 4.5) for c in
+] + [(f"heat-{i}-fg", f"heat-{i}", 4.5) for i in range(5)] + [(f"tag-{c}-fg", f"tag-{c}-bg", 4.5) for c in
      "teal blue indigo violet pink red orange amber lime green cyan slate".split()]
 
 
