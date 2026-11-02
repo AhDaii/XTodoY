@@ -162,3 +162,42 @@ test('渲染进程拿不到 Node，主进程拒绝不合法的输入', async () 
   expect(probe.bad).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
   expect(probe.long).toMatchObject({ ok: false, error: { message: '标题不能超过 200 个字符' } });
 });
+
+test('所有滚动区域都占满所在列，滚动条贴在列的右侧', async () => {
+  const main = await windowByPage('main');
+  await main.setViewportSize({ width: 1000, height: 600 });
+  await addTodo(main, '用于打开详情面板');
+  await main.locator('.todo').first().click();
+
+  const pages: [string, () => Promise<void>][] = [
+    ['今天 + 详情面板', async () => {}],
+    ['标签管理', () => main.getByRole('button', { name: '标签管理' }).click()],
+    ['设置', () => main.getByRole('button', { name: '设置' }).click()],
+  ];
+  for (const [name, open] of pages) {
+    await open();
+    const gaps = await main.evaluate(() =>
+      [
+        ['.main-scroll', '.main'],
+        ['.detail-body', '.detail'],
+        ['.sidebar nav', '.sidebar'],
+      ].flatMap(([scroller, column]) => {
+        const s = document.querySelector(scroller!);
+        const c = document.querySelector(column!);
+        if (!s || !c) return [];
+        return [{ scroller, gap: Math.round(c.getBoundingClientRect().right - s.getBoundingClientRect().right) }];
+      }),
+    );
+    for (const g of gaps) expect(g.gap, `${name}：${g.scroller} 右侧留白`).toBeLessThanOrEqual(1);
+  }
+  // 设置页在 600px 高度下需要滚动，且内容宽度仍受 720px 限制
+  const settings = await main.evaluate(() => {
+    const s = document.querySelector('.main-scroll')!;
+    return {
+      scrolls: s.scrollHeight > s.clientHeight,
+      section: document.querySelector('.settings > section')!.getBoundingClientRect().width,
+    };
+  });
+  expect(settings.scrolls).toBe(true);
+  expect(settings.section).toBeLessThanOrEqual(720);
+});

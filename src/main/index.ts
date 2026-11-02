@@ -20,6 +20,10 @@ import { TodoService } from './services/todos';
 import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
 
+// 指定了独立数据目录（测试、试用）时，Chromium 配置与单实例锁也随之隔离，不影响正在运行的正式实例
+const customDataDir = process.env['XTODOY_DATA_DIR'];
+if (customDataDir) app.setPath('userData', join(customDataDir, 'electron'));
+
 // 单实例（FR-BG-04）：第二个实例把参数交给第一个实例后退出
 if (!app.requestSingleInstanceLock()) {
   app.exit(0);
@@ -70,7 +74,7 @@ app.on('before-quit', () => {
 });
 
 void app.whenReady().then(() => {
-  const dataDir = process.env['XTODOY_DATA_DIR'] ?? join(app.getPath('userData'), 'data');
+  const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
   const opened = openDatabase(dataDir);
   db = opened.db;
   settings = new SettingsService(db);
