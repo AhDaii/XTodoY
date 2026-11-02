@@ -47,6 +47,7 @@
   --size-row: 44px;         /* 待办列表行（≥ 44px 点击区域） */
   --size-checkbox: 18px;    /* 圆形单选框可视尺寸，点击区域扩展到 32px */
   --size-sidebar: 240px;
+  --size-rail: 56px;        /* 侧边栏折叠后的图标栏 */
   --size-detail: 360px;
   --size-floating: 64px;    /* 悬浮窗 */
 

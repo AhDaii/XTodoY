@@ -1,4 +1,4 @@
-# XTodoY 设计系统 v1.2
+# XTodoY 设计系统 v1.3
 
 > 阶段：P2 界面原型 · 依据：[SRS v1.1](../docs/srs/SRS.md) · 工具：ui-ux-pro-max
 > 令牌源文件：[`tokens.css`](tokens.css)（前端直接引用）· 原型：[`prototype/index.html`](prototype/index.html)、[`prototype/system.html`](prototype/system.html)
@@ -147,6 +147,12 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 ### 7.4 侧边栏
 
 智能视图（今天 / 计划 / 全部 / 已完成 / 回收站）+ 分隔线 + 标签树（可折叠，缩进 16 px / 级）+ 底部（统计、标签管理、设置）。每项右侧显示计数徽标（`--foreground-subtle`，`tabular-nums`）。
+
+**折叠**（v1.3，参考 Outlook / Teams / VS Code 等桌面应用的通行做法）：
+- 折叠按钮固定在 **标题栏最左侧**（应用图标之前），展开、折叠时位置不变；快捷键 `Ctrl+B`；按钮带 `aria-expanded` 与"折叠 / 展开侧边栏（Ctrl+B）"提示。
+- 折叠后不是完全隐藏，而是收成 **56 px 图标栏**（`--size-rail`）：保留智能视图与底部入口（20 px 图标），隐藏标签树；名称与数量通过悬停提示和读屏标签提供；"今天"在图标右上角显示主色数量角标；当前项左侧有 3 px 主色指示条。
+- 折叠状态保存在设置中，重启后保持；宽度切换有 200 ms 过渡（尊重"减少动画"）。
+- 页面标题前不再放折叠按钮。
 
 ### 7.5 悬浮窗
 

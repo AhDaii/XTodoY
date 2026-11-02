@@ -190,9 +190,10 @@ function groupsForView() {
 /* ---------- 渲染：侧边栏 ---------- */
 function renderSidebar() {
   const c = counts();
+  const rail = state.sidebarCollapsed;
   const item = (view, ic, label, count, key, badge) => `
-    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}">
-      ${icon(ic)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}${badge ? `<span class="badge-dot" role="img" aria-label="${badge}"></span>` : ''}
+    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}" ${rail ? `aria-label="${label}${count ? `，${count} 项` : ''}"` : ''}>
+      ${icon(ic, rail ? 20 : 16)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}${rail && view === 'today' && count ? `<span class="rail-count" aria-hidden="true">${count > 99 ? '99+' : count}</span>` : ''}${badge ? `<span class="badge-dot" role="img" aria-label="${badge}"></span>` : ''}
     </button>`;
   const tree = (parent, depth) => children(parent).map((tg) => {
     const kids = children(tg.id).length > 0;
@@ -208,19 +209,19 @@ function renderSidebar() {
       </div>`;
   }).join('');
   return `
-    <aside class="sidebar" aria-label="导航">
+    <aside id="sidebar" class="sidebar ${rail ? 'is-rail' : ''}" aria-label="导航">
       <nav>
         ${item('today', 'sun', '今天', c.today, 1)}
         ${item('plan', 'calendar', '计划', c.plan, 2)}
         ${item('all', 'inbox', '全部', c.all, 3)}
         ${item('done', 'checkCircle', '已完成', c.done, 4)}
         ${item('trash', 'trash', '回收站', null, 5)}
-        <div class="nav-section">
+        ${rail ? '' : `<div class="nav-section">
           <div class="nav-section-title"><span>标签</span>
             <button class="icon-btn" data-action="view" data-view="tags" aria-label="管理标签" title="管理标签">${icon('settings', 14)}</button>
           </div>
           <div role="tree" aria-label="标签">${tree(null, 0)}</div>
-        </div>
+        </div>`}
       </nav>
       <div class="sidebar-footer">
         ${item('stats', 'chart', '统计')}
@@ -303,7 +304,6 @@ function renderList() {
   return `
     <main class="main" aria-label="${state.search ? '搜索结果' : VIEW_META[state.view]?.title || '标签'}">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="${state.sidebarCollapsed ? '展开' : '折叠'}侧边栏" title="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>${title}</h1><div class="sub">${sub}</div></div>
         <span class="spacer"></span>${extra}
         ${state.view === 'trash' && total ? '<button class="btn sm ghost" data-action="purge-all">清空回收站</button>' : ''}
@@ -549,7 +549,6 @@ function renderTagManager() {
   return `
     <main class="main" aria-label="标签管理">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>标签管理</h1><div class="sub">共 ${state.tags.length} 个标签 · 最多 5 级 · 拖动行到另一标签上可调整层级</div></div>
         <span class="spacer"></span>
         <button class="btn primary" data-action="tag-add-root">${icon('plus', 14)}新建标签</button>
@@ -716,7 +715,6 @@ function renderStats() {
   return `
     <main class="main" aria-label="统计">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>统计</h1><div class="sub">${p.from === p.to ? `${p.from} 周${WEEK[parse(p.from).getDay()]}` : `${p.from} ~ ${p.to}`}</div></div>
         <span class="spacer"></span>
         <div class="seg" role="group" aria-label="统计维度">
@@ -778,7 +776,6 @@ function renderSettings() {
   return `
     <main class="main" aria-label="设置">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>设置</h1><div class="sub">修改即时生效</div></div>
       </header>
       <div class="main-scroll settings">
@@ -936,6 +933,20 @@ function setUpdateDemo(v) {
   reveal();
 }
 
+/* 侧边栏折叠（标题栏按钮 / Ctrl+B），按钮状态随之更新 */
+function toggleSidebar() {
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  render();
+}
+function syncSidebarToggle() {
+  const b = document.getElementById('sidebar-toggle');
+  if (!b) return;
+  const label = state.sidebarCollapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）';
+  b.setAttribute('aria-expanded', String(!state.sidebarCollapsed));
+  b.setAttribute('aria-label', label);
+  b.title = label;
+}
+
 /* ---------- 主渲染 ---------- */
 let lastRenderedView = null;
 function render() {
@@ -948,6 +959,7 @@ function render() {
       ${renderSidebar()}${main}${renderDetail()}
     </div>`;
   document.title = `XTodoY · ${state.search ? '搜索' : VIEW_META[v]?.title || ({ stats: '统计', tags: '标签管理', settings: '设置' }[v] || tagById(v.slice(4))?.name)}`;
+  syncSidebarToggle();
   if (focusId && document.getElementById(focusId)) document.getElementById(focusId).focus();
   if (keepScroll && $('.main-scroll')) $('.main-scroll').scrollTop = keepScroll;
   lastRenderedView = v;
@@ -1099,7 +1111,7 @@ document.addEventListener('click', (e) => {
     case 'priority': current().priority = val; render(); break;
     case 'skip': { const t = current(); const snap = t.date; t.date = nextOccurrences(addDays(t.date, 1), t.repeat, 1)[0]; render(); toast(`已跳过本次，下一次：${friendlyDate(t.date)}`, () => (t.date = snap)); } break;
     case 'include-children': state.includeChildren = val === '1'; render(); break;
-    case 'toggle-sidebar': state.sidebarCollapsed = !state.sidebarCollapsed; render(); break;
+    case 'toggle-sidebar': toggleSidebar(); break;
     case 'pop-date': state.calMonth = null; datePopover(a); break;
     case 'pop-repeat': repeatPopover(a); break;
     case 'pop-reminder': reminderPopover(a); break;
@@ -1194,6 +1206,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (!$('#quick-add')) { state.view = 'today'; render(); } $('#quick-add').focus(); return; }
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); return; }
+  if (e.ctrlKey && e.key.toLowerCase() === 'b') { e.preventDefault(); toggleSidebar(); return; }
   if (e.ctrlKey && e.key === ',') { e.preventDefault(); state.view = 'settings'; render(); return; }
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); state.view = ['today', 'plan', 'all', 'done', 'trash'][Number(e.key) - 1]; state.search = ''; render(); return; }
   if (e.key === 'Escape') { if (pop) closePopover(); else if (state.selected) { state.selected = null; render(); } return; }
@@ -1254,7 +1267,10 @@ function mountChrome() {
     </div>
     <div class="window">
       <header class="titlebar">
-        <div class="brand">${logo()}<span>XTodoY</span></div>
+        <div class="brand">
+          <button id="sidebar-toggle" class="icon-btn" data-action="toggle-sidebar" aria-controls="sidebar">${icon('panelLeft')}</button>
+          ${logo()}<span>XTodoY</span>
+        </div>
         <label class="search">${icon('search', 14)}<span class="sr-only">搜索</span><input id="search" placeholder="搜索待办" autocomplete="off"><kbd>Ctrl+F</kbd></label>
         <div class="win-controls">
           <button data-action="win-min" aria-label="最小化">${icon('minus', 14)}</button>

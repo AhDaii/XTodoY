@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { SmartView } from '@shared/types';
 import { DetailPanel } from './components/DetailPanel';
 import { Icon, Logo } from './components/Icon';
 import { Toast } from './components/Overlay';
 import { Sidebar } from './components/Sidebar';
-import { api } from './lib/api';
-import { useCounts, useSettings, useTagTree } from './lib/data';
+import { api, call } from './lib/api';
+import { useCounts, useReportError, useSettings, useTagTree } from './lib/data';
 import { useUi } from './lib/store';
 import { ListPage } from './pages/ListPage';
 import { SettingsPage, StatsPage } from './pages/SettingsPage';
@@ -17,7 +17,14 @@ export function App() {
   const counts = useCounts();
   const tags = useTagTree();
   const settings = useSettings();
-  const { route, selectedId, search, sidebarCollapsed, go, select, setSearch } = useUi();
+  const { route, selectedId, search, go, select, setSearch } = useUi();
+  const report = useReportError();
+  const collapsed = settings?.sidebarCollapsed ?? false;
+  // 折叠状态保存在设置里，重启后保持（标题栏按钮 / Ctrl+B）
+  const toggleSidebar = useCallback(
+    () => void call(api.settings.set('sidebarCollapsed', !collapsed)).catch(report),
+    [collapsed, report],
+  );
   const searchRef = useRef<HTMLInputElement>(null);
 
   // 托盘 / 通知 / 悬浮窗要求跳转（nav:open）
@@ -41,6 +48,9 @@ export function App() {
           go({ kind: 'view', view: 'today' });
         }
         setTimeout(() => document.getElementById('quick-add')?.focus());
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
       } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         searchRef.current?.focus();
@@ -56,7 +66,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, select]);
+  }, [go, select, toggleSidebar]);
 
   const showList = route.kind !== 'page' || search !== '';
   const page = showList ? (
@@ -73,6 +83,16 @@ export function App() {
     <div className="window">
       <header className="titlebar">
         <div className="brand">
+          <button
+            className="icon-btn"
+            aria-controls="sidebar"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）'}
+            title={collapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）'}
+            onClick={toggleSidebar}
+          >
+            <Icon name="panelLeft" />
+          </button>
           <Logo />
           <span>XTodoY</span>
         </div>
@@ -91,8 +111,8 @@ export function App() {
           <kbd>Ctrl+F</kbd>
         </label>
       </header>
-      <div className={`body ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <Sidebar counts={counts} tags={tags} />
+      <div className={`body ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        <Sidebar counts={counts} tags={tags} rail={collapsed} />
         {page}
         {showList && selectedId && settings && (
           <DetailPanel id={selectedId} tags={tags} weekStart={settings.weekStart} />

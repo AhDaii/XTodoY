@@ -201,3 +201,32 @@ test('所有滚动区域都占满所在列，滚动条贴在列的右侧', async
   expect(settings.scrolls).toBe(true);
   expect(settings.section).toBeLessThanOrEqual(720);
 });
+
+test('标题栏按钮与 Ctrl+B 折叠侧边栏为图标栏，状态在重启后保留', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '用于显示角标');
+  const toggle = main.locator('.titlebar').getByRole('button', { name: /折叠侧边栏/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  // 页面标题前不再有折叠按钮
+  await expect(main.locator('.main-header').getByRole('button', { name: /侧边栏/ })).toHaveCount(0);
+
+  await toggle.click();
+  const sidebar = main.locator('#sidebar');
+  await expect(sidebar).toHaveClass(/is-rail/);
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(56);
+  await expect(main.locator('.titlebar').getByRole('button', { name: /展开侧边栏/ })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  // 图标栏仍可导航，名称通过读屏标签提供，"今天"显示数量角标
+  await expect(main.locator('.rail-count')).toHaveText('1');
+  await main.getByRole('button', { name: '计划，1 项' }).click();
+  await expect(main.getByRole('heading', { name: '计划', exact: true })).toBeVisible();
+
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir } });
+  const again = await windowByPage('main');
+  await expect(again.locator('#sidebar')).toHaveClass(/is-rail/);
+  await again.keyboard.press('Control+b');
+  await expect(again.locator('#sidebar')).not.toHaveClass(/is-rail/);
+});

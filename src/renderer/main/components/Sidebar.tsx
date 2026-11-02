@@ -13,7 +13,8 @@ const SMART: [SmartView, IconName, string, number][] = [
 
 const same = (a: Route, b: Route): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-export function Sidebar({ counts, tags }: { counts: ViewCounts; tags: TagNode[] }) {
+/** rail = 折叠后的 56px 图标栏：只保留智能视图与底部入口，名称通过悬停提示与读屏标签提供 */
+export function Sidebar({ counts, tags, rail }: { counts: ViewCounts; tags: TagNode[]; rail: boolean }) {
   const { route, search, collapsedTags, go, toggleTag } = useUi();
   const current = (r: Route) => (!search && same(route, r) ? ('page' as const) : undefined);
 
@@ -21,12 +22,18 @@ export function Sidebar({ counts, tags }: { counts: ViewCounts; tags: TagNode[] 
     <button
       className="nav-item"
       aria-current={current(r)}
-      title={key ? `${label}（Ctrl+${key}）` : label}
+      aria-label={rail ? `${label}${count ? `，${count} 项` : ''}` : undefined}
+      title={`${label}${rail && count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}`}
       onClick={() => go(r)}
     >
-      <Icon name={icon} />
+      <Icon name={icon} size={rail ? 20 : 16} />
       <span className="label">{label}</span>
       {count !== undefined && <span className="count">{count}</span>}
+      {rail && r.kind === 'view' && r.view === 'today' && count ? (
+        <span className="rail-count" aria-hidden="true">
+          {count > 99 ? '99+' : count}
+        </span>
+      ) : null}
     </button>
   );
 
@@ -83,34 +90,36 @@ export function Sidebar({ counts, tags }: { counts: ViewCounts; tags: TagNode[] 
     });
 
   return (
-    <aside className="sidebar" aria-label="导航">
+    <aside id="sidebar" className={`sidebar ${rail ? 'is-rail' : ''}`} aria-label="导航">
       <nav>
         {SMART.map(([v, ic, label, key]) =>
           item({ kind: 'view', view: v }, ic, label, v === 'trash' ? undefined : counts[v], key),
         )}
-        <div className="nav-section">
-          <div className="nav-section-title">
-            <span>标签</span>
-            <button
-              className="icon-btn"
-              aria-label="管理标签"
-              title="管理标签"
-              onClick={() => go({ kind: 'page', page: 'tags' })}
-            >
-              <Icon name="settings" size={14} />
-            </button>
-          </div>
-          <div role="tree" aria-label="标签">
-            {tags.length ? (
-              tree(null)
-            ) : (
-              <button className="nav-item" onClick={() => go({ kind: 'page', page: 'tags' })}>
-                <Icon name="plus" />
-                <span className="label">新建标签</span>
+        {!rail && (
+          <div className="nav-section">
+            <div className="nav-section-title">
+              <span>标签</span>
+              <button
+                className="icon-btn"
+                aria-label="管理标签"
+                title="管理标签"
+                onClick={() => go({ kind: 'page', page: 'tags' })}
+              >
+                <Icon name="settings" size={14} />
               </button>
-            )}
+            </div>
+            <div role="tree" aria-label="标签">
+              {tags.length ? (
+                tree(null)
+              ) : (
+                <button className="nav-item" onClick={() => go({ kind: 'page', page: 'tags' })}>
+                  <Icon name="plus" />
+                  <span className="label">新建标签</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </nav>
       <div className="sidebar-footer">
         {item({ kind: 'page', page: 'stats' }, 'chart', '统计')}

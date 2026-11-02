@@ -84,9 +84,6 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
   return (
     <main className="main" aria-label={title}>
       <header className="main-header">
-        <button className="icon-btn" onClick={ui().toggleSidebar} aria-label="折叠侧边栏" title="折叠侧边栏">
-          <Icon name="panelLeft" />
-        </button>
         <div>
           <h1>
             {tag ? (

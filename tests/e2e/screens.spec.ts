@@ -79,6 +79,14 @@ test('界面截图', async () => {
     await w.waitForTimeout(300);
     await w.screenshot({ path: `${out}/${theme}-settings.png` });
   }
+  // 折叠后的图标栏
+  await w.evaluate(() => window.xtodoy.settings.set('sidebarCollapsed', true));
+  await w.locator('.nav-item[title^="今天"]').click();
+  for (const theme of ['light', 'dark'] as const) {
+    await w.evaluate((t) => window.xtodoy.settings.set('theme', t), theme);
+    await w.waitForTimeout(400);
+    await w.screenshot({ path: `${out}/${theme}-rail.png` });
+  }
   const floating = app.windows().find((x) => x.url().includes('/floating/'))!;
   await floating.screenshot({ path: `${out}/floating.png` });
   await app.close();

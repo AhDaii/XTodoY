@@ -22,6 +22,10 @@ const validators: Validators = {
     if (typeof v === 'boolean') return v;
     throw invalid('悬浮窗开关取值不正确');
   },
+  sidebarCollapsed: (v) => {
+    if (typeof v === 'boolean') return v;
+    throw invalid('侧边栏折叠状态取值不正确');
+  },
   floatingPos: (v) => {
     if (v === null) return null;
     const p = v as { x?: unknown; y?: unknown };

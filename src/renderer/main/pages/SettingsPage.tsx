@@ -4,12 +4,10 @@ import type { Settings } from '@shared/types';
 import { Icon, type IconName } from '../components/Icon';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
-import { useUi } from '../lib/store';
 
 /** 设置页（UI-10）：P4 提供通用、外观、悬浮窗与关于；提醒、数据、更新在 P5 / P6 补齐 */
 export function SettingsPage({ settings }: { settings: Settings }) {
   const report = useReportError();
-  const toggleSidebar = useUi((s) => s.toggleSidebar);
   const [info, setInfo] = useState<AppInfo | null>(null);
   useEffect(() => void call(api.appInfo()).then(setInfo).catch(report), [report]);
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
@@ -24,9 +22,6 @@ export function SettingsPage({ settings }: { settings: Settings }) {
   return (
     <main className="main" aria-label="设置">
       <header className="main-header">
-        <button className="icon-btn" onClick={toggleSidebar} aria-label="折叠侧边栏">
-          <Icon name="panelLeft" />
-        </button>
         <div>
           <h1>设置</h1>
           <div className="sub">修改即时生效</div>
@@ -156,13 +151,9 @@ export function SettingsPage({ settings }: { settings: Settings }) {
 }
 
 export function StatsPage() {
-  const toggleSidebar = useUi((s) => s.toggleSidebar);
   return (
     <main className="main" aria-label="统计">
       <header className="main-header">
-        <button className="icon-btn" onClick={toggleSidebar} aria-label="折叠侧边栏">
-          <Icon name="panelLeft" />
-        </button>
         <div>
           <h1>统计</h1>
           <div className="sub">日 / 周 / 月完成统计</div>

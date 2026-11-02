@@ -68,8 +68,21 @@ a { color: var(--primary); }
 
 #app { display: grid; min-height: 0; }
 .body { display: grid; grid-template-columns: var(--size-sidebar) 1fr auto; min-height: 0; }
-.body.sidebar-collapsed { grid-template-columns: 0 1fr auto; }
-.body.sidebar-collapsed .sidebar { visibility: hidden; }
+/* 折叠后的图标栏（56px）：只显示图标，名称与数量通过悬停提示和读屏标签提供 */
+.body { transition: grid-template-columns var(--duration-base) var(--ease-out); }
+.body.sidebar-collapsed { grid-template-columns: var(--size-rail) 1fr auto; }
+.sidebar.is-rail nav, .sidebar.is-rail .sidebar-footer { padding: var(--space-2) var(--space-2); }
+.sidebar.is-rail .nav-item { position: relative; justify-content: center; height: 40px; padding: 0; margin-bottom: 2px; }
+.sidebar.is-rail .nav-item .label, .sidebar.is-rail .nav-item .count { display: none; }
+.sidebar.is-rail .nav-item[aria-current="page"]::before {
+  content: ""; position: absolute; left: -8px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--primary);
+}
+.rail-count {
+  position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-full);
+  background: var(--primary); color: var(--primary-foreground); font-size: 10px; font-weight: var(--weight-semibold); line-height: 16px; text-align: center;
+}
+.sidebar.is-rail .badge-dot { position: absolute; top: 9px; right: 10px; }
+.titlebar .brand .icon-btn { margin-left: calc(-1 * var(--space-2)); }
 
 /* ---------- 侧边栏 ---------- */
 .sidebar {

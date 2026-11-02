@@ -12,7 +12,6 @@ const MAX_DEPTH = LIMITS.tagDepthMax - 1;
 export function TagsPage({ tags }: { tags: TagNode[] }) {
   const report = useReportError();
   const showToast = useUi((s) => s.showToast);
-  const toggleSidebar = useUi((s) => s.toggleSidebar);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [colorPop, setColorPop] = useState<{ tag: TagNode; anchor: HTMLElement } | null>(null);
   const [dialog, setDialog] = useState<{ kind: 'delete' | 'merge'; tag: TagNode } | null>(null);
@@ -67,9 +66,6 @@ export function TagsPage({ tags }: { tags: TagNode[] }) {
   return (
     <main className="main" aria-label="标签管理">
       <header className="main-header">
-        <button className="icon-btn" onClick={toggleSidebar} aria-label="折叠侧边栏">
-          <Icon name="panelLeft" />
-        </button>
         <div>
           <h1>标签管理</h1>
           <div className="sub">共 {tags.length} 个标签 · 最多 5 级 · 拖动行到另一标签上可调整层级</div>

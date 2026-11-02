@@ -111,6 +111,7 @@ export interface Settings {
   closeAction: 'tray' | 'quit';
   floatingEnabled: boolean;
   floatingPos: { x: number; y: number } | null;
+  sidebarCollapsed: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -119,4 +120,5 @@ export const DEFAULT_SETTINGS: Settings = {
   closeAction: 'tray',
   floatingEnabled: true,
   floatingPos: null,
+  sidebarCollapsed: false,
 };
