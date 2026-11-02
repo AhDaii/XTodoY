@@ -19,7 +19,20 @@ const state = {
     autostart: false, closeAction: 'tray', weekStart: 1, theme: localStorage.getItem('xtodoy-theme') || 'system',
     defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, inAppPopup: false,
     floating: true, floatingOpacity: 100, floatingLock: false,
+    autoCheck: true, autoDownload: true, channel: 'stable',
   },
+  // 更新（SRS F10）：phase = latest | checking | available | downloading | ready | error
+  update: { phase: 'latest', current: '1.0.0', latest: '1.1.0', size: 38.6, progress: 0, lastCheck: '今天 09:12', error: '', skipped: false, justUpdated: false },
+};
+
+const RELEASE_NOTES = {
+  date: '2026-11-10',
+  items: [
+    ['新增', '统计页支持导出本月完成记录为 CSV'],
+    ['新增', '悬浮窗右键菜单可直接新建待办'],
+    ['改进', '提醒调度更省电，休眠唤醒后补发更快'],
+    ['修复', '跨月循环事项在 2 月可能跳过一次的问题'],
+  ],
 };
 
 const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -177,9 +190,9 @@ function groupsForView() {
 /* ---------- 渲染：侧边栏 ---------- */
 function renderSidebar() {
   const c = counts();
-  const item = (view, ic, label, count, key) => `
-    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${key ? `（Ctrl+${key}）` : ''}">
-      ${icon(ic)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}
+  const item = (view, ic, label, count, key, badge) => `
+    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}">
+      ${icon(ic)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}${badge ? `<span class="badge-dot" role="img" aria-label="${badge}"></span>` : ''}
     </button>`;
   const tree = (parent, depth) => children(parent).map((tg) => {
     const kids = children(tg.id).length > 0;
@@ -212,7 +225,7 @@ function renderSidebar() {
       <div class="sidebar-footer">
         ${item('stats', 'chart', '统计')}
         ${item('tags', 'tag', '标签管理')}
-        ${item('settings', 'settings', '设置')}
+        ${item('settings', 'settings', '设置', null, null, updateBadge())}
       </div>
     </aside>`;
 }
@@ -295,6 +308,7 @@ function renderList() {
         <span class="spacer"></span>${extra}
         ${state.view === 'trash' && total ? '<button class="btn sm ghost" data-action="purge-all">清空回收站</button>' : ''}
       </header>
+      ${state.update.justUpdated && !state.search ? `<div class="banner info" role="status">${icon('checkCircle')}<span>已更新到 XTodoY ${state.update.current}</span><button class="btn sm ghost" data-action="upd-details">查看更新内容</button><span style="flex:1"></span><button class="icon-btn" data-action="upd-dismiss-banner" aria-label="关闭提示">${icon('x', 14)}</button></div>` : ''}
       ${state.view === 'today' && !state.search && liveTodos().some(isOverdue) ? `<div class="banner warn" role="status">${icon('alert')}<span>有 ${liveTodos().filter(isOverdue).length} 项逾期未完成，不计入今日待办，可在"计划 › 逾期"中查看。</span><span class="spacer" style="flex:1"></span><button class="btn sm ghost" data-action="view" data-view="plan">查看</button></div>` : ''}
       ${canAdd ? `
       <label class="quick-add">
@@ -798,17 +812,136 @@ function renderSettings() {
           <div class="setting"><div class="txt"><b>导入备份</b><span>将覆盖当前数据，覆盖前会自动备份</span></div><button class="btn" data-action="import">${icon('upload', 14)}导入…</button></div>
           <div class="setting"><div class="txt"><b>自动备份</b><span>每天首次启动时备份，保留最近 7 份 · 最近一次：今天 08:01</span></div><button class="btn ghost" data-action="toast" data-msg="已打开数据目录">${icon('folder', 14)}打开数据目录</button></div>
         </div></section>
+        ${renderUpdateSection()}
         <section><h2>关于</h2><div class="setting-card">
-          <div class="setting"><div class="txt"><b>XTodoY</b><span>版本 1.0.0（原型）· 数据仅保存在本机</span></div><a href="https://github.com/AhDaii/XTodoY" target="_blank" rel="noopener">项目主页</a></div>
+          <div class="setting"><div class="txt"><b>XTodoY</b><span>版本 ${state.update.current}（原型）· 数据仅保存在本机</span></div><a href="https://github.com/AhDaii/XTodoY" target="_blank" rel="noopener">项目主页</a></div>
         </div></section>
       </div>
     </main>`;
 }
 
+/* ---------- 更新（SRS F10 / UI-17） ---------- */
+function updateBadge() {
+  const u = state.update;
+  if (u.skipped) return null;
+  return u.phase === 'available' ? `新版本 ${u.latest} 可用` : u.phase === 'ready' ? '更新已就绪，重启后生效' : null;
+}
+function renderUpdateSection() {
+  const u = state.update, s = state.settings;
+  const downloaded = ((u.size * u.progress) / 100).toFixed(1);
+  const status = {
+    latest: { ic: 'checkCircle', tone: 'ok', title: '已是最新版本', sub: `XTodoY ${u.current} · 上次检查：${u.lastCheck}`, acts: `<button class="btn" data-action="upd-check">${icon('restore', 14)}检查更新</button>` },
+    checking: { ic: null, tone: '', title: '正在检查更新…', sub: '正在连接 GitHub Releases', acts: '' },
+    available: { ic: 'download', tone: 'info', title: `发现新版本 ${u.latest}`, sub: `${RELEASE_NOTES.date} 发布 · ${u.size} MB${u.skipped ? ' · 已跳过此版本' : ''}`, acts: `<button class="btn" data-action="upd-details">查看更新内容</button><button class="btn primary" data-action="upd-download">${icon('download', 14)}立即更新</button>` },
+    downloading: { ic: 'download', tone: 'info', title: `正在下载 ${u.latest}`, sub: `<span class="num">${u.progress}%</span> · ${downloaded} / ${u.size} MB · 下载期间可以继续使用`, acts: `<button class="btn" data-action="upd-cancel">取消下载</button>`, progress: true },
+    ready: { ic: 'checkCircle', tone: 'info', title: '更新已就绪', sub: `${u.latest} 已下载并通过校验。重启后生效；不重启的话，下次退出程序时会自动安装`, acts: `<button class="btn" data-action="upd-details">查看更新内容</button><button class="btn primary" data-action="upd-restart">${icon('restore', 14)}立即重启并更新</button>` },
+    error: { ic: 'alert', tone: 'err', title: '检查更新失败', sub: u.error || '无法连接更新服务器，请检查网络后重试', acts: `<a class="btn ghost" href="https://github.com/AhDaii/XTodoY/releases" target="_blank" rel="noopener">前往下载页</a><button class="btn" data-action="upd-check">重试</button>` },
+  }[u.phase];
+  return `
+    <section><h2>更新</h2><div class="setting-card">
+      <div class="update-status ${status.tone}" role="status" aria-live="polite">
+        <span class="us-icon">${status.ic ? icon(status.ic, 20) : '<span class="spinner" aria-hidden="true"></span>'}</span>
+        <div class="txt"><b>${status.title}</b><span>${status.sub}</span>
+          ${status.progress ? `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${u.progress}" aria-label="下载进度"><i style="width:${u.progress}%"></i></div>` : ''}
+        </div>
+        <div class="us-acts">${status.acts}</div>
+      </div>
+      <div class="setting"><div class="txt"><b id="l-autoCheck">自动检查更新</b><span>启动后及每 24 小时检查一次；关闭后只在手动检查时联网</span></div><button class="switch" role="switch" aria-checked="${s.autoCheck}" aria-labelledby="l-autoCheck" data-action="set-toggle" data-key="autoCheck"></button></div>
+      <div class="setting ${s.autoCheck ? '' : 'is-disabled'}"><div class="txt"><b id="l-autoDownload">自动下载更新</b><span>在后台下载，完成后提示重启；不重启则在退出程序时安装</span></div><button class="switch" role="switch" aria-checked="${s.autoCheck && s.autoDownload}" aria-labelledby="l-autoDownload" data-action="set-toggle" data-key="autoDownload" ${s.autoCheck ? '' : 'disabled'}></button></div>
+      <div class="setting"><div class="txt"><b>更新通道</b><span>测试版可提前体验新功能，可能不稳定；切回稳定版不会降级</span></div><select class="select" data-set="channel" aria-label="更新通道"><option value="stable" ${s.channel === 'stable' ? 'selected' : ''}>稳定版</option><option value="beta" ${s.channel === 'beta' ? 'selected' : ''}>测试版</option></select></div>
+    </div></section>`;
+}
+function updateDialog() {
+  const u = state.update;
+  const ready = u.phase === 'ready';
+  const after = u.justUpdated;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="dialog update-dialog" role="dialog" aria-modal="true" aria-labelledby="upd-title">
+      <div class="ud-head">${logo(40)}<div><h2 id="upd-title">XTodoY ${after ? u.current : u.latest}</h2>
+        <p>${after ? '已安装' : `当前版本 ${u.current}`} · ${RELEASE_NOTES.date} 发布${after ? '' : ` · ${u.size} MB`}</p></div></div>
+      <h3>更新内容</h3>
+      <ul class="release-notes">${RELEASE_NOTES.items.map(([k, t]) => `<li><span class="rn-tag rn-${{ 新增: 'new', 改进: 'imp', 修复: 'fix' }[k]}">${k}</span><span>${t}</span></li>`).join('')}</ul>
+      ${after ? '' : `<p class="help">${ready ? '安装包已通过 SHA-512 校验。' : ''}更新前会自动备份数据，重启期间错过的提醒会在启动后补发。</p>`}
+      <div class="actions">
+        ${after ? '<button class="btn primary" data-dlg="close">知道了</button>' : `
+        ${u.skipped ? '' : '<button class="btn ghost ud-skip" data-dlg="skip">跳过此版本</button>'}
+        <button class="btn" data-dlg="later">稍后</button>
+        <button class="btn primary" data-dlg="${ready ? 'restart' : 'download'}">${ready ? '立即重启并更新' : '立即更新'}</button>`}
+      </div>
+    </div>`;
+  document.body.append(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', (e) => {
+    if (e.target === ov) return close();
+    const b = e.target.closest('[data-dlg]');
+    if (!b) return;
+    const k = b.dataset.dlg;
+    close();
+    if (k === 'skip') { u.skipped = true; render(); toast(`已跳过 ${u.latest}，有更高版本时会再提示`); }
+    if (k === 'later') toast('可以随时在"设置 › 更新"中继续');
+    if (k === 'download') startDownload();
+    if (k === 'restart') restartToUpdate();
+  });
+  ov.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  ov.querySelector('.btn.primary').focus();
+}
+let dlTimer = null;
+function startDownload() {
+  const u = state.update;
+  clearInterval(dlTimer);
+  u.phase = 'downloading'; u.progress = 0; render();
+  dlTimer = setInterval(() => {
+    u.progress = Math.min(100, u.progress + 7 + Math.floor(Math.random() * 6));
+    if (u.progress >= 100) { clearInterval(dlTimer); u.phase = 'ready'; render(); toast(`${u.latest} 已下载完成，重启后生效`); return; }
+    if (state.view === 'settings') render();
+  }, 300);
+}
+function checkUpdate() {
+  const u = state.update;
+  u.phase = 'checking'; render();
+  setTimeout(() => {
+    u.lastCheck = '刚刚';
+    u.phase = 'available';
+    if (state.settings.autoCheck && state.settings.autoDownload) { startDownload(); return; }
+    render();
+  }, 1200);
+}
+function restartToUpdate() {
+  const u = state.update;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="dialog installing" role="alertdialog" aria-label="正在更新">${logo(40)}<h2>正在安装 XTodoY ${u.latest}…</h2><p>已完成更新前备份，安装完成后会自动重新打开。</p><div class="progress indeterminate"><i></i></div></div>`;
+  document.body.append(ov);
+  setTimeout(() => {
+    ov.remove();
+    Object.assign(u, { phase: 'latest', current: u.latest, progress: 0, lastCheck: '刚刚', justUpdated: true, skipped: false });
+    state.view = 'today'; state.selected = null; render();
+  }, 2200);
+}
+// 原型演示：直接切换到某个更新状态
+function setUpdateDemo(v) {
+  const u = state.update;
+  clearInterval(dlTimer);
+  Object.assign(u, { current: '1.0.0', latest: '1.1.0', justUpdated: false, skipped: false, error: '', progress: 0 });
+  const reveal = () => $('.update-status')?.scrollIntoView({ block: 'center' });
+  if (v === 'downloading') { state.view = 'settings'; startDownload(); reveal(); return; }
+  if (v === 'updated') { Object.assign(u, { phase: 'latest', current: '1.1.0', justUpdated: true }); state.view = 'today'; render(); return; }
+  u.phase = v;
+  if (v === 'ready') u.progress = 100;
+  if (v === 'error') u.error = '无法连接更新服务器（github.com），请检查网络后重试';
+  state.view = 'settings';
+  render();
+  reveal();
+}
+
 /* ---------- 主渲染 ---------- */
+let lastRenderedView = null;
 function render() {
   const focusId = document.activeElement?.id;
   const v = state.view;
+  const keepScroll = lastRenderedView === v ? $('.main-scroll')?.scrollTop || 0 : 0;
   const main = v === 'stats' ? renderStats() : v === 'tags' ? renderTagManager() : v === 'settings' ? renderSettings() : renderList();
   $('#app').innerHTML = `
     <div class="body ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}">
@@ -816,6 +949,8 @@ function render() {
     </div>`;
   document.title = `XTodoY · ${state.search ? '搜索' : VIEW_META[v]?.title || ({ stats: '统计', tags: '标签管理', settings: '设置' }[v] || tagById(v.slice(4))?.name)}`;
   if (focusId && document.getElementById(focusId)) document.getElementById(focusId).focus();
+  if (keepScroll && $('.main-scroll')) $('.main-scroll').scrollTop = keepScroll;
+  lastRenderedView = v;
 }
 
 /* ---------- Toast ---------- */
@@ -974,6 +1109,12 @@ document.addEventListener('click', (e) => {
     case 'set-toggle': state.settings[a.dataset.key] = !state.settings[a.dataset.key]; render(); break;
     case 'theme': setTheme(val); break;
     case 'toast': toast(a.dataset.msg); break;
+    case 'upd-check': checkUpdate(); break;
+    case 'upd-details': updateDialog(); break;
+    case 'upd-download': startDownload(); break;
+    case 'upd-cancel': clearInterval(dlTimer); state.update.phase = 'available'; state.update.progress = 0; render(); toast('已取消下载，未完成的文件已删除'); break;
+    case 'upd-restart': restartToUpdate(); break;
+    case 'upd-dismiss-banner': state.update.justUpdated = false; render(); break;
     case 'import': dialog(`<h2>${icon('alert', 18)}导入备份将覆盖当前数据</h2><p>导入前会自动备份当前数据库，可在"打开数据目录"中找回。</p><div class="actions"><button class="btn" data-dlg="cancel">取消</button><button class="btn danger" data-dlg="ok">选择文件并导入</button></div>`, () => toast('（原型）已导入备份')); break;
     case 'tag-add-root': addTag(null); break;
     case 'tag-add-child': addTag(id); break;
@@ -1099,6 +1240,11 @@ function mountChrome() {
       <strong>XTodoY 交互原型</strong><span>示例日期固定为 2026-11-02（周一）· 数据不保存</span>
       <span class="spacer"></span>
       <a href="system.html">系统组件页（悬浮窗 / 托盘 / 通知）→</a>
+      <label for="upd-demo">更新演示</label>
+      <select id="upd-demo" class="proto-select" onchange="setUpdateDemo(this.value)">
+        <option value="latest">已是最新</option><option value="checking">检查中</option><option value="available">发现新版本</option>
+        <option value="downloading">下载中</option><option value="ready">待重启</option><option value="error">检查失败</option><option value="updated">更新完成后</option>
+      </select>
       <span>主题</span>
       <span class="seg" role="group" aria-label="原型主题">
         <button data-theme-btn="light" onclick="setTheme('light')">${icon('sun', 12)}浅色</button>
