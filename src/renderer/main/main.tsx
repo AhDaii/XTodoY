@@ -8,7 +8,7 @@ const applyTheme = (dark: boolean): void => {
   document.documentElement.classList.toggle('dark', dark);
 };
 applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
-window.xtodoy.onThemeChanged(({ dark }) => applyTheme(dark));
+window.xtodoy.on.themeChanged(({ dark }) => applyTheme(dark));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,5 @@
 import { BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConstructorOptions } from 'electron';
+import { Events } from '@shared/ipc';
 import { preloadPath, rendererEntry } from '../app/paths';
 
 const FLOATING_SIZE = 64;
@@ -21,13 +22,26 @@ function harden(win: BrowserWindow): void {
   });
 }
 
+/** 页面加载完成后推送当前主题：渲染进程的 prefers-color-scheme 不一定反映 themeSource（spike-report §8） */
+function pushTheme(win: BrowserWindow): void {
+  win.webContents.on('did-finish-load', () =>
+    win.webContents.send(Events.themeChanged, { dark: nativeTheme.shouldUseDarkColors }),
+  );
+}
+
 function load(win: BrowserWindow, page: 'main' | 'floating'): void {
+  pushTheme(win);
   const entry = rendererEntry(page);
   if (entry.url) void win.loadURL(entry.url);
   else void win.loadFile(entry.file!);
 }
 
 let mainWin: BrowserWindow | null = null;
+const mainClosedHandlers: (() => void)[] = [];
+
+export function onMainWindowClosed(fn: () => void): void {
+  mainClosedHandlers.push(fn);
+}
 let floatingWin: BrowserWindow | null = null;
 
 export const windows = {
@@ -67,7 +81,10 @@ export function showMainWindow(): BrowserWindow {
   harden(mainWin);
   mainWin.once('ready-to-show', () => mainWin?.show());
   // 关闭即销毁（不是隐藏），释放渲染进程内存；托盘与悬浮窗继续工作
-  mainWin.on('closed', () => (mainWin = null));
+  mainWin.on('closed', () => {
+    mainWin = null;
+    mainClosedHandlers.forEach((fn) => fn());
+  });
   load(mainWin, 'main');
   return mainWin;
 }

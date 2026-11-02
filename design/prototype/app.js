@@ -190,9 +190,10 @@ function groupsForView() {
 /* ---------- 渲染：侧边栏 ---------- */
 function renderSidebar() {
   const c = counts();
+  const rail = state.sidebarCollapsed;
   const item = (view, ic, label, count, key, badge) => `
-    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}">
-      ${icon(ic)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}${badge ? `<span class="badge-dot" role="img" aria-label="${badge}"></span>` : ''}
+    <button class="nav-item" data-action="view" data-view="${view}" ${state.view === view && !state.search ? 'aria-current="page"' : ''} title="${label}${count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}" ${rail ? `aria-label="${label}${count ? `，${count} 项` : ''}"` : ''}>
+      ${icon(ic, rail ? 20 : 16)}<span class="label">${label}</span>${count != null ? `<span class="count">${count}</span>` : ''}${rail && view === 'today' && count ? `<span class="rail-count" aria-hidden="true">${count > 99 ? '99+' : count}</span>` : ''}${badge ? `<span class="badge-dot" role="img" aria-label="${badge}"></span>` : ''}
     </button>`;
   const tree = (parent, depth) => children(parent).map((tg) => {
     const kids = children(tg.id).length > 0;
@@ -208,24 +209,28 @@ function renderSidebar() {
       </div>`;
   }).join('');
   return `
-    <aside class="sidebar" aria-label="导航">
+    <aside id="sidebar" class="sidebar ${rail ? 'is-rail' : ''}" aria-label="导航">
       <nav>
         ${item('today', 'sun', '今天', c.today, 1)}
         ${item('plan', 'calendar', '计划', c.plan, 2)}
         ${item('all', 'inbox', '全部', c.all, 3)}
         ${item('done', 'checkCircle', '已完成', c.done, 4)}
         ${item('trash', 'trash', '回收站', null, 5)}
-        <div class="nav-section">
+        ${rail ? '' : `<div class="nav-section">
           <div class="nav-section-title"><span>标签</span>
             <button class="icon-btn" data-action="view" data-view="tags" aria-label="管理标签" title="管理标签">${icon('settings', 14)}</button>
           </div>
           <div role="tree" aria-label="标签">${tree(null, 0)}</div>
-        </div>
+        </div>`}
       </nav>
       <div class="sidebar-footer">
         ${item('stats', 'chart', '统计')}
         ${item('tags', 'tag', '标签管理')}
         ${item('settings', 'settings', '设置', null, null, updateBadge())}
+        <button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-controls="sidebar" aria-expanded="${!rail}"
+          aria-label="${rail ? '展开' : '收起'}侧边栏（Ctrl+B）" title="${rail ? '展开' : '收起'}侧边栏（Ctrl+B）">
+          ${icon(rail ? 'panelLeftOpen' : 'panelLeftClose', rail ? 20 : 16)}<span class="label">收起侧边栏</span><kbd class="count">Ctrl+B</kbd>
+        </button>
       </div>
     </aside>`;
 }
@@ -303,7 +308,6 @@ function renderList() {
   return `
     <main class="main" aria-label="${state.search ? '搜索结果' : VIEW_META[state.view]?.title || '标签'}">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="${state.sidebarCollapsed ? '展开' : '折叠'}侧边栏" title="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>${title}</h1><div class="sub">${sub}</div></div>
         <span class="spacer"></span>${extra}
         ${state.view === 'trash' && total ? '<button class="btn sm ghost" data-action="purge-all">清空回收站</button>' : ''}
@@ -549,7 +553,6 @@ function renderTagManager() {
   return `
     <main class="main" aria-label="标签管理">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>标签管理</h1><div class="sub">共 ${state.tags.length} 个标签 · 最多 5 级 · 拖动行到另一标签上可调整层级</div></div>
         <span class="spacer"></span>
         <button class="btn primary" data-action="tag-add-root">${icon('plus', 14)}新建标签</button>
@@ -716,7 +719,6 @@ function renderStats() {
   return `
     <main class="main" aria-label="统计">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>统计</h1><div class="sub">${p.from === p.to ? `${p.from} 周${WEEK[parse(p.from).getDay()]}` : `${p.from} ~ ${p.to}`}</div></div>
         <span class="spacer"></span>
         <div class="seg" role="group" aria-label="统计维度">
@@ -778,7 +780,6 @@ function renderSettings() {
   return `
     <main class="main" aria-label="设置">
       <header class="main-header">
-        <button class="icon-btn" data-action="toggle-sidebar" aria-label="折叠侧边栏">${icon('panelLeft')}</button>
         <div><h1>设置</h1><div class="sub">修改即时生效</div></div>
       </header>
       <div class="main-scroll settings">
@@ -936,6 +937,12 @@ function setUpdateDemo(v) {
   reveal();
 }
 
+/* 侧边栏折叠（侧边栏底部按钮 / Ctrl+B） */
+function toggleSidebar() {
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  render();
+}
+
 /* ---------- 主渲染 ---------- */
 let lastRenderedView = null;
 function render() {
@@ -1078,6 +1085,8 @@ function addTag(parent) {
 
 /* ---------- 事件 ---------- */
 document.addEventListener('click', (e) => {
+  // 自定义下拉列表挂在 body 上，点击选项不应关闭它所在的弹层
+  if (e.target.closest('.select-content, .select-trigger')) return;
   const popEl = e.target.closest('.popover');
   if (popEl) return onPopoverClick(e);
   if (pop && !e.target.closest('[data-action^="pop-"]')) closePopover();
@@ -1099,7 +1108,7 @@ document.addEventListener('click', (e) => {
     case 'priority': current().priority = val; render(); break;
     case 'skip': { const t = current(); const snap = t.date; t.date = nextOccurrences(addDays(t.date, 1), t.repeat, 1)[0]; render(); toast(`已跳过本次，下一次：${friendlyDate(t.date)}`, () => (t.date = snap)); } break;
     case 'include-children': state.includeChildren = val === '1'; render(); break;
-    case 'toggle-sidebar': state.sidebarCollapsed = !state.sidebarCollapsed; render(); break;
+    case 'toggle-sidebar': toggleSidebar(); break;
     case 'pop-date': state.calMonth = null; datePopover(a); break;
     case 'pop-repeat': repeatPopover(a); break;
     case 'pop-reminder': reminderPopover(a); break;
@@ -1194,6 +1203,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); if (!$('#quick-add')) { state.view = 'today'; render(); } $('#quick-add').focus(); return; }
   if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#search').focus(); return; }
+  if (e.ctrlKey && e.key.toLowerCase() === 'b') { e.preventDefault(); toggleSidebar(); return; }
   if (e.ctrlKey && e.key === ',') { e.preventDefault(); state.view = 'settings'; render(); return; }
   if (e.ctrlKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); state.view = ['today', 'plan', 'all', 'done', 'trash'][Number(e.key) - 1]; state.search = ''; render(); return; }
   if (e.key === 'Escape') { if (pop) closePopover(); else if (state.selected) { state.selected = null; render(); } return; }
@@ -1269,3 +1279,79 @@ function mountChrome() {
 mountChrome();
 applyTheme();
 render();
+
+/* ---------- 下拉选择（设计系统 §7.9）：把原生 <select class="select"> 渐进替换为与主题一致的下拉列表 ---------- */
+let openSelect = null;
+function closeCustomSelect(focusTrigger = false) {
+  if (!openSelect) return;
+  openSelect.menu.remove();
+  openSelect.trigger.setAttribute('aria-expanded', 'false');
+  openSelect.trigger.dataset.state = 'closed';
+  if (focusTrigger) openSelect.trigger.focus();
+  openSelect = null;
+}
+function enhanceSelects(root = document) {
+  root.querySelectorAll('select.select:not([data-enhanced])').forEach((sel) => {
+    sel.dataset.enhanced = '1';
+    sel.hidden = true;
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-label', sel.getAttribute('aria-label') || '');
+    if (sel.style.width) trigger.style.width = sel.style.width;
+    if (sel.style.marginBottom) trigger.style.marginBottom = sel.style.marginBottom;
+    const paint = () => (trigger.innerHTML = `<span>${esc(sel.selectedOptions[0]?.textContent ?? '')}</span><span class="select-chevron">${icon('chevronDown', 14)}</span>`);
+    paint();
+    sel.after(trigger);
+    const open = () => {
+      closeCustomSelect();
+      const menu = document.createElement('div');
+      menu.className = 'select-content';
+      menu.setAttribute('role', 'listbox');
+      menu.innerHTML = [...sel.options].map((o, i) => `<div class="select-item" role="option" id="opt-${i}" data-i="${i}" aria-selected="${o.selected}" data-state="${o.selected ? 'checked' : ''}">${o.selected ? `<span class="select-check">${icon('check', 14)}</span>` : ''}${esc(o.textContent)}</div>`).join('');
+      document.body.append(menu);
+      const r = trigger.getBoundingClientRect();
+      menu.style.minWidth = r.width + 'px';
+      const below = innerHeight - r.bottom - 8;
+      menu.style.left = Math.min(r.left, innerWidth - menu.offsetWidth - 8) + 'px';
+      menu.style.top = (below >= Math.min(menu.offsetHeight, 200) ? r.bottom + 4 : Math.max(8, r.top - menu.offsetHeight - 4)) + 'px';
+      let hi = sel.selectedIndex;
+      const highlight = (i) => {
+        hi = (i + sel.options.length) % sel.options.length;
+        menu.querySelectorAll('.select-item').forEach((el, k) => el.toggleAttribute('data-highlighted', k === hi));
+        menu.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: 'nearest' });
+        trigger.setAttribute('aria-activedescendant', `opt-${hi}`);
+      };
+      const choose = (i) => {
+        sel.selectedIndex = i;
+        paint();
+        closeCustomSelect(true);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      menu.addEventListener('mousemove', (e) => { const it = e.target.closest('.select-item'); if (it) highlight(Number(it.dataset.i)); });
+      menu.addEventListener('click', (e) => { const it = e.target.closest('.select-item'); if (it) choose(Number(it.dataset.i)); });
+      openSelect = { menu, trigger, highlight, choose, get hi() { return hi; } };
+      trigger.setAttribute('aria-expanded', 'true');
+      trigger.dataset.state = 'open';
+      highlight(hi);
+    };
+    trigger.addEventListener('click', (e) => { e.stopPropagation(); openSelect?.trigger === trigger ? closeCustomSelect() : open(); });
+    trigger.addEventListener('keydown', (e) => {
+      if (!openSelect || openSelect.trigger !== trigger) {
+        if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); open(); }
+        return;
+      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); openSelect.highlight(openSelect.hi + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); openSelect.highlight(openSelect.hi - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); openSelect.highlight(0); }
+      else if (e.key === 'End') { e.preventDefault(); openSelect.highlight(sel.options.length - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSelect.choose(openSelect.hi); }
+      else if (e.key === 'Escape' || e.key === 'Tab') { e.stopPropagation(); closeCustomSelect(e.key === 'Escape'); }
+    });
+  });
+}
+document.addEventListener('mousedown', (e) => { if (openSelect && !e.target.closest('.select-content, .select-trigger')) closeCustomSelect(); }, true);
+new MutationObserver(() => enhanceSelects()).observe(document.body, { childList: true, subtree: true });
+enhanceSelects();

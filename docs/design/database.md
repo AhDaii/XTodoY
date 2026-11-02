@@ -1,6 +1,6 @@
 # XTodoY 数据库设计
 
-> 依据：SRS §6 数据需求、FR-TODO / REC / REM / TAG / STA / UPD · 实现：`src/main/db/schema.ts`（Drizzle）+ `migrations/`
+> 依据：SRS §6 数据需求、FR-TODO / REC / REM / TAG / STA / UPD · 实现：`migrations/*.sql` + `src/main/services/*.ts`（better-sqlite3 预编译语句）
 
 ## 1 总体
 
@@ -110,7 +110,7 @@ WHERE g.path LIKE :tagPath || '%' AND t.deleted_at IS NULL AND t.status = 'open'
 
 ## 3 迁移策略（NFR-REL-03）
 
-1. Drizzle 定义 schema，`drizzle-kit generate` 生成带序号的 SQL 文件，随应用打包。
+1. 迁移为手写的带序号 SQL 文件（`migrations/0001_init.sql` …），通过 Vite `?raw` 打包进主进程。P4 决定不引入 Drizzle：表结构稳定、查询以聚合和物化路径为主，手写 SQL 更直接，也少一个依赖。
 2. 启动时比较 `PRAGMA user_version` 与最新迁移号；需要迁移时：
    1. 先把数据库文件复制为 `backups/pre-migrate-<from>-<to>-<时间>.db`；
    2. 在 **一个事务** 内依次执行迁移并更新 `user_version`；
