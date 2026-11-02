@@ -1,0 +1,47 @@
+appId: com.xtodoy.app
+productName: XTodoY
+copyright: Copyright © 2026 AhDaii
+directories:
+  output: release/${version}
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+  # better-sqlite3 自带 N-API 预编译包：只保留 Windows x64，去掉源码
+  - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark}/**'
+  - '!**/node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node'
+  - '!**/node_modules/better-sqlite3/prebuilds/win32-arm64.node'
+# N-API 预编译包与 Electron ABI 无关，无需重编译
+npmRebuild: false
+# 只打包中文与英文语言包（Chromium 默认 55 种，约 49 MB）
+electronLanguages: [zh-CN, en-US]
+compression: maximum
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: XTodoY-Setup-${version}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: true
+  shortcutName: XTodoY
+  deleteAppDataOnUninstall: false
+publish:
+  provider: github
+  owner: AhDaii
+  repo: XTodoY
+  releaseType: draft
+extraResources:
+  - from: resources/
+    to: resources/
+    filter: ['**/*']
+# 通知按钮通过 xtodoy:// 协议回到程序（安装时注册到当前用户）
+protocols:
+  - name: XTodoY
+    schemes: [xtodoy]

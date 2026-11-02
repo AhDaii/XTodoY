@@ -1,0 +1,8 @@
+# pnpm 10+ 默认不执行依赖的安装脚本，需要逐个声明是否允许
+allowBuilds:
+  electron: true
+  esbuild: true
+  # electron-builder 的 Squirrel 目标依赖，项目使用 NSIS，不需要
+  electron-winstaller: false
+minimumReleaseAgeExclude:
+  - '@vitejs/plugin-react@6.2.0'
