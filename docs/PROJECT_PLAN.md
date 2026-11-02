@@ -64,7 +64,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | 数据存储 | SQLite：better-sqlite3（WAL 模式）+ Drizzle ORM（schema 与迁移） | 本地单文件，位于 `app.getPath('userData')` |
 | 循环规则 | `rrule`（RFC 5545 子集） | 便于未来与日历互通 |
 | 系统集成 | `Tray`、`Notification`（Windows 用 `toastXml` 实现操作按钮）、`app.setLoginItemSettings`、`app.requestSingleInstanceLock`、`powerMonitor`、`nativeTheme` | 均为 Electron 内置 |
-| 打包发布 | electron-builder（Windows NSIS 当前用户级安装包）+ electron-updater 自动更新 | 发布源为公开的 GitHub 发布仓库（代码仓库为私有，见 §8 风险） |
+| 打包发布 | electron-builder（Windows NSIS 当前用户级安装包）+ electron-updater 自动更新 | 发布源为本仓库（公开）的 GitHub Releases |
 | 测试 | Vitest + Testing Library（单元 / 组件）；Playwright `_electron`（E2E） | |
 | 质量 | ESLint + Prettier、TypeScript strict、Husky + commitlint | |
 | CI/CD | GitHub Actions：lint / test / 多平台构建 / Release 打包 | |
@@ -198,7 +198,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
   3. 透明、无边框、置顶悬浮窗的拖动与点击唤起主窗口
   4. 休眠唤醒后提醒补发
   5. better-sqlite3 原生模块在 electron-builder 打包后的可用性
-  6. 自动更新全流程：从公开发布仓库读取 `latest.yml` → 后台下载 → SHA-512 校验 → 退出时静默安装 → 数据库迁移；验证未签名时的 SmartScreen 表现
+  6. 自动更新全流程：从本仓库 GitHub Releases 读取 `latest.yml` → 后台下载 → SHA-512 校验 → 退出时静默安装 → 数据库迁移；验证未签名时的 SmartScreen 表现
 - [ ] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
 
 **出口标准**：Spike 结果满足 §1.2 指标（或经评审调整指标），脚手架与 CI 就绪。
@@ -234,7 +234,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 - [ ] 性能测试：24 小时常驻内存 / CPU 曲线、提醒准时性
 - [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（悬浮窗位置）
 - [ ] 打包：Windows NSIS 安装包（代码签名），macOS / Linux 构建
-- [ ] 发布流水线：GitHub Actions 打 tag 后构建、签名，并把安装包与 `latest.yml` 上传到公开发布仓库
+- [ ] 发布流水线：GitHub Actions 打 tag 后构建、签名，并把安装包与 `latest.yml` 上传到本仓库 GitHub Releases
 - [ ] 更新测试：v1.0.0-rc → v1.0.0 真实升级、断网 / 校验失败 / 安装失败场景
 - [ ] 编写用户手册与 CHANGELOG，发布 GitHub Release `v1.0.0`
 
@@ -302,7 +302,7 @@ XTodoY/
 | 循环规则与时区 / 夏令时边界问题 | 时间错乱 | 统一以本地时区规则计算 + 边界单元测试 |
 | better-sqlite3 原生模块与 Electron 版本不匹配 | 打包后无法运行 | 使用 electron-builder `install-app-deps` 重建；CI 固定 Electron 与 Node 版本 |
 | 需求蔓延（同步、协作等） | 延期 | v1.0 范围以 SRS 冻结为准，新需求进入 Backlog |
-| 代码仓库为私有，Releases 不能直接作为更新源 | 用户端无法检查 / 下载更新 | 建立公开的发布仓库（如 `XTodoY-releases`）只存放安装包与 `latest.yml`，CI 跨仓库上传；或使用静态文件服务器 |
+| GitHub 在国内访问不稳定 | 部分用户检查 / 下载更新失败 | 失败静默重试并提供手动下载入口（SRS FR-UPD-09）；必要时增加国内镜像（如对象存储）作为备用发布源 |
 | 未取得代码签名证书 | SmartScreen 警告、无法校验发布者 | 发布前申请证书；在此之前仅做 SHA-512 校验并在发布说明中提示 |
 | 更新安装中断或迁移失败 | 程序无法启动或数据损坏 | 更新前备份、迁移失败回滚、当前用户级安装避免权限问题（SRS FR-UPD-07 / 09） |
 
