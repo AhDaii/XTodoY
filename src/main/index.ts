@@ -3,10 +3,11 @@ import { join } from 'node:path';
 import { openDatabase, type DB } from './db/client';
 import { bus } from './events/bus';
 import { registerIpc } from './ipc/handlers';
-import { parseProtocolUrl } from './platform/notifier';
+import { parseProtocolUrl, showInfo, showMissed, showReminder } from './platform/notifier';
 import { watchPower } from './platform/power';
-import { createTray, updateTrayCount } from './platform/tray';
+import { createTray, refreshTrayMenu, updateTrayCount } from './platform/tray';
 import {
+  applyFloatingPrefs,
   createFloatingWindow,
   onMainWindowClosed,
   setTitleBarTheme,
@@ -17,6 +18,9 @@ import { SettingsService } from './services/settings';
 import { TagService } from './services/tags';
 import { TodayService } from './services/today';
 import { TodoService } from './services/todos';
+import { Scheduler } from './services/scheduler';
+import { notificationBody } from './domain/describe';
+import { localDate } from './domain/time';
 import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
 
@@ -51,13 +55,16 @@ function openMain(nav?: NavRequest): void {
   else send();
 }
 
+// 由 whenReady 中的服务初始化后赋值；通知按钮与二次启动参数都通过它回到主进程
+let reminderActions: { complete(id: string): void; snooze(id: string): void } | null = null;
+
 function handleProtocol(argv: string[]): void {
   const url = argv.find((a) => a.startsWith('xtodoy://'));
   const parsed = url ? parseProtocolUrl(url) : null;
   if (!parsed) return;
-  // P5 接入提醒后，complete / snooze 将调用待办服务；P4 只处理"打开"
-  console.log('[protocol]', parsed);
   if (parsed.action === 'open') openMain({ todoId: parsed.id });
+  else if (parsed.action === 'complete') reminderActions?.complete(parsed.id);
+  else reminderActions?.snooze(parsed.id);
 }
 
 app.on('second-instance', (_e, argv) => {
@@ -68,52 +75,119 @@ app.on('second-instance', (_e, argv) => {
 // 关闭所有窗口不退出：托盘常驻（FR-BG-02）；"关闭即退出"在主窗口关闭时处理
 app.on('window-all-closed', () => {});
 
+// 退出顺序：before-quit 标记正在退出（窗口关闭回调不再写库、不再发提示）→ 窗口关闭 → will-quit 关闭数据库
+let quitting = false;
 app.on('before-quit', () => {
+  quitting = true;
   today?.stop();
+});
+app.on('will-quit', () => {
   db?.close();
 });
+
+/** 开机自启（FR-BG-05）：只在安装版注册，开发环境不改动系统登录项 */
+function applyAutostart(on: boolean): void {
+  if (!app.isPackaged) return;
+  app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
+}
 
 void app.whenReady().then(() => {
   const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
   const opened = openDatabase(dataDir);
   db = opened.db;
   settings = new SettingsService(db);
+  const s = settings;
   const tags = new TagService(db);
-  const todos = new TodoService(db, tags, () => settings!.get());
+  const todos = new TodoService(db, tags, () => s.get());
   today = new TodayService(db);
   todos.purgeExpired();
-  nativeTheme.themeSource = settings.get().theme;
+  nativeTheme.themeSource = s.get().theme;
 
-  registerIpc({ todos, tags, settings, today, dataDir, schemaVersion: opened.schemaVersion });
+  // ---- 提醒（FR-REM）：调度器 → 系统通知 → 按钮回到待办服务 ----
+  const handlers = {
+    open: (id: string) => openMain({ todoId: id }),
+    complete: (id: string) => {
+      try {
+        if (todos.get(id).status === 'open') todos.toggle(id);
+      } catch {
+        // 事项已被删除：忽略
+      }
+    },
+    snooze: (id: string) => scheduler.snooze(id),
+  };
+  reminderActions = handlers;
+  const scheduler = new Scheduler(db, () => s.get(), {
+    remind: (ids) => {
+      const { snoozeMinutes, reminderSound } = s.get();
+      for (const id of ids) {
+        const t = todos.get(id);
+        showReminder({ todoId: id, title: t.title, body: notificationBody(t, localDate(new Date())) }, handlers, {
+          snoozeMinutes,
+          sound: reminderSound,
+        });
+      }
+    },
+    remindMissed: (ids) => showMissed(ids.length, () => openMain({ view: 'today' }), s.get().reminderSound),
+  });
+
+  registerIpc({ todos, tags, settings: s, today, scheduler, dataDir, schemaVersion: opened.schemaVersion });
 
   bus.on('today.count', updateTrayCount);
   bus.on('time.jumped', () => today?.resync());
+  bus.on('reminders.resumed', () => s.set('pausedUntil', null));
   bus.on('settings.changed', (patch) => {
-    if (patch.floatingEnabled === true) createFloatingWindow(settings!.get().floatingPos ?? undefined);
+    if (patch.floatingEnabled === true) {
+      createFloatingWindow(s.get().floatingPos ?? undefined);
+      applyFloatingPrefs({ opacity: s.get().floatingOpacity, locked: s.get().floatingLocked });
+    }
+    if (patch.floatingOpacity !== undefined || patch.floatingLocked !== undefined) {
+      applyFloatingPrefs({ opacity: s.get().floatingOpacity, locked: s.get().floatingLocked });
+    }
+    if (patch.autostart !== undefined) applyAutostart(patch.autostart);
+    refreshTrayMenu();
   });
   nativeTheme.on('updated', () => setTitleBarTheme(nativeTheme.shouldUseDarkColors));
   watchPower();
   today.start();
+  scheduler.start();
   updateTrayCount(today.current);
+  app.on('before-quit', () => scheduler.stop());
 
   createTray({
     openMain: () => openMain(),
-    newTodo: () => openMain({ view: 'today' }),
-    toggleFloating: () => settings!.set('floatingEnabled', windows.floating === null),
+    newTodo: () => openMain({ view: 'today', focus: 'quick-add' }),
+    toggleFloating: () => s.set('floatingEnabled', windows.floating === null),
     isFloatingVisible: () => windows.floating !== null,
-    pauseReminders: () => {},
-    checkUpdate: () => {},
+    pauseReminders: (kind) => {
+      const d = new Date();
+      const until =
+        kind === 'hour' ? Date.now() + 3_600_000 : new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+      s.set('pausedUntil', until);
+    },
+    resumeReminders: () => s.set('pausedUntil', null),
+    pausedUntil: () => s.get().pausedUntil,
+    checkUpdate: () => openMain({ view: 'settings' }),
     openSettings: () => openMain({ view: 'settings' }),
     quit: () => app.quit(),
   });
 
   onMainWindowClosed(() => {
-    if (settings!.get().closeAction === 'quit') app.quit();
+    if (quitting) return;
+    const { closeAction, closeTipShown } = s.get();
+    if (closeAction === 'quit') return app.quit();
+    // 首次关闭时提示一次仍在后台运行（FR-BG-02）
+    if (!closeTipShown) {
+      s.set('closeTipShown', true);
+      showInfo('XTodoY 仍在后台运行', '可以从托盘图标或悬浮窗重新打开，提醒会照常推送。', () => openMain());
+    }
   });
 
   if (runMetricsIfRequested()) return;
 
-  if (settings.get().floatingEnabled) createFloatingWindow(settings.get().floatingPos ?? undefined);
+  if (s.get().floatingEnabled) {
+    createFloatingWindow(s.get().floatingPos ?? undefined);
+    applyFloatingPrefs({ opacity: s.get().floatingOpacity, locked: s.get().floatingLocked });
+  }
   if (!startHidden) showMainWindow();
   handleProtocol(process.argv);
 });

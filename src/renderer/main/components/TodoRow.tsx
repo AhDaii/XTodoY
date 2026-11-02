@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react';
+import { fromRRule, repeatSummary } from '@shared/recurrence';
 import type { Todo } from '@shared/types';
 import { LIMITS } from '@shared/types';
 import { diffDays, friendlyDate, today, ymd } from '../lib/dates';
@@ -65,6 +66,18 @@ export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, ...h }:
               {overdue && '逾期 · '}
               {friendlyDate(t.dueDate)}
               {t.dueTime && ` ${t.dueTime}`}
+            </span>
+          )}
+          {t.rrule && (
+            <span className="ico" title={`循环：${repeatSummary(fromRRule(t.rrule))}`}>
+              <Icon name="repeat" size={12} />
+              <span className="sr-only">循环</span>
+            </span>
+          )}
+          {t.reminders.length > 0 && (
+            <span className="ico" title={`提醒 ${t.reminders.length} 个`}>
+              <Icon name="bell" size={12} />
+              <span className="sr-only">有提醒</span>
             </span>
           )}
           {t.priority > 0 && <span className="sr-only">优先级{PRIO_LABEL[t.priority]}</span>}

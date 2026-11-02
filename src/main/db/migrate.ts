@@ -1,8 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import init from '../../../migrations/0001_init.sql?raw';
+import repeatAnchor from '../../../migrations/0002_repeat_anchor.sql?raw';
 
 /** 迁移按序号排列；只允许向前（docs/design/database.md §3） */
-export const MIGRATIONS: readonly string[] = [init];
+export const MIGRATIONS: readonly string[] = [init, repeatAnchor];
 
 export interface MigrateResult {
   from: number;

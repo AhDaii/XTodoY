@@ -7,10 +7,36 @@ import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
 
 /** 设置页（UI-10）：P4 提供通用、外观、悬浮窗与关于；提醒、数据、更新在 P5 / P6 补齐 */
+function Switch(p: { id: string; label: string; hint: string; checked: boolean; onChange(v: boolean): void }) {
+  return (
+    <div className="setting">
+      <div className="txt">
+        <b id={`l-${p.id}`}>{p.label}</b>
+        <span>{p.hint}</span>
+      </div>
+      <button
+        className="switch"
+        role="switch"
+        aria-checked={p.checked}
+        aria-labelledby={`l-${p.id}`}
+        onClick={() => p.onChange(!p.checked)}
+      />
+    </div>
+  );
+}
+
 export function SettingsPage({ settings }: { settings: Settings }) {
   const report = useReportError();
   const [info, setInfo] = useState<AppInfo | null>(null);
   useEffect(() => void call(api.appInfo()).then(setInfo).catch(report), [report]);
+  // 每 30 秒刷新一次，暂停到期后自动显示为未暂停
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const paused = settings.pausedUntil !== null && settings.pausedUntil > now;
+  const pausedLabel = paused ? new Date(settings.pausedUntil!).toTimeString().slice(0, 5) : '';
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     void call(api.settings.set(key, value)).catch(report);
 
@@ -32,6 +58,13 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         <section>
           <h2>通用</h2>
           <div className="setting-card">
+            <Switch
+              id="autostart"
+              label="开机自启"
+              hint="登录系统后在后台启动，只显示托盘与悬浮窗"
+              checked={settings.autostart}
+              onChange={(v) => set('autostart', v)}
+            />
             <div className="setting">
               <div className="txt">
                 <b>关闭主窗口时</b>
@@ -105,6 +138,30 @@ export function SettingsPage({ settings }: { settings: Settings }) {
             </div>
             <div className="setting">
               <div className="txt">
+                <b>透明度</b>
+                <span>降低透明度可以减少对桌面的遮挡</span>
+              </div>
+              <Select<100 | 80 | 60>
+                ariaLabel="悬浮窗透明度"
+                width={160}
+                value={settings.floatingOpacity}
+                onChange={(v) => set('floatingOpacity', v)}
+                options={[
+                  { value: 100, label: '100%' },
+                  { value: 80, label: '80%' },
+                  { value: 60, label: '60%' },
+                ]}
+              />
+            </div>
+            <Switch
+              id="floating-lock"
+              label="锁定位置"
+              hint="锁定后无法拖动悬浮窗"
+              checked={settings.floatingLocked}
+              onChange={(v) => set('floatingLocked', v)}
+            />
+            <div className="setting">
+              <div className="txt">
                 <b>重置位置</b>
                 <span>移回主显示器右下角（重新显示悬浮窗后生效）</span>
               </div>
@@ -120,8 +177,88 @@ export function SettingsPage({ settings }: { settings: Settings }) {
           <div className="setting-card">
             <div className="setting">
               <div className="txt">
+                <b>暂停提醒</b>
+                <span>暂停期间的提醒会在恢复后补发；也可以在托盘菜单中操作</span>
+              </div>
+              {paused ? (
+                <>
+                  <span className="pause-status">
+                    <Icon name="pause" size={14} />
+                    已暂停至 {pausedLabel}
+                  </span>
+                  <button className="btn" onClick={() => void call(api.pauseReminders(null)).catch(report)}>
+                    恢复
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn" onClick={() => void call(api.pauseReminders('hour')).catch(report)}>
+                    暂停 1 小时
+                  </button>
+                  <button className="btn" onClick={() => void call(api.pauseReminders('tomorrow')).catch(report)}>
+                    暂停到明天
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="setting">
+              <div className="txt">
+                <b>默认提醒</b>
+                <span>新建或首次设置时间的事项自动添加</span>
+              </div>
+              <Select<Settings['defaultReminder']>
+                ariaLabel="默认提醒"
+                width={160}
+                value={settings.defaultReminder}
+                onChange={(v) => set('defaultReminder', v)}
+                options={[
+                  { value: -1, label: '不提醒' },
+                  { value: 0, label: '准时' },
+                  { value: 5, label: '提前 5 分钟' },
+                  { value: 15, label: '提前 15 分钟' },
+                  { value: 30, label: '提前 30 分钟' },
+                  { value: 60, label: '提前 1 小时' },
+                ]}
+              />
+            </div>
+            <div className="setting">
+              <div className="txt">
+                <b>全天事项提醒时间</b>
+                <span>全天事项的"准时"提醒在当天这个时间触发</span>
+              </div>
+              <input
+                type="time"
+                className="input"
+                style={{ width: 160 }}
+                aria-label="全天事项提醒时间"
+                value={settings.allDayTime}
+                onChange={(e) => e.target.value && set('allDayTime', e.target.value)}
+              />
+            </div>
+            <div className="setting">
+              <div className="txt">
+                <b>稍后提醒时长</b>
+                <span>在通知中点击「稍后提醒」后再次提醒的间隔</span>
+              </div>
+              <Select<Settings['snoozeMinutes']>
+                ariaLabel="稍后提醒时长"
+                width={160}
+                value={settings.snoozeMinutes}
+                onChange={(v) => set('snoozeMinutes', v)}
+                options={([5, 10, 15, 30, 60] as const).map((m) => ({ value: m, label: `${m} 分钟` }))}
+              />
+            </div>
+            <Switch
+              id="sound"
+              label="提醒声音"
+              hint="使用系统默认通知声音"
+              checked={settings.reminderSound}
+              onChange={(v) => set('reminderSound', v)}
+            />
+            <div className="setting">
+              <div className="txt">
                 <b>测试系统通知</b>
-                <span>发送一条带「完成」「稍后提醒」按钮的通知；提醒设置将在下一版本提供</span>
+                <span>发送一条带「完成」「稍后提醒」按钮的通知，检查系统通知是否被勿扰模式屏蔽</span>
               </div>
               <button className="btn" onClick={() => void call(api.testNotify()).catch(report)}>
                 <Icon name="bell" size={14} />

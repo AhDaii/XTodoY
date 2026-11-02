@@ -5,6 +5,11 @@ import { invalid } from './errors';
 
 type Validators = { [K in keyof Settings]: (v: unknown) => Settings[K] };
 
+const bool = (v: unknown, name: string): boolean => {
+  if (typeof v === 'boolean') return v;
+  throw invalid(`${name}取值不正确`);
+};
+
 const validators: Validators = {
   theme: (v) => {
     if (v === 'light' || v === 'dark' || v === 'system') return v;
@@ -22,6 +27,30 @@ const validators: Validators = {
     if (typeof v === 'boolean') return v;
     throw invalid('悬浮窗开关取值不正确');
   },
+  floatingOpacity: (v) => {
+    if (v === 100 || v === 80 || v === 60) return v;
+    throw invalid('透明度只能是 100%、80% 或 60%');
+  },
+  floatingLocked: (v) => bool(v, '锁定位置'),
+  autostart: (v) => bool(v, '开机自启'),
+  defaultReminder: (v) => {
+    if (v === -1 || v === 0 || v === 5 || v === 15 || v === 30 || v === 60) return v;
+    throw invalid('默认提醒取值不正确');
+  },
+  allDayTime: (v) => {
+    if (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)) return v;
+    throw invalid('时间格式应为 HH:mm');
+  },
+  snoozeMinutes: (v) => {
+    if (v === 5 || v === 10 || v === 15 || v === 30 || v === 60) return v;
+    throw invalid('稍后提醒时长取值不正确');
+  },
+  reminderSound: (v) => bool(v, '提醒声音'),
+  pausedUntil: (v) => {
+    if (v === null || (typeof v === 'number' && Number.isFinite(v))) return v;
+    throw invalid('暂停时间取值不正确');
+  },
+  closeTipShown: (v) => bool(v, '关闭提示'),
   sidebarCollapsed: (v) => {
     if (typeof v === 'boolean') return v;
     throw invalid('侧边栏折叠状态取值不正确');

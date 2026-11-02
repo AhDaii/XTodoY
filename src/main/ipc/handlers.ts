@@ -1,5 +1,5 @@
 import { app, ipcMain, Menu, nativeTheme, type IpcMainInvokeEvent } from 'electron';
-import { Events, Invoke, Send, type AppInfo, type Result } from '@shared/ipc';
+import { Events, Invoke, Send, type AppInfo, type NavRequest, type Result } from '@shared/ipc';
 import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/types';
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
@@ -7,6 +7,7 @@ import type { SettingsService } from '../services/settings';
 import type { TagService } from '../services/tags';
 import type { TodayService } from '../services/today';
 import type { TodoService } from '../services/todos';
+import type { Scheduler } from '../services/scheduler';
 import * as v from '../services/validate';
 import { showReminder } from '../platform/notifier';
 import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
@@ -16,6 +17,7 @@ interface Deps {
   tags: TagService;
   settings: SettingsService;
   today: TodayService;
+  scheduler: Scheduler;
   dataDir: string;
   schemaVersion: number;
 }
@@ -92,6 +94,19 @@ export function registerIpc(d: Deps): void {
   handle(Invoke.todoPurgeAll, () => d.todos.purgeAll());
   handle(Invoke.todoReorder, (id, afterId, beforeId) => d.todos.reorder(v.id(id), v.optId(afterId), v.optId(beforeId)));
   handle(Invoke.todoSetTags, (id, tagIds) => d.todos.setTags(v.id(id), v.idList(tagIds, '标签', LIMITS.tagsPerTodo)));
+  handle(Invoke.todoSetRepeat, (id, rule) => d.todos.setRepeat(v.id(id), v.repeatRule(rule)));
+  handle(Invoke.todoSkip, (id) => d.todos.skip(v.id(id)));
+  handle(Invoke.todoSetReminders, (id, list) => d.todos.setReminders(v.id(id), v.reminderList(list)));
+  handle(Invoke.remindersPause, (kind) => {
+    if (kind === null) return d.settings.set('pausedUntil', null);
+    if (kind !== 'hour' && kind !== 'tomorrow') throw invalid('暂停方式不正确');
+    const now = new Date();
+    const until =
+      kind === 'hour'
+        ? now.getTime() + 3_600_000
+        : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    return d.settings.set('pausedUntil', until);
+  });
 
   // ---- 标签 ----
   handle(Invoke.tagTree, () => d.tags.tree());
@@ -134,11 +149,18 @@ export function registerIpc(d: Deps): void {
         complete: (id) => console.log('[notify] complete', id),
         snooze: (id) => console.log('[notify] snooze', id),
       },
+      { snoozeMinutes: d.settings.get().snoozeMinutes, sound: d.settings.get().reminderSound },
     );
   });
 
   // ---- 悬浮窗 ----
-  ipcMain.on(Send.floatingOpenMain, () => showMainWindow());
+  const openMainAt = (nav: NavRequest): void => {
+    const win = showMainWindow();
+    const send = (): void => win.webContents.send(Events.navOpen, nav);
+    if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+    else send();
+  };
+  ipcMain.on(Send.floatingOpenMain, () => openMainAt({ view: 'today' }));
   ipcMain.on(Send.floatingMoveBy, (_e, dx: unknown, dy: unknown) => {
     if (typeof dx === 'number' && typeof dy === 'number' && Number.isFinite(dx) && Number.isFinite(dy)) {
       moveFloatingBy(dx, dy);
@@ -148,9 +170,28 @@ export function registerIpc(d: Deps): void {
     const p = floatingPosition();
     if (p) d.settings.set('floatingPos', p);
   });
+  // 悬浮窗右键菜单（FR-FLT-05）
   ipcMain.on(Send.floatingMenu, () => {
+    const st = d.settings.get();
     Menu.buildFromTemplate([
-      { label: '打开主窗口', click: () => showMainWindow() },
+      { label: '新建待办', click: () => openMainAt({ view: 'today', focus: 'quick-add' }) },
+      { label: '打开主窗口', click: () => openMainAt({ view: 'today' }) },
+      { type: 'separator' },
+      {
+        label: '锁定位置',
+        type: 'checkbox',
+        checked: st.floatingLocked,
+        click: () => d.settings.set('floatingLocked', !st.floatingLocked),
+      },
+      {
+        label: '透明度',
+        submenu: ([100, 80, 60] as const).map((o) => ({
+          label: `${o}%`,
+          type: 'radio' as const,
+          checked: st.floatingOpacity === o,
+          click: () => d.settings.set('floatingOpacity', o),
+        })),
+      },
       { type: 'separator' },
       { label: '隐藏悬浮窗', click: () => d.settings.set('floatingEnabled', false) },
     ]).popup({ window: windows.floating ?? undefined });

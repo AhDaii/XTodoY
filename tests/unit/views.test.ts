@@ -21,6 +21,10 @@ function todo(p: Partial<Todo>): Todo {
     updatedAt: 0,
     deletedAt: null,
     tags: [],
+    rrule: null,
+    repeatAnchor: null,
+    repeatCountDone: 0,
+    reminders: [],
     ...p,
   };
 }

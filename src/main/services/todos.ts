@@ -1,8 +1,11 @@
 import { generateKeyBetween } from 'fractional-indexing';
+import { advanceAfterComplete, fromRRule, toRRule, type RepeatRule } from '@shared/recurrence';
 import {
   LIMITS,
   type ListQuery,
   type Priority,
+  type ReminderSpec,
+  type Settings,
   type Todo,
   type TodoCreate,
   type TodoGroup,
@@ -31,7 +34,21 @@ interface TodoRow {
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
+  rrule: string | null;
+  repeat_anchor: string | null;
+  repeat_count_done: number;
 }
+
+interface ReminderRow {
+  id: string;
+  todo_id: string;
+  kind: 'relative' | 'absolute';
+  offset_minutes: number | null;
+  fire_at_abs: number | null;
+  next_fire_at: number | null;
+}
+
+type TodoSettings = Pick<Settings, 'weekStart' | 'defaultReminder'>;
 
 const DAY_MS = 86_400_000;
 
@@ -42,7 +59,7 @@ export class TodoService {
   constructor(
     private readonly db: DB,
     private readonly tags: TagService,
-    private readonly settings: () => { weekStart: 0 | 1 },
+    private readonly settings: () => TodoSettings,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -70,6 +87,23 @@ export class TodoService {
         { id: l.tag_id, name: t.name, color: t.color, path: t.displayPath },
       ]);
     }
+    const reminderRows = this.db
+      .prepare(
+        `SELECT * FROM reminders WHERE todo_id IN (SELECT value FROM json_each(?))
+         ORDER BY kind, offset_minutes, fire_at_abs`,
+      )
+      .all(JSON.stringify(rows.map((r) => r.id))) as ReminderRow[];
+    const remindersOf = new Map<string, Todo['reminders']>();
+    for (const r of reminderRows) {
+      const spec: ReminderSpec =
+        r.kind === 'absolute'
+          ? { kind: 'absolute', at: r.fire_at_abs! }
+          : { kind: 'relative', offsetMinutes: r.offset_minutes! };
+      remindersOf.set(r.todo_id, [
+        ...(remindersOf.get(r.todo_id) ?? []),
+        { id: r.id, spec, nextFireAt: r.next_fire_at },
+      ]);
+    }
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -84,6 +118,10 @@ export class TodoService {
       updatedAt: r.updated_at,
       deletedAt: r.deleted_at,
       tags: tagsOf.get(r.id) ?? [],
+      rrule: r.rrule,
+      repeatAnchor: r.repeat_anchor,
+      repeatCountDone: r.repeat_count_done,
+      reminders: remindersOf.get(r.id) ?? [],
     }));
   }
 
@@ -180,10 +218,19 @@ export class TodoService {
         );
       const link = this.db.prepare('INSERT INTO todo_tags (todo_id, tag_id) VALUES (?, ?)');
       for (const t of tagIds) link.run(id, t);
+      if (input.dueDate && input.dueTime) this.addDefaultReminder(id);
     });
     tx();
     this.changed(id);
     return this.get(id);
+  }
+
+  private addDefaultReminder(id: string): void {
+    const m = this.settings().defaultReminder;
+    if (m < 0) return;
+    this.db
+      .prepare("INSERT OR IGNORE INTO reminders (id, todo_id, kind, offset_minutes) VALUES (?, ?, 'relative', ?)")
+      .run(uuidv7(), id, m);
   }
 
   update(id: string, patch: TodoPatch): Todo {
@@ -192,22 +239,109 @@ export class TodoService {
     // 清除日期时一并清除时间；未设日期时不能单独设时间
     let dueTime = patch.dueTime !== undefined ? patch.dueTime : cur.dueTime;
     if (!dueDate) dueTime = null;
-    this.db
-      .prepare(
-        `UPDATE todos SET title = ?, note = ?, due_date = ?, due_time = ?, priority = ?, updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(
-        patch.title ?? cur.title,
-        patch.note ?? cur.note,
-        dueDate,
-        dueTime,
-        patch.priority ?? cur.priority,
-        Date.now(),
-        id,
-      );
+    const tx = this.db.transaction(() => {
+      this.db
+        .prepare(
+          `UPDATE todos SET title = ?, note = ?, due_date = ?, due_time = ?, priority = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(
+          patch.title ?? cur.title,
+          patch.note ?? cur.note,
+          dueDate,
+          dueTime,
+          patch.priority ?? cur.priority,
+          Date.now(),
+          id,
+        );
+      if (!dueDate && cur.dueDate) {
+        // 循环与相对提醒都依赖截止日期（FR-REC-02、FR-REM-01）
+        this.db.prepare('UPDATE todos SET rrule = NULL, repeat_anchor = NULL WHERE id = ?').run(id);
+        this.db.prepare("DELETE FROM reminders WHERE todo_id = ? AND kind = 'relative'").run(id);
+      } else if (dueTime && !cur.dueTime && cur.reminders.length === 0) {
+        this.addDefaultReminder(id);
+      }
+      // 循环事项手动改日期时，以新日期作为新的起点
+      if (dueDate && cur.rrule && dueDate !== cur.dueDate) {
+        this.db.prepare('UPDATE todos SET repeat_anchor = ? WHERE id = ?').run(dueDate, id);
+      }
+    });
+    tx();
     this.changed(id);
     return this.get(id);
+  }
+
+  /** 设置 / 取消循环（FR-REC-02/07）：没有截止日期时以今天为首个实例 */
+  setRepeat(id: string, rule: RepeatRule | null): Todo {
+    const cur = this.get(id);
+    const due = cur.dueDate ?? this.today();
+    this.db
+      .prepare(
+        'UPDATE todos SET rrule = ?, repeat_anchor = ?, due_date = ?, repeat_count_done = 0, updated_at = ? WHERE id = ?',
+      )
+      .run(rule ? toRRule(rule) : null, rule ? due : null, rule ? due : cur.dueDate, Date.now(), id);
+    this.changed(id);
+    return this.get(id);
+  }
+
+  /** 设置提醒（FR-REM-01）：整体替换；相对提醒需要截止日期 */
+  setReminders(id: string, specs: ReminderSpec[]): Todo {
+    const cur = this.get(id);
+    if (specs.length > LIMITS.remindersPerTodo) throw invalid(`每个待办最多 ${LIMITS.remindersPerTodo} 个提醒`);
+    if (!cur.dueDate && specs.some((r) => r.kind === 'relative')) throw invalid('相对提醒需要先设置截止日期');
+    const key = (r: ReminderSpec): string => (r.kind === 'absolute' ? `a${r.at}` : `r${r.offsetMinutes}`);
+    if (new Set(specs.map(key)).size !== specs.length) throw invalid('有重复的提醒');
+    const tx = this.db.transaction(() => {
+      // 保留未变化的提醒（连同触发状态），只增删有变化的
+      const existing = this.db.prepare('SELECT * FROM reminders WHERE todo_id = ?').all(id) as ReminderRow[];
+      const keep = new Set(specs.map(key));
+      const del = this.db.prepare('DELETE FROM reminders WHERE id = ?');
+      const have = new Set<string>();
+      for (const r of existing) {
+        const k = r.kind === 'absolute' ? `a${r.fire_at_abs}` : `r${r.offset_minutes}`;
+        if (keep.has(k)) have.add(k);
+        else del.run(r.id);
+      }
+      const ins = this.db.prepare(
+        'INSERT INTO reminders (id, todo_id, kind, offset_minutes, fire_at_abs) VALUES (?, ?, ?, ?, ?)',
+      );
+      for (const r of specs) {
+        if (have.has(key(r))) continue;
+        ins.run(
+          uuidv7(),
+          id,
+          r.kind,
+          r.kind === 'relative' ? r.offsetMinutes : null,
+          r.kind === 'absolute' ? r.at : null,
+        );
+      }
+      this.db.prepare('UPDATE todos SET updated_at = ? WHERE id = ?').run(Date.now(), id);
+    });
+    tx();
+    this.changed(id);
+    return this.get(id);
+  }
+
+  /** 循环事项"跳过本次"（FR-REC-06）：前进到下一次实例，不写完成记录 */
+  skip(id: string): { todo: Todo; undoToken: string } {
+    const cur = this.get(id);
+    if (!cur.rrule || !cur.dueDate) throw invalid('只有循环事项可以跳过本次');
+    const rule = fromRRule(cur.rrule);
+    const next = advanceAfterComplete(
+      rule,
+      cur.repeatAnchor ?? cur.dueDate,
+      cur.dueDate,
+      this.today(),
+      cur.repeatCountDone,
+    );
+    if (!next) throw new AppError('REPEAT_ENDED', '这是最后一次，无法跳过');
+    this.db.prepare('UPDATE todos SET due_date = ?, updated_at = ? WHERE id = ?').run(next, Date.now(), id);
+    this.changed(id);
+    const undoToken = this.undoStore.add(() => {
+      this.db.prepare('UPDATE todos SET due_date = ? WHERE id = ?').run(cur.dueDate, id);
+      this.changed(id);
+    });
+    return { todo: this.get(id), undoToken };
   }
 
   /** 勾选完成 / 取消完成（FR-TODO-03）：完成时写完成记录，取消时删除最近一条完成记录 */
@@ -215,23 +349,13 @@ export class TodoService {
     const cur = this.get(id);
     if (cur.deletedAt) throw new AppError('DELETED', '已删除的待办不能勾选');
     const now = this.now();
+    if (cur.status === 'open' && cur.rrule && cur.dueDate) return this.completeOccurrence(cur, now);
     const tx = this.db.transaction(() => {
       if (cur.status === 'open') {
         this.db
           .prepare("UPDATE todos SET status = 'done', completed_at = ?, updated_at = ? WHERE id = ?")
           .run(now.getTime(), now.getTime(), id);
-        const rootTag = cur.tags[0]
-          ? (this.db.prepare('SELECT path FROM tags WHERE id = ?').pluck().get(cur.tags[0].id) as string)
-              .split('/')
-              .filter(Boolean)[0]
-          : null;
-        this.db
-          .prepare(
-            `INSERT INTO completion_logs
-             (id, todo_id, occurrence_date, completed_at, completed_local_date, completed_local_hour, title_snapshot, root_tag_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .run(uuidv7(), id, cur.dueDate, now.getTime(), localDate(now), now.getHours(), cur.title, rootTag ?? null);
+        this.writeLog(cur, now);
       } else {
         this.db
           .prepare("UPDATE todos SET status = 'open', completed_at = NULL, updated_at = ? WHERE id = ?")
@@ -248,6 +372,60 @@ export class TodoService {
     this.changed(id);
     const undoToken = this.undoStore.add(() => this.toggle(id));
     return { todo: this.get(id), undoToken };
+  }
+
+  /** 循环事项完成本次：写完成记录，日期前进到下一次；没有下一次时整体完成 */
+  private completeOccurrence(cur: Todo, now: Date): { todo: Todo; undoToken: string } {
+    const rule = fromRRule(cur.rrule!);
+    const done = cur.repeatCountDone + 1;
+    const next = advanceAfterComplete(rule, cur.repeatAnchor ?? cur.dueDate!, cur.dueDate!, localDate(now), done);
+    let logId = '';
+    const tx = this.db.transaction(() => {
+      logId = this.writeLog(cur, now);
+      if (next) {
+        this.db
+          .prepare('UPDATE todos SET due_date = ?, repeat_count_done = ?, updated_at = ? WHERE id = ?')
+          .run(next, done, now.getTime(), cur.id);
+      } else {
+        this.db
+          .prepare(
+            "UPDATE todos SET status = 'done', completed_at = ?, repeat_count_done = ?, updated_at = ? WHERE id = ?",
+          )
+          .run(now.getTime(), done, now.getTime(), cur.id);
+      }
+    });
+    tx();
+    this.changed(cur.id);
+    const undoToken = this.undoStore.add(() => {
+      const undo = this.db.transaction(() => {
+        this.db
+          .prepare(
+            "UPDATE todos SET status = 'open', completed_at = NULL, due_date = ?, repeat_count_done = ? WHERE id = ?",
+          )
+          .run(cur.dueDate, cur.repeatCountDone, cur.id);
+        this.db.prepare('DELETE FROM completion_logs WHERE id = ?').run(logId);
+      });
+      undo();
+      this.changed(cur.id);
+    });
+    return { todo: this.get(cur.id), undoToken };
+  }
+
+  private writeLog(cur: Todo, now: Date): string {
+    const id = uuidv7();
+    const rootTag = cur.tags[0]
+      ? (this.db.prepare('SELECT path FROM tags WHERE id = ?').pluck().get(cur.tags[0].id) as string)
+          .split('/')
+          .filter(Boolean)[0]
+      : null;
+    this.db
+      .prepare(
+        `INSERT INTO completion_logs
+             (id, todo_id, occurrence_date, completed_at, completed_local_date, completed_local_hour, title_snapshot, root_tag_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, cur.id, cur.dueDate, now.getTime(), localDate(now), now.getHours(), cur.title, rootTag ?? null);
+    return id;
   }
 
   /** 删除进回收站（D-7），可撤销 */

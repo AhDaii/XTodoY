@@ -2166,7 +2166,7 @@ a {
 /* ---------- 下拉选择（设计系统 §7.9） ---------- */
 .select-trigger {
   height: var(--size-control);
-  min-width: 140px;
+  min-width: 88px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -2269,4 +2269,39 @@ a {
   font-size: var(--text-xs);
   color: var(--foreground-muted);
   font-weight: var(--weight-regular);
+}
+
+/* 提醒设置中的自定义提醒列表 */
+.reminder-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.popover .row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pause-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+/* 弹层内容不超过弹层宽度：避免出现横向滚动条；行内说明文字不换行 */
+.popover {
+  overflow-x: hidden;
+}
+.popover .row .help {
+  flex: none;
+  white-space: nowrap;
+}
+.popover .row .input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.popover .row .input[type='number'] {
+  flex: none;
 }

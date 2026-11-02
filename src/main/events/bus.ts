@@ -10,6 +10,7 @@ export interface BusEvents {
   'today.count': [count: TodayCount];
   'theme.changed': [dark: boolean];
   'time.jumped': [reason: 'resume' | 'drift' | 'midnight'];
+  'reminders.resumed': [];
 }
 
 class TypedBus extends EventEmitter<BusEvents> {}

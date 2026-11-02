@@ -126,9 +126,17 @@ export function destroyFloatingWindow(): void {
   windows.floating?.destroy();
 }
 
+let floatingLocked = false;
+
+/** 透明度（100 / 80 / 60）与锁定位置（FR-FLT-05） */
+export function applyFloatingPrefs(p: { opacity: number; locked: boolean }): void {
+  floatingLocked = p.locked;
+  windows.floating?.setOpacity(p.opacity / 100);
+}
+
 export function moveFloatingBy(dx: number, dy: number): void {
   const win = windows.floating;
-  if (!win) return;
+  if (!win || floatingLocked) return;
   const [x = 0, y = 0] = win.getPosition();
   win.setPosition(Math.round(x + dx), Math.round(y + dy));
 }
