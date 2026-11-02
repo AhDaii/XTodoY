@@ -202,22 +202,23 @@ test('所有滚动区域都占满所在列，滚动条贴在列的右侧', async
   expect(settings.section).toBeLessThanOrEqual(720);
 });
 
-test('标题栏按钮与 Ctrl+B 折叠侧边栏为图标栏，状态在重启后保留', async () => {
+test('侧边栏底部按钮与 Ctrl+B 折叠为图标栏，状态在重启后保留', async () => {
   const main = await windowByPage('main');
   await addTodo(main, '用于显示角标');
-  const toggle = main.locator('.titlebar').getByRole('button', { name: /折叠侧边栏/ });
+  const toggle = main.locator('#sidebar .sidebar-footer').getByRole('button', { name: /收起侧边栏/ });
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  // 页面标题前不再有折叠按钮
-  await expect(main.locator('.main-header').getByRole('button', { name: /侧边栏/ })).toHaveCount(0);
+  // 标题栏与页面标题前不再有折叠按钮
+  await expect(main.locator('.titlebar, .main-header').getByRole('button', { name: /侧边栏/ })).toHaveCount(0);
 
   await toggle.click();
   const sidebar = main.locator('#sidebar');
   await expect(sidebar).toHaveClass(/is-rail/);
   await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(56);
-  await expect(main.locator('.titlebar').getByRole('button', { name: /展开侧边栏/ })).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  );
+  const expand = sidebar.getByRole('button', { name: /展开侧边栏/ });
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  // 折叠按钮仍在侧边栏最底部
+  const [sb, eb] = await Promise.all([sidebar.boundingBox(), expand.boundingBox()]);
+  expect(sb!.y + sb!.height - (eb!.y + eb!.height)).toBeLessThan(16);
   // 图标栏仍可导航，名称通过读屏标签提供，"今天"显示数量角标
   await expect(main.locator('.rail-count')).toHaveText('1');
   await main.getByRole('button', { name: '计划，1 项' }).click();
@@ -229,4 +230,38 @@ test('标题栏按钮与 Ctrl+B 折叠侧边栏为图标栏，状态在重启后
   await expect(again.locator('#sidebar')).toHaveClass(/is-rail/);
   await again.keyboard.press('Control+b');
   await expect(again.locator('#sidebar')).not.toHaveClass(/is-rail/);
+});
+
+test('下拉选择：主题化列表，支持鼠标与键盘选择', async () => {
+  const main = await windowByPage('main');
+  await main.getByRole('button', { name: '设置' }).click();
+  await expect(main.locator('select')).toHaveCount(0); // 不再使用原生下拉框
+
+  const week = main.getByRole('combobox', { name: '每周起始日' });
+  await expect(week).toHaveText('周一');
+  await week.click();
+  const list = main.getByRole('listbox');
+  await expect(list).toBeVisible();
+  await expect(list.getByRole('option', { name: '周一' })).toHaveAttribute('aria-selected', 'true');
+  await list.getByRole('option', { name: '周日' }).click();
+  await expect(list).toBeHidden();
+  await expect(week).toHaveText('周日');
+
+  // 键盘：聚焦后 Enter 打开，方向键移动，Enter 选择
+  const close = main.getByRole('combobox', { name: '关闭主窗口时' });
+  await close.focus();
+  await main.keyboard.press('Enter');
+  await expect(main.getByRole('listbox')).toBeVisible();
+  // 打开后焦点落在当前选中项上
+  await expect(main.getByRole('option', { name: '最小化到托盘' })).toBeFocused();
+  await main.keyboard.press('ArrowDown');
+  await expect(main.getByRole('option', { name: '退出程序' })).toBeFocused();
+  await main.keyboard.press('Enter');
+  await expect(close).toContainText('退出程序');
+  await expect.poll(() => main.evaluate(async () => (await window.xtodoy.settings.get()).ok)).toBe(true);
+  const saved = await main.evaluate(async () => {
+    const r = await window.xtodoy.settings.get();
+    return r.ok ? [r.data.weekStart, r.data.closeAction] : null;
+  });
+  expect(saved).toEqual([0, 'quit']);
 });

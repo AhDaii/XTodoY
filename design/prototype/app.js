@@ -227,6 +227,10 @@ function renderSidebar() {
         ${item('stats', 'chart', '统计')}
         ${item('tags', 'tag', '标签管理')}
         ${item('settings', 'settings', '设置', null, null, updateBadge())}
+        <button class="nav-item sidebar-toggle" data-action="toggle-sidebar" aria-controls="sidebar" aria-expanded="${!rail}"
+          aria-label="${rail ? '展开' : '收起'}侧边栏（Ctrl+B）" title="${rail ? '展开' : '收起'}侧边栏（Ctrl+B）">
+          ${icon(rail ? 'panelLeftOpen' : 'panelLeftClose', rail ? 20 : 16)}<span class="label">收起侧边栏</span><kbd class="count">Ctrl+B</kbd>
+        </button>
       </div>
     </aside>`;
 }
@@ -933,18 +937,10 @@ function setUpdateDemo(v) {
   reveal();
 }
 
-/* 侧边栏折叠（标题栏按钮 / Ctrl+B），按钮状态随之更新 */
+/* 侧边栏折叠（侧边栏底部按钮 / Ctrl+B） */
 function toggleSidebar() {
   state.sidebarCollapsed = !state.sidebarCollapsed;
   render();
-}
-function syncSidebarToggle() {
-  const b = document.getElementById('sidebar-toggle');
-  if (!b) return;
-  const label = state.sidebarCollapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）';
-  b.setAttribute('aria-expanded', String(!state.sidebarCollapsed));
-  b.setAttribute('aria-label', label);
-  b.title = label;
 }
 
 /* ---------- 主渲染 ---------- */
@@ -959,7 +955,6 @@ function render() {
       ${renderSidebar()}${main}${renderDetail()}
     </div>`;
   document.title = `XTodoY · ${state.search ? '搜索' : VIEW_META[v]?.title || ({ stats: '统计', tags: '标签管理', settings: '设置' }[v] || tagById(v.slice(4))?.name)}`;
-  syncSidebarToggle();
   if (focusId && document.getElementById(focusId)) document.getElementById(focusId).focus();
   if (keepScroll && $('.main-scroll')) $('.main-scroll').scrollTop = keepScroll;
   lastRenderedView = v;
@@ -1090,6 +1085,8 @@ function addTag(parent) {
 
 /* ---------- 事件 ---------- */
 document.addEventListener('click', (e) => {
+  // 自定义下拉列表挂在 body 上，点击选项不应关闭它所在的弹层
+  if (e.target.closest('.select-content, .select-trigger')) return;
   const popEl = e.target.closest('.popover');
   if (popEl) return onPopoverClick(e);
   if (pop && !e.target.closest('[data-action^="pop-"]')) closePopover();
@@ -1267,10 +1264,7 @@ function mountChrome() {
     </div>
     <div class="window">
       <header class="titlebar">
-        <div class="brand">
-          <button id="sidebar-toggle" class="icon-btn" data-action="toggle-sidebar" aria-controls="sidebar">${icon('panelLeft')}</button>
-          ${logo()}<span>XTodoY</span>
-        </div>
+        <div class="brand">${logo()}<span>XTodoY</span></div>
         <label class="search">${icon('search', 14)}<span class="sr-only">搜索</span><input id="search" placeholder="搜索待办" autocomplete="off"><kbd>Ctrl+F</kbd></label>
         <div class="win-controls">
           <button data-action="win-min" aria-label="最小化">${icon('minus', 14)}</button>
@@ -1285,3 +1279,79 @@ function mountChrome() {
 mountChrome();
 applyTheme();
 render();
+
+/* ---------- 下拉选择（设计系统 §7.9）：把原生 <select class="select"> 渐进替换为与主题一致的下拉列表 ---------- */
+let openSelect = null;
+function closeCustomSelect(focusTrigger = false) {
+  if (!openSelect) return;
+  openSelect.menu.remove();
+  openSelect.trigger.setAttribute('aria-expanded', 'false');
+  openSelect.trigger.dataset.state = 'closed';
+  if (focusTrigger) openSelect.trigger.focus();
+  openSelect = null;
+}
+function enhanceSelects(root = document) {
+  root.querySelectorAll('select.select:not([data-enhanced])').forEach((sel) => {
+    sel.dataset.enhanced = '1';
+    sel.hidden = true;
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-label', sel.getAttribute('aria-label') || '');
+    if (sel.style.width) trigger.style.width = sel.style.width;
+    if (sel.style.marginBottom) trigger.style.marginBottom = sel.style.marginBottom;
+    const paint = () => (trigger.innerHTML = `<span>${esc(sel.selectedOptions[0]?.textContent ?? '')}</span><span class="select-chevron">${icon('chevronDown', 14)}</span>`);
+    paint();
+    sel.after(trigger);
+    const open = () => {
+      closeCustomSelect();
+      const menu = document.createElement('div');
+      menu.className = 'select-content';
+      menu.setAttribute('role', 'listbox');
+      menu.innerHTML = [...sel.options].map((o, i) => `<div class="select-item" role="option" id="opt-${i}" data-i="${i}" aria-selected="${o.selected}" data-state="${o.selected ? 'checked' : ''}">${o.selected ? `<span class="select-check">${icon('check', 14)}</span>` : ''}${esc(o.textContent)}</div>`).join('');
+      document.body.append(menu);
+      const r = trigger.getBoundingClientRect();
+      menu.style.minWidth = r.width + 'px';
+      const below = innerHeight - r.bottom - 8;
+      menu.style.left = Math.min(r.left, innerWidth - menu.offsetWidth - 8) + 'px';
+      menu.style.top = (below >= Math.min(menu.offsetHeight, 200) ? r.bottom + 4 : Math.max(8, r.top - menu.offsetHeight - 4)) + 'px';
+      let hi = sel.selectedIndex;
+      const highlight = (i) => {
+        hi = (i + sel.options.length) % sel.options.length;
+        menu.querySelectorAll('.select-item').forEach((el, k) => el.toggleAttribute('data-highlighted', k === hi));
+        menu.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: 'nearest' });
+        trigger.setAttribute('aria-activedescendant', `opt-${hi}`);
+      };
+      const choose = (i) => {
+        sel.selectedIndex = i;
+        paint();
+        closeCustomSelect(true);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      menu.addEventListener('mousemove', (e) => { const it = e.target.closest('.select-item'); if (it) highlight(Number(it.dataset.i)); });
+      menu.addEventListener('click', (e) => { const it = e.target.closest('.select-item'); if (it) choose(Number(it.dataset.i)); });
+      openSelect = { menu, trigger, highlight, choose, get hi() { return hi; } };
+      trigger.setAttribute('aria-expanded', 'true');
+      trigger.dataset.state = 'open';
+      highlight(hi);
+    };
+    trigger.addEventListener('click', (e) => { e.stopPropagation(); openSelect?.trigger === trigger ? closeCustomSelect() : open(); });
+    trigger.addEventListener('keydown', (e) => {
+      if (!openSelect || openSelect.trigger !== trigger) {
+        if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); open(); }
+        return;
+      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); openSelect.highlight(openSelect.hi + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); openSelect.highlight(openSelect.hi - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); openSelect.highlight(0); }
+      else if (e.key === 'End') { e.preventDefault(); openSelect.highlight(sel.options.length - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSelect.choose(openSelect.hi); }
+      else if (e.key === 'Escape' || e.key === 'Tab') { e.stopPropagation(); closeCustomSelect(e.key === 'Escape'); }
+    });
+  });
+}
+document.addEventListener('mousedown', (e) => { if (openSelect && !e.target.closest('.select-content, .select-trigger')) closeCustomSelect(); }, true);
+new MutationObserver(() => enhanceSelects()).observe(document.body, { childList: true, subtree: true });
+enhanceSelects();

@@ -78,6 +78,10 @@ test('界面截图', async () => {
     await w.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
     await w.waitForTimeout(300);
     await w.screenshot({ path: `${out}/${theme}-settings.png` });
+    await w.getByRole('combobox', { name: '关闭主窗口时' }).click();
+    await w.waitForTimeout(300);
+    await w.screenshot({ path: `${out}/${theme}-select.png` });
+    await w.keyboard.press('Escape');
   }
   // 折叠后的图标栏
   await w.evaluate(() => window.xtodoy.settings.set('sidebarCollapsed', true));

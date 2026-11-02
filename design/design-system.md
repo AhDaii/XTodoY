@@ -1,4 +1,4 @@
-# XTodoY 设计系统 v1.3
+# XTodoY 设计系统 v1.4
 
 > 阶段：P2 界面原型 · 依据：[SRS v1.1](../docs/srs/SRS.md) · 工具：ui-ux-pro-max
 > 令牌源文件：[`tokens.css`](tokens.css)（前端直接引用）· 原型：[`prototype/index.html`](prototype/index.html)、[`prototype/system.html`](prototype/system.html)
@@ -148,11 +148,10 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 
 智能视图（今天 / 计划 / 全部 / 已完成 / 回收站）+ 分隔线 + 标签树（可折叠，缩进 16 px / 级）+ 底部（统计、标签管理、设置）。每项右侧显示计数徽标（`--foreground-subtle`，`tabular-nums`）。
 
-**折叠**（v1.3，参考 Outlook / Teams / VS Code 等桌面应用的通行做法）：
-- 折叠按钮固定在 **标题栏最左侧**（应用图标之前），展开、折叠时位置不变；快捷键 `Ctrl+B`；按钮带 `aria-expanded` 与"折叠 / 展开侧边栏（Ctrl+B）"提示。
+**折叠**（v1.4）：
+- 折叠按钮固定在 **侧边栏最底部**（"设置"下方，以分隔线隔开），展开时显示"收起侧边栏 · Ctrl+B"，折叠后为图标栏底部的展开图标；快捷键 `Ctrl+B`；按钮带 `aria-expanded` 与"收起 / 展开侧边栏（Ctrl+B）"提示。标题栏与页面标题前不放折叠按钮。
 - 折叠后不是完全隐藏，而是收成 **56 px 图标栏**（`--size-rail`）：保留智能视图与底部入口（20 px 图标），隐藏标签树；名称与数量通过悬停提示和读屏标签提供；"今天"在图标右上角显示主色数量角标；当前项左侧有 3 px 主色指示条。
 - 折叠状态保存在设置中，重启后保持；宽度切换有 200 ms 过渡（尊重"减少动画"）。
-- 页面标题前不再放折叠按钮。
 
 ### 7.5 悬浮窗
 
@@ -191,6 +190,17 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 | 系统通知 | 每个版本最多一次："XTodoY x.y.z 可以更新了"（查看详情 / 稍后）；下载完成："更新已就绪"（立即重启 / 稍后） |
 
 原型中可用顶部工具条的"更新演示"下拉直接切换以上状态。
+
+### 7.9 下拉选择
+
+不使用原生 `<select>`（展开后的列表由系统绘制，无法跟随主题）。按 ui-ux-pro-max 对 shadcn 栈的建议，使用"触发按钮 + 当前值 + 选项列表"结构的 Select 组件（应用基于 Radix Select）：
+
+| 部分 | 规范 |
+|---|---|
+| 触发按钮 | 高 32 px、最小宽 140 px，`--control-border` 边框、`--radius-sm`；右侧 14 px 下箭头，展开时旋转 180°，边框变为主色 |
+| 选项列表 | `--surface-raised` 底、`--border` 边框、`--radius-md`、`--shadow-lg`，内边距 4 px，至少与触发按钮同宽，最高 320 px 超出滚动；进入动画 200 ms（位移 4 px + 缩放 0.98） |
+| 选项 | 高 32 px，左侧 30 px 留给对勾；悬停 / 键盘高亮为 `--surface-hover`；当前值为 `--primary-soft` 底 + 主色对勾 + 中等字重；可带一行 12 px 辅助说明 |
+| 键盘 | Enter / Space / ↓ 打开，打开后焦点在当前值；↑↓ 移动，Home / End，首字母跳转，Enter 选择，Esc 关闭并回到触发按钮 |
 
 ## 8 页面清单与原型对应
 

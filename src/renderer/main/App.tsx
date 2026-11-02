@@ -83,16 +83,6 @@ export function App() {
     <div className="window">
       <header className="titlebar">
         <div className="brand">
-          <button
-            className="icon-btn"
-            aria-controls="sidebar"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）'}
-            title={collapsed ? '展开侧边栏（Ctrl+B）' : '折叠侧边栏（Ctrl+B）'}
-            onClick={toggleSidebar}
-          >
-            <Icon name="panelLeft" />
-          </button>
           <Logo />
           <span>XTodoY</span>
         </div>
@@ -112,7 +102,7 @@ export function App() {
         </label>
       </header>
       <div className={`body ${collapsed ? 'sidebar-collapsed' : ''}`}>
-        <Sidebar counts={counts} tags={tags} rail={collapsed} />
+        <Sidebar counts={counts} tags={tags} rail={collapsed} onToggle={toggleSidebar} />
         {page}
         {showList && selectedId && settings && (
           <DetailPanel id={selectedId} tags={tags} weekStart={settings.weekStart} />

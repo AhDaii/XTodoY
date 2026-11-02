@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AppInfo } from '@shared/ipc';
 import type { Settings } from '@shared/types';
 import { Icon, type IconName } from '../components/Icon';
+import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
 
@@ -36,30 +37,32 @@ export function SettingsPage({ settings }: { settings: Settings }) {
                 <b>关闭主窗口时</b>
                 <span>选择"最小化到托盘"可继续接收提醒</span>
               </div>
-              <select
-                className="select"
-                aria-label="关闭主窗口时"
+              <Select
+                ariaLabel="关闭主窗口时"
+                width={160}
                 value={settings.closeAction}
-                onChange={(e) => set('closeAction', e.target.value as Settings['closeAction'])}
-              >
-                <option value="tray">最小化到托盘</option>
-                <option value="quit">退出程序</option>
-              </select>
+                onChange={(v) => set('closeAction', v)}
+                options={[
+                  { value: 'tray', label: '最小化到托盘', hint: '继续在后台提醒' },
+                  { value: 'quit', label: '退出程序', hint: '不再接收提醒' },
+                ]}
+              />
             </div>
             <div className="setting">
               <div className="txt">
                 <b>每周起始日</b>
                 <span>影响日期选择器、"本周"分组与周统计</span>
               </div>
-              <select
-                className="select"
-                aria-label="每周起始日"
+              <Select
+                ariaLabel="每周起始日"
+                width={160}
                 value={settings.weekStart}
-                onChange={(e) => set('weekStart', Number(e.target.value) as 0 | 1)}
-              >
-                <option value={1}>周一</option>
-                <option value={0}>周日</option>
-              </select>
+                onChange={(v) => set('weekStart', v)}
+                options={[
+                  { value: 1 as const, label: '周一' },
+                  { value: 0 as const, label: '周日' },
+                ]}
+              />
             </div>
           </div>
         </section>

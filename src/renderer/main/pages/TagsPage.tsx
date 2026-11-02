@@ -2,6 +2,7 @@ import { useState, type DragEvent } from 'react';
 import { LIMITS, TAG_COLORS, type TagNode } from '@shared/types';
 import { Dialog, Popover } from '../components/Overlay';
 import { Icon } from '../components/Icon';
+import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
 import { useUi } from '../lib/store';
@@ -319,22 +320,16 @@ function MergeDialog({ tag, all, onClose }: { tag: TagNode; all: TagNode[]; onCl
       <p>
         "{tag.name}"下的待办将改挂到目标标签（已挂的不重复），子标签移到目标下，然后删除"{tag.name}"。
       </p>
-      <label className="field-label" htmlFor="merge-to">
-        合并到
-      </label>
-      <select
-        id="merge-to"
-        className="select"
-        style={{ marginBottom: 20 }}
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-      >
-        {targets.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.displayPath}
-          </option>
-        ))}
-      </select>
+      <span className="field-label">合并到</span>
+      <div style={{ marginBottom: 20 }}>
+        <Select<string>
+          ariaLabel="合并到"
+          width="100%"
+          value={to}
+          onChange={setTo}
+          options={targets.map((t) => ({ value: t.id, label: t.displayPath }))}
+        />
+      </div>
       <div className="actions">
         <button className="btn" onClick={onClose}>
           取消

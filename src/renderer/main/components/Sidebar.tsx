@@ -14,7 +14,17 @@ const SMART: [SmartView, IconName, string, number][] = [
 const same = (a: Route, b: Route): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /** rail = 折叠后的 56px 图标栏：只保留智能视图与底部入口，名称通过悬停提示与读屏标签提供 */
-export function Sidebar({ counts, tags, rail }: { counts: ViewCounts; tags: TagNode[]; rail: boolean }) {
+export function Sidebar({
+  counts,
+  tags,
+  rail,
+  onToggle,
+}: {
+  counts: ViewCounts;
+  tags: TagNode[];
+  rail: boolean;
+  onToggle(): void;
+}) {
   const { route, search, collapsedTags, go, toggleTag } = useUi();
   const current = (r: Route) => (!search && same(route, r) ? ('page' as const) : undefined);
 
@@ -125,6 +135,19 @@ export function Sidebar({ counts, tags, rail }: { counts: ViewCounts; tags: TagN
         {item({ kind: 'page', page: 'stats' }, 'chart', '统计')}
         {item({ kind: 'page', page: 'tags' }, 'tag', '标签管理')}
         {item({ kind: 'page', page: 'settings' }, 'settings', '设置')}
+        {/* 折叠按钮固定在侧边栏底部：展开时为"收起侧边栏"，图标栏中为展开图标 */}
+        <button
+          className="nav-item sidebar-toggle"
+          aria-controls="sidebar"
+          aria-expanded={!rail}
+          aria-label={rail ? '展开侧边栏（Ctrl+B）' : '收起侧边栏（Ctrl+B）'}
+          title={rail ? '展开侧边栏（Ctrl+B）' : '收起侧边栏（Ctrl+B）'}
+          onClick={onToggle}
+        >
+          <Icon name={rail ? 'panelLeftOpen' : 'panelLeftClose'} size={rail ? 20 : 16} />
+          <span className="label">收起侧边栏</span>
+          <kbd className="count">Ctrl+B</kbd>
+        </button>
       </div>
     </aside>
   );
