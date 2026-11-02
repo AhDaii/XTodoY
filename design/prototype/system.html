@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 系统组件原型（悬浮窗 / 托盘 / 通知）</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #e2e8f0; }
+    .page { padding: var(--space-6); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+    .theme-col { padding: var(--space-6); border-radius: var(--radius-lg); background: var(--background); color: var(--foreground); }
+    .theme-col > h2 { margin: 0 0 var(--space-5); font-size: var(--text-lg); font-weight: var(--weight-semibold); display: flex; align-items: center; gap: var(--space-2); }
+    .spec { margin-bottom: var(--space-8); }
+    .spec h3 { margin: 0 0 var(--space-1); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+    .spec .help { display: block; margin-bottom: var(--space-3); }
+    .desk {
+      position: relative; padding: 56px var(--space-6) var(--space-6); border-radius: var(--radius-md); min-height: 140px;
+      background: linear-gradient(135deg, #3b5ba9, #5f86d6 60%, #8db3ef); display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: flex-start;
+    }
+    .dark .desk { background: linear-gradient(135deg, #0b1430, #16285a 60%, #1f3a7a); }
+    .state-label { display: block; margin-top: var(--space-2); text-align: center; font-size: var(--text-xs); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+
+    /* 悬浮窗 */
+    .floating {
+      position: relative; width: var(--size-floating); height: var(--size-floating); border-radius: 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+      background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+      cursor: pointer; user-select: none; transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast);
+      text-decoration: none; color: var(--foreground);
+    }
+    .floating:hover { transform: translateY(-1px); }
+    .floating .n { font-family: var(--font-num); font-size: var(--text-2xl); font-weight: var(--weight-bold); line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .floating .n.small { font-size: 26px; }
+    .floating .lbl { font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.4; }
+    .floating.is-done .n { color: var(--success); }
+    .floating.is-empty .n { color: var(--foreground-subtle); }
+    .floating .tip {
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
+      padding: 6px 10px; border-radius: var(--radius-sm); background: var(--surface-raised); border: 1px solid var(--border);
+      box-shadow: var(--shadow-md); font-size: var(--text-xs); color: var(--foreground); opacity: 0; pointer-events: none;
+      transition: opacity var(--duration-fast);
+    }
+    .floating:hover .tip, .floating.force-tip .tip, .floating:focus-visible .tip { opacity: 1; }
+    .floating.opacity-80 { opacity: .8; }
+
+    /* 托盘 */
+    .taskbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; height: 40px; padding: 0 12px; margin-top: auto; border-radius: var(--radius-sm); background: rgba(243,243,243,.85); color: #1a1a1a; font-size: 12px; }
+    .dark .taskbar { background: rgba(32,32,32,.9); color: #f0f0f0; }
+    .tray-icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 4px; }
+    .tray-icon.active { background: rgba(127,127,127,.25); }
+    .menu-card { width: 240px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-lg); }
+    .menu-head { padding: var(--space-3); border-bottom: 1px solid var(--border); font-size: var(--text-xs); color: var(--foreground-muted); }
+    .menu-head b { display: block; color: var(--foreground); font-size: var(--text-sm); }
+    .sub-arrow { margin-left: auto; color: var(--foreground-subtle); }
+
+    /* 通知（Windows Toast 样式） */
+    .toast-win { width: 364px; border-radius: var(--radius-md); background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-lg); overflow: hidden; }
+    .toast-win .top { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-3) 0; font-size: var(--text-xs); color: var(--foreground-muted); }
+    .toast-win .top .spacer { flex: 1; }
+    .toast-win .content { display: flex; gap: var(--space-3); padding: var(--space-3); }
+    .toast-win .content b { display: block; font-size: var(--text-base); }
+    .toast-win .content span { font-size: var(--text-sm); color: var(--foreground-muted); }
+    .toast-win .acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); }
+    .toast-win .acts .btn { width: 100%; }
+    .row-wrap { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+    .static-dialog { position: static; animation: none; }
+    .static-toast { position: static; display: inline-flex; animation: none; }
+    @media (max-width: 1100px) { .page { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="proto-bar" role="note">
+    <strong>XTodoY 系统组件原型</strong><span>左列浅色 · 右列深色 · 悬浮窗可点击（跳转主界面"今天"视图）、悬停显示提示</span>
+    <span class="spacer"></span><a href="index.html">← 返回主界面原型</a>
+  </div>
+  <div class="page">
+    <div class="theme-col" id="light"></div>
+    <div class="theme-col dark" id="dark"></div>
+  </div>
+
+  <script src="icons.js"></script>
+  <script>
+    const floating = (cls, n, lbl, tip, label) => `
+      <div><a class="floating ${cls}" href="index.html?view=today" aria-label="今日待办：${label}，单击打开主窗口">
+        <span class="n ${String(n).length > 2 ? 'small' : ''}">${n}</span><span class="lbl">${lbl}</span><span class="tip" role="tooltip">${tip}</span>
+      </a><span class="state-label">${label}</span></div>`;
+
+    const col = (title, ic) => `
+      <h2>${icon(ic, 20)}${title}</h2>
+
+      <section class="spec">
+        <h3>UI-11 悬浮窗 · 状态</h3>
+        <span class="help">64 × 64 · 始终置顶 · 不在任务栏显示 · 拖动移动、释放后记住位置 · 单击打开主窗口"今天"视图</span>
+        <div class="desk">
+          ${floating('', 3, '今日', '今日已完成 2 / 共 5', '有未完成（3）')}
+          ${floating('force-tip', 3, '今日', '今日已完成 2 / 共 5', '悬停提示')}
+          ${floating('', '99+', '今日', '今日已完成 4 / 共 132', '超过 99')}
+          ${floating('is-done', icon('check', 30), '全部完成', '今日 5 项已全部完成', '全部完成')}
+          ${floating('is-empty', 0, '今日', '今天没有到期的事项', '无待办')}
+          ${floating('opacity-80', 3, '今日', '透明度 80%', '透明度 80%')}
+        </div>
+      </section>
+
+      <section class="spec">
+        <h3>悬浮窗右键菜单</h3>
+        <span class="help">FR-FLT-05</span>
+        <div class="menu-card menu" role="menu" aria-label="悬浮窗菜单">
+          <button class="menu-item" role="menuitem">${icon('plus', 14)}新建待办</button>
+          <button class="menu-item" role="menuitem">${icon('appWindow', 14)}打开主窗口</button>
+          <div class="menu-sep"></div>
+          <button class="menu-item" role="menuitemcheckbox" aria-checked="false">${icon('pin', 14)}锁定位置</button>
+          <button class="menu-item" role="menuitem">${icon('sun', 14)}透明度<span class="kbd">100% ›</span></button>
+          <div class="menu-sep"></div>
+          <button class="menu-item" role="menuitem">${icon('eyeOff', 14)}隐藏悬浮窗</button>
+        </div>
+      </section>
+
+      <section class="spec">
+        <h3>UI-12 托盘菜单与提示</h3>
+        <span class="help">左键单击：显示 / 聚焦主窗口 · 右键：菜单 · 悬停："XTodoY · 今日待办 3 项"</span>
+        <div class="row-wrap">
+          <div class="menu-card" role="menu" aria-label="托盘菜单">
+            <div class="menu-head"><b>XTodoY</b>今日待办 3 项 · 已完成 2 项</div>
+            <div class="menu">
+              <button class="menu-item" role="menuitem">${icon('appWindow', 14)}打开主窗口</button>
+              <button class="menu-item" role="menuitem">${icon('plus', 14)}新建待办<span class="kbd">Ctrl+Alt+T</span></button>
+              <button class="menu-item" role="menuitemcheckbox" aria-checked="true">${icon('check', 14)}显示悬浮窗</button>
+              <button class="menu-item" role="menuitem">${icon('pause', 14)}暂停提醒<span class="sub-arrow">${icon('chevronRight', 14)}</span></button>
+              <button class="menu-item" role="menuitem">${icon('settings', 14)}设置</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" role="menuitem">${icon('logOut', 14)}退出 XTodoY<span class="kbd">Ctrl+Q</span></button>
+            </div>
+          </div>
+          <div class="menu-card menu" role="menu" aria-label="暂停提醒子菜单" style="width:180px">
+            <button class="menu-item" role="menuitem">暂停 1 小时</button>
+            <button class="menu-item" role="menuitem">暂停到明天 0:00</button>
+          </div>
+        </div>
+        <div class="taskbar" style="margin-top:16px">
+          <span>ENG</span>
+          <span class="tray-icon active" title="XTodoY · 今日待办 3 项">${logo(16)}</span>
+          <span>14:32<br>2026/11/2</span>
+        </div>
+      </section>
+
+      <section class="spec">
+        <h3>UI-13 系统通知</h3>
+        <span class="help">Windows Toast · 单击正文打开主窗口并定位事项 · 「完成」不弹出主窗口</span>
+        <div class="row-wrap">
+          <div class="toast-win" role="alert">
+            <div class="top">${logo(14)}<span>XTodoY</span><span class="spacer"></span>${icon('more', 14)}${icon('x', 14)}</div>
+            <div class="content"><div><b>评审 XTodoY 界面原型</b><span>今天 10:00 · 工作 / 项目A / 设计<br>重点看深色模式与悬浮窗状态</span></div></div>
+            <div class="acts"><button class="btn primary">完成</button><button class="btn">稍后提醒（10 分钟）</button></div>
+          </div>
+          <div class="toast-win" role="alert">
+            <div class="top">${logo(14)}<span>XTodoY</span><span class="spacer"></span>${icon('x', 14)}</div>
+            <div class="content"><div><b>你错过了 4 个提醒</b><span>电脑休眠期间到期的提醒已合并。单击查看"今天"。</span></div></div>
+            <div class="acts" style="grid-template-columns:1fr"><button class="btn">查看</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="spec">
+        <h3>UI-16 通用反馈</h3>
+        <span class="help">撤销提示条（5 秒）· 首次关闭提示 · 确认对话框</span>
+        <div class="row-wrap">
+          <div class="toast static-toast" role="status"><span class="msg">已完成"回复客户邮件"</span><button>撤销</button><button aria-label="关闭">${icon('x', 14)}</button></div>
+          <div class="toast static-toast" role="status"><span class="msg">XTodoY 仍在后台运行，可从托盘或悬浮窗打开</span><button aria-label="关闭">${icon('x', 14)}</button></div>
+          <div class="dialog static-dialog" role="alertdialog" aria-label="删除标签">
+            <h2>${icon('alert', 18)}删除标签"工作"？</h2>
+            <p>包含 3 个子标签，关联 8 项待办。待办本身<b>不会被删除</b>，只会移除标签关联。</p>
+            <div class="options">
+              <label class="option"><input type="radio" name="sub-${ic}" checked><div><b>子标签上移一级</b><span>"项目A、项目B"将移到根级</span></div></label>
+              <label class="option"><input type="radio" name="sub-${ic}"><div><b>一并删除子标签</b><span>共删除 4 个标签</span></div></label>
+            </div>
+            <div class="actions"><button class="btn">取消</button><button class="btn danger">删除</button></div>
+          </div>
+        </div>
+      </section>`;
+
+    document.getElementById('light').innerHTML = col('浅色', 'sun');
+    document.getElementById('dark').innerHTML = col('深色', 'moon');
+  </script>
+</body>
+</html>
