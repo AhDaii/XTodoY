@@ -52,6 +52,8 @@
     .menu-head { padding: var(--space-3); border-bottom: 1px solid var(--border); font-size: var(--text-xs); color: var(--foreground-muted); }
     .menu-head b { display: block; color: var(--foreground); font-size: var(--text-sm); }
     .sub-arrow { margin-left: auto; color: var(--foreground-subtle); }
+    .update-item { color: var(--primary); font-weight: var(--weight-semibold); }
+    .update-item .kbd { color: var(--primary); }
 
     /* 通知（Windows Toast 样式） */
     .toast-win { width: 364px; border-radius: var(--radius-md); background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -126,6 +128,7 @@
               <button class="menu-item" role="menuitem">${icon('plus', 14)}新建待办<span class="kbd">Ctrl+Alt+T</span></button>
               <button class="menu-item" role="menuitemcheckbox" aria-checked="true">${icon('check', 14)}显示悬浮窗</button>
               <button class="menu-item" role="menuitem">${icon('pause', 14)}暂停提醒<span class="sub-arrow">${icon('chevronRight', 14)}</span></button>
+              <button class="menu-item" role="menuitem">${icon('restore', 14)}检查更新</button>
               <button class="menu-item" role="menuitem">${icon('settings', 14)}设置</button>
               <div class="menu-sep"></div>
               <button class="menu-item" role="menuitem">${icon('logOut', 14)}退出 XTodoY<span class="kbd">Ctrl+Q</span></button>
@@ -156,6 +159,44 @@
             <div class="top">${logo(14)}<span>XTodoY</span><span class="spacer"></span>${icon('x', 14)}</div>
             <div class="content"><div><b>你错过了 4 个提醒</b><span>电脑休眠期间到期的提醒已合并。单击查看"今天"。</span></div></div>
             <div class="acts" style="grid-template-columns:1fr"><button class="btn">查看</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="spec">
+        <h3>UI-17 更新 · 托盘与通知</h3>
+        <span class="help">FR-UPD-03 / 06 · 有新版本或更新就绪时，托盘菜单顶部出现一行；每个版本最多发一次系统通知，不弹窗</span>
+        <div class="row-wrap">
+          <div class="menu-card" role="menu" aria-label="托盘菜单（发现新版本）">
+            <div class="menu-head"><b>XTodoY</b>今日待办 3 项 · 已完成 2 项</div>
+            <div class="menu">
+              <button class="menu-item update-item" role="menuitem">${icon('download', 14)}新版本 1.1.0 可用<span class="kbd">查看</span></button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" role="menuitem">${icon('appWindow', 14)}打开主窗口</button>
+              <button class="menu-item" role="menuitem">${icon('restore', 14)}检查更新</button>
+              <button class="menu-item" role="menuitem">${icon('logOut', 14)}退出 XTodoY</button>
+            </div>
+          </div>
+          <div class="menu-card" role="menu" aria-label="托盘菜单（更新就绪）">
+            <div class="menu-head"><b>XTodoY</b>今日待办 3 项 · 已完成 2 项</div>
+            <div class="menu">
+              <button class="menu-item update-item" role="menuitem">${icon('restore', 14)}重启以完成更新（1.1.0）</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" role="menuitem">${icon('appWindow', 14)}打开主窗口</button>
+              <button class="menu-item" role="menuitem">${icon('logOut', 14)}退出并安装更新</button>
+            </div>
+          </div>
+        </div>
+        <div class="row-wrap" style="margin-top:16px">
+          <div class="toast-win" role="alert">
+            <div class="top">${logo(14)}<span>XTodoY</span><span class="spacer"></span>${icon('x', 14)}</div>
+            <div class="content"><div><b>XTodoY 1.1.0 可以更新了</b><span>新增 CSV 导出、悬浮窗快速新建等 4 项改进。</span></div></div>
+            <div class="acts"><button class="btn primary">查看详情</button><button class="btn">稍后</button></div>
+          </div>
+          <div class="toast-win" role="alert">
+            <div class="top">${logo(14)}<span>XTodoY</span><span class="spacer"></span>${icon('x', 14)}</div>
+            <div class="content"><div><b>更新已就绪</b><span>1.1.0 已下载完成。重启后生效，或在退出时自动安装。</span></div></div>
+            <div class="acts"><button class="btn primary">立即重启</button><button class="btn">稍后</button></div>
           </div>
         </div>
       </section>
