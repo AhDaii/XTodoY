@@ -1,12 +1,17 @@
 # Node
 node_modules/
-dist/
 *.log
 .pnpm-store/
 
-# Rust / Tauri
-src-tauri/target/
-src-tauri/gen/
+# Build output (electron-vite / electron-builder)
+out/
+dist/
+release/
+
+# Test
+coverage/
+test-results/
+playwright-report/
 
 # Env
 .env
