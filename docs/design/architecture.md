@@ -13,7 +13,7 @@
 | 界面 | React 19 + Tailwind CSS 4 | 19.x / 4.x | 设计令牌来自 `design/tokens.css` |
 | 状态 | Zustand | 5.x | 只存视图状态；业务数据以主进程为准 |
 | 图表 | 自绘 SVG | — | 原型已验证（折线、热力图、环形图），不引入 Recharts，减小包体 |
-| 数据库 | better-sqlite3 + Drizzle ORM | 13.x / 0.45.x | 13.x 自带 N-API 预编译包，无需针对 Electron 重编译 |
+| 数据库 | better-sqlite3（手写 SQL） | 13.x | 13.x 自带 N-API 预编译包，无需针对 Electron 重编译；P4 决定不引入 ORM |
 | 循环规则 | rrule | 2.8.x | 只用于解析 / 展开，月末规则自行补充（FR-REC-04） |
 | 打包 / 更新 | electron-builder + electron-updater | 26.x / 6.x | NSIS 当前用户级安装；GitHub Releases |
 | 测试 | Vitest + Playwright（`_electron`） | 5.x / 1.6x | |

@@ -16,7 +16,7 @@ function render(c: TodayCount): void {
   tile.setAttribute('aria-label', `${tile.title}，单击打开主窗口`);
 }
 
-void window.xtodoy.getToday().then(render);
+void window.xtodoy.getToday().then((r) => r.ok && render(r.data));
 window.xtodoy.onTodayCount(render);
 
 // 主题以主进程推送为准，首帧按系统设置
