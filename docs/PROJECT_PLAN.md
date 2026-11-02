@@ -1,6 +1,6 @@
 # XTodoY 项目规划
 
-> 版本：v0.2（规划稿） · 日期：2026-11-02 · 仓库：https://github.com/AhDaii/XTodoY.git
+> 版本：v0.3（规划稿，补充自动更新） · 日期：2026-11-02 · 仓库：https://github.com/AhDaii/XTodoY.git
 
 ---
 
@@ -21,6 +21,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | F7 | 悬浮窗 | 置顶小窗显示「今日待办数量」（未完成 / 总数）；可拖动、位置记忆、可开关；单击悬浮窗唤起并聚焦主界面 |
 | F8 | 统计 | 按 天 / 周 / 月 统计已完成事项数量与明细；趋势图、按标签分布、完成率 |
 | F9 | 外观 | 浅色 / 深色 / 跟随系统 三种主题 |
+| F10 | 更新 | 自动 / 手动检查新版本，后台下载并校验，提示"重启以更新"或在退出时安装；可关闭（SRS v1.1 新增） |
 
 ### 1.2 非功能目标（初定，SRS 阶段细化）
 
@@ -63,7 +64,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | 数据存储 | SQLite：better-sqlite3（WAL 模式）+ Drizzle ORM（schema 与迁移） | 本地单文件，位于 `app.getPath('userData')` |
 | 循环规则 | `rrule`（RFC 5545 子集） | 便于未来与日历互通 |
 | 系统集成 | `Tray`、`Notification`（Windows 用 `toastXml` 实现操作按钮）、`app.setLoginItemSettings`、`app.requestSingleInstanceLock`、`powerMonitor`、`nativeTheme` | 均为 Electron 内置 |
-| 打包发布 | electron-builder（Windows NSIS 安装包）；electron-updater 预留自动更新 | |
+| 打包发布 | electron-builder（Windows NSIS 当前用户级安装包）+ electron-updater 自动更新 | 发布源为本仓库（公开）的 GitHub Releases |
 | 测试 | Vitest + Testing Library（单元 / 组件）；Playwright `_electron`（E2E） | |
 | 质量 | ESLint + Prettier、TypeScript strict、Husky + commitlint | |
 | CI/CD | GitHub Actions：lint / test / 多平台构建 / Release 打包 | |
@@ -189,12 +190,15 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 - [ ] `docs/design/architecture.md`：模块划分、进程与窗口生命周期、事件流
 - [ ] `docs/design/database.md`：表结构、索引、迁移策略
 - [ ] `docs/design/ipc.md`：preload 暴露的 API 与主进程 → 渲染进程事件定义
+- [ ] `docs/design/release.md`：版本号规则、发布流程、发布仓库与更新通道、签名方案
+- [ ] 补充更新相关原型（SRS UI-17：更新详情、下载进度、"重启以更新"、设置 › 更新分组、更新后横幅）
 - [ ] 技术验证 Spike：
   1. 销毁主窗口后仅托盘 / 托盘 + 悬浮窗的常驻内存与 CPU 实测
   2. Windows Toast 通知带「完成」「稍后提醒」操作按钮
   3. 透明、无边框、置顶悬浮窗的拖动与点击唤起主窗口
   4. 休眠唤醒后提醒补发
   5. better-sqlite3 原生模块在 electron-builder 打包后的可用性
+  6. 自动更新全流程：从本仓库 GitHub Releases 读取 `latest.yml` → 后台下载 → SHA-512 校验 → 退出时静默安装 → 数据库迁移；验证未签名时的 SmartScreen 表现
 - [ ] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
 
 **出口标准**：Spike 结果满足 §1.2 指标（或经评审调整指标），脚手架与 CI 就绪。
@@ -219,6 +223,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 
 - [ ] 完成记录聚合查询（日 / 周 / 月）、统计页图表与明细
 - [ ] 设置页、数据导入导出（JSON 备份）
+- [ ] 自动更新（SRS F10）：检查调度、提示、后台下载、校验、退出时安装、更新前备份、失败处理
 - [ ] 性能优化：包体积、内存、启动时间；键盘快捷键（如全局快捷键快速新建）
 - [ ] 可访问性与细节动效
 
@@ -228,7 +233,9 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 - [ ] E2E 测试：主流程自动化（Playwright `_electron`）
 - [ ] 性能测试：24 小时常驻内存 / CPU 曲线、提醒准时性
 - [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（悬浮窗位置）
-- [ ] 打包：Windows NSIS 安装包（可选代码签名），macOS / Linux 构建
+- [ ] 打包：Windows NSIS 安装包（代码签名），macOS / Linux 构建
+- [ ] 发布流水线：GitHub Actions 打 tag 后构建、签名，并把安装包与 `latest.yml` 上传到本仓库 GitHub Releases
+- [ ] 更新测试：v1.0.0-rc → v1.0.0 真实升级、断网 / 校验失败 / 安装失败场景
 - [ ] 编写用户手册与 CHANGELOG，发布 GitHub Release `v1.0.0`
 
 ---
@@ -273,7 +280,7 @@ XTodoY/
 │  └─ prototype/               # 高保真 HTML 原型（浅 / 深色）
 ├─ src/
 │  ├─ main/                    # 主进程
-│  │  └─ db/ scheduler/ recurrence/ stats/ tray/ notifier/ windows/ ipc/
+│  │  └─ db/ scheduler/ recurrence/ stats/ tray/ notifier/ windows/ ipc/ updater/
 │  ├─ preload/                 # contextBridge 暴露的 API
 │  ├─ renderer/
 │  │  ├─ main/                 # 主窗口（React）：app/ pages/ components/ stores/ api/ styles/
@@ -295,6 +302,9 @@ XTodoY/
 | 循环规则与时区 / 夏令时边界问题 | 时间错乱 | 统一以本地时区规则计算 + 边界单元测试 |
 | better-sqlite3 原生模块与 Electron 版本不匹配 | 打包后无法运行 | 使用 electron-builder `install-app-deps` 重建；CI 固定 Electron 与 Node 版本 |
 | 需求蔓延（同步、协作等） | 延期 | v1.0 范围以 SRS 冻结为准，新需求进入 Backlog |
+| GitHub 在国内访问不稳定 | 部分用户检查 / 下载更新失败 | 失败静默重试并提供手动下载入口（SRS FR-UPD-09）；必要时增加国内镜像（如对象存储）作为备用发布源 |
+| 未取得代码签名证书 | SmartScreen 警告、无法校验发布者 | 发布前申请证书；在此之前仅做 SHA-512 校验并在发布说明中提示 |
+| 更新安装中断或迁移失败 | 程序无法启动或数据损坏 | 更新前备份、迁移失败回滚、当前用户级安装避免权限问题（SRS FR-UPD-07 / 09） |
 
 ---
 
