@@ -46,8 +46,24 @@ test('界面截图', async () => {
       const r = await x.todos.create({ title, dueDate, dueTime, tagIds, priority } as never);
       return r.ok ? r.data.id : '';
     };
-    await make('评审 XTodoY 界面原型', d(0), '10:00', [design], 3);
-    await make('项目A 周会', d(0), '14:30', [a], 2);
+    const review = await make('评审 XTodoY 界面原型', d(0), '10:00', [design], 3);
+    await x.todos.setRepeat(review, {
+      freq: 'weekly',
+      interval: 1,
+      byDay: [1, 3, 5],
+      end: { type: 'count', count: 10 },
+    });
+    await x.todos.setReminders(review, [
+      { kind: 'relative', offsetMinutes: 0 },
+      { kind: 'relative', offsetMinutes: 15 },
+    ]);
+    const weekly = await make('项目A 周会', d(0), '14:30', [a], 2);
+    await x.todos.setRepeat(weekly, {
+      freq: 'weekly',
+      interval: 1,
+      byDay: [new Date().getDay()],
+      end: { type: 'never' },
+    });
     const run = await make('晨跑 5 公里', d(0), '07:00', [fit]);
     await make('背 30 个单词', d(0), null, [], 1);
     await make('提交 10 月报销', d(-3), null, [work], 2);
@@ -67,6 +83,14 @@ test('界面截图', async () => {
     await w.locator('.prop', { hasText: '日期' }).click();
     await w.waitForTimeout(300);
     await w.screenshot({ path: `${out}/${theme}-date.png` });
+    await w.keyboard.press('Escape');
+    await w.locator('.prop', { hasText: '循环' }).click();
+    await w.waitForTimeout(300);
+    await w.screenshot({ path: `${out}/${theme}-repeat.png` });
+    await w.keyboard.press('Escape');
+    await w.locator('.prop', { hasText: '提醒' }).click();
+    await w.waitForTimeout(300);
+    await w.screenshot({ path: `${out}/${theme}-reminders.png` });
     await w.keyboard.press('Escape');
     await w.keyboard.press('Escape');
     await w.locator('.nav-item', { hasText: '计划' }).click();

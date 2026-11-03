@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Todo } from '@shared/types';
 import { api, call } from './api';
 import { useReportError } from './data';
+import { friendlyDate } from './dates';
 import { useUi } from './store';
 
 /** 待办的常用操作：统一处理撤销提示条与错误提示 */
@@ -16,7 +17,16 @@ export function useTodoActions() {
       toggle: (t: Todo) =>
         call(api.todos.toggle(t.id))
           .then(({ todo, undoToken }) =>
-            undoable(todo.status === 'done' ? `已完成"${t.title}"` : '已恢复为未完成', undoToken),
+            undoable(
+              t.rrule && t.status === 'open'
+                ? todo.status === 'done'
+                  ? `已完成"${t.title}"的最后一次`
+                  : `已完成本次，下一次：${friendlyDate(todo.dueDate!)}`
+                : todo.status === 'done'
+                  ? `已完成"${t.title}"`
+                  : '已恢复为未完成',
+              undoToken,
+            ),
           )
           .catch(report),
       remove: (t: Todo) =>
@@ -31,6 +41,10 @@ export function useTodoActions() {
           .then(() => showToast(`已恢复"${t.title}"`))
           .catch(report),
       purge: (t: Todo) => call(api.todos.purge(t.id)).catch(report),
+      skip: (t: Todo) =>
+        call(api.todos.skip(t.id))
+          .then(({ todo, undoToken }) => undoable(`已跳过本次，下一次：${friendlyDate(todo.dueDate!)}`, undoToken))
+          .catch(report),
     };
   }, [showToast, select, report]);
 }

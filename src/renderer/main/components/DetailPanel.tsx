@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { fromRRule, repeatSummary } from '@shared/recurrence';
+import { reminderLabel } from '@shared/reminders';
 import { LIMITS, type Priority, type TagNode, type Todo } from '@shared/types';
 import { api, call } from '../lib/api';
 import { useTodoActions } from '../lib/actions';
@@ -7,6 +9,8 @@ import { addDays, friendlyDate, nextMonday, parse, today, WEEKDAY_LABELS, ymd } 
 import { useUi } from '../lib/store';
 import { Icon } from './Icon';
 import { Popover } from './Overlay';
+import { ReminderPicker } from './ReminderPicker';
+import { RepeatPicker } from './RepeatPicker';
 
 const PRIORITIES: [Priority, string][] = [
   [0, '无'],
@@ -16,9 +20,19 @@ const PRIORITIES: [Priority, string][] = [
 ];
 const PRIO_VAR = ['', 'var(--priority-low)', 'var(--priority-medium)', 'var(--priority-high)'];
 
-export function DetailPanel({ id, tags, weekStart }: { id: string; tags: TagNode[]; weekStart: 0 | 1 }) {
+export function DetailPanel({
+  id,
+  tags,
+  weekStart,
+  allDayTime,
+}: {
+  id: string;
+  tags: TagNode[];
+  weekStart: 0 | 1;
+  allDayTime: string;
+}) {
   const [todo, setTodo] = useState<Todo | null>(null);
-  const [pop, setPop] = useState<{ kind: 'date' | 'tags'; anchor: HTMLElement } | null>(null);
+  const [pop, setPop] = useState<{ kind: 'date' | 'tags' | 'repeat' | 'reminders'; anchor: HTMLElement } | null>(null);
   const select = useUi((s) => s.select);
   const report = useReportError();
   const actions = useTodoActions();
@@ -79,6 +93,28 @@ export function DetailPanel({ id, tags, weekStart }: { id: string; tags: TagNode
             </span>
             <Icon name="chevronRight" size={14} className="chev" />
           </button>
+          <button className="prop" onClick={(e) => setPop({ kind: 'repeat', anchor: e.currentTarget })}>
+            <span className="k">
+              <Icon name="repeat" size={14} />
+              循环
+            </span>
+            <span className={`v ${todo.rrule ? '' : 'placeholder'}`}>
+              {repeatSummary(todo.rrule ? fromRRule(todo.rrule) : null)}
+            </span>
+            <Icon name="chevronRight" size={14} className="chev" />
+          </button>
+          <button className="prop" onClick={(e) => setPop({ kind: 'reminders', anchor: e.currentTarget })}>
+            <span className="k">
+              <Icon name="bell" size={14} />
+              提醒
+            </span>
+            <span className={`v ${todo.reminders.length ? '' : 'placeholder'}`}>
+              {todo.reminders.length
+                ? todo.reminders.map((r) => reminderLabel(r.spec, !todo.dueTime, allDayTime)).join('、')
+                : '添加提醒'}
+            </span>
+            <Icon name="chevronRight" size={14} className="chev" />
+          </button>
           <button className="prop" onClick={(e) => setPop({ kind: 'tags', anchor: e.currentTarget })}>
             <span className="k">
               <Icon name="tag" size={14} />
@@ -98,6 +134,15 @@ export function DetailPanel({ id, tags, weekStart }: { id: string; tags: TagNode
           </button>
         </div>
 
+        {todo.rrule && todo.status === 'open' && (
+          <div className="row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn sm" onClick={() => void actions.skip(todo)}>
+              <Icon name="skip" size={14} />
+              跳过本次
+            </button>
+            <span className="help">已完成 {todo.repeatCountDone} 次</span>
+          </div>
+        )}
         <div>
           <span className="field-label" id="prio-label">
             优先级
@@ -144,6 +189,16 @@ export function DetailPanel({ id, tags, weekStart }: { id: string; tags: TagNode
       {pop?.kind === 'date' && (
         <Popover anchor={pop.anchor} onClose={() => setPop(null)} label="截止日期">
           <DatePicker todo={todo} weekStart={weekStart} onChange={(p) => void patch(p)} onDone={() => setPop(null)} />
+        </Popover>
+      )}
+      {pop?.kind === 'repeat' && (
+        <Popover anchor={pop.anchor} onClose={() => setPop(null)} label="循环">
+          <RepeatPicker todo={todo} onChange={setTodo} />
+        </Popover>
+      )}
+      {pop?.kind === 'reminders' && (
+        <Popover anchor={pop.anchor} onClose={() => setPop(null)} label="提醒">
+          <ReminderPicker todo={todo} allDayTime={allDayTime} onChange={setTodo} />
         </Popover>
       )}
       {pop?.kind === 'tags' && (
@@ -215,6 +270,17 @@ function DatePicker({
 }) {
   const base = todo.dueDate ?? today();
   const [month, setMonth] = useState(base.slice(0, 7));
+  // 时间先在本地更新（勾选"全天"立即生效），再在后台保存；保存结果回来后与之同步
+  const [time, setTimeLocal] = useState(todo.dueTime);
+  const [savedTime, setSavedTime] = useState(todo.dueTime);
+  if (savedTime !== todo.dueTime) {
+    setSavedTime(todo.dueTime);
+    setTimeLocal(todo.dueTime);
+  }
+  const setTime = (t: string | null) => {
+    setTimeLocal(t);
+    onChange({ dueTime: t });
+  };
   const [y, m] = month.split('-').map(Number) as [number, number];
   const pad = (new Date(y, m - 1, 1).getDay() - weekStart + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, i) => ymd(new Date(y, m - 1, 1 - pad + i)));
@@ -278,9 +344,9 @@ function DatePicker({
       <label className="check-row">
         <input
           type="checkbox"
-          checked={!todo.dueTime}
+          checked={time === null}
           disabled={!todo.dueDate}
-          onChange={(e) => onChange({ dueTime: e.target.checked ? null : '09:00' })}
+          onChange={(e) => setTime(e.target.checked ? null : '09:00')}
         />
         全天
       </label>
@@ -292,9 +358,9 @@ function DatePicker({
           id="due-time"
           type="time"
           className="input"
-          value={todo.dueTime ?? '09:00'}
-          disabled={!todo.dueTime}
-          onChange={(e) => e.target.value && onChange({ dueTime: e.target.value })}
+          value={time ?? '09:00'}
+          disabled={time === null}
+          onChange={(e) => e.target.value && setTime(e.target.value)}
         />
       </div>
     </div>

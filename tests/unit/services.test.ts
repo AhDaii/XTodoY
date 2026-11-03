@@ -18,7 +18,7 @@ beforeEach(() => {
   todos = new TodoService(
     db,
     tags,
-    () => ({ weekStart: 1 }),
+    () => ({ weekStart: 1, defaultReminder: -1 }),
     () => NOW,
   );
 });

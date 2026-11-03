@@ -1,6 +1,8 @@
 // 主进程与渲染进程共用的 IPC 通道与 API 类型（完整说明见 docs/design/ipc.md）
+import type { RepeatRule } from './recurrence';
 import type {
   ListQuery,
+  ReminderSpec,
   Settings,
   TagColor,
   TagNode,
@@ -34,6 +36,8 @@ export interface AppInfo {
 export interface NavRequest {
   view?: 'today' | 'settings';
   todoId?: string;
+  /** 打开后聚焦的输入框（托盘 / 悬浮窗"新建待办"） */
+  focus?: 'quick-add';
 }
 
 /** 请求 / 响应通道（ipcRenderer.invoke），返回值统一为 Result<T> */
@@ -53,6 +57,10 @@ export const Invoke = {
   todoPurgeAll: 'todo:purgeAll',
   todoReorder: 'todo:reorder',
   todoSetTags: 'todo:setTags',
+  todoSetRepeat: 'todo:setRepeat',
+  todoSkip: 'todo:skip',
+  todoSetReminders: 'todo:setReminders',
+  remindersPause: 'reminders:pause',
   tagTree: 'tag:tree',
   tagCreate: 'tag:create',
   tagUpdate: 'tag:update',
@@ -102,7 +110,12 @@ export interface XtodoyApi {
     purgeAll(): R<void>;
     reorder(id: string, afterId: string | null, beforeId: string | null): R<void>;
     setTags(id: string, tagIds: string[]): R<Todo>;
+    setRepeat(id: string, rule: RepeatRule | null): R<Todo>;
+    skip(id: string): R<{ todo: Todo; undoToken: string }>;
+    setReminders(id: string, reminders: ReminderSpec[]): R<Todo>;
   };
+  /** 暂停提醒：1 小时 / 到明天 0:00；null 为恢复（FR-BG-06） */
+  pauseReminders(kind: 'hour' | 'tomorrow' | null): R<Settings>;
   tags: {
     tree(): R<TagNode[]>;
     create(input: { name: string; parentId: string | null; color?: TagColor }): R<TagNode>;

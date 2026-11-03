@@ -79,11 +79,13 @@ export function Popover({
     setPos({ left, top });
   }, [anchor, children]);
   useEffect(() => {
+    const inSelect = (t: EventTarget | null): boolean => t instanceof Element && t.closest('.select-content') !== null;
     const onDown = (e: MouseEvent): void => {
+      if (inSelect(e.target)) return;
       if (!ref.current?.contains(e.target as Node) && !anchor.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !document.querySelector('.select-content')) {
         e.stopPropagation();
         onClose();
         anchor.focus();

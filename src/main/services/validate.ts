@@ -1,5 +1,6 @@
 // IPC 入参的运行时校验（ipc.md §1）：渲染进程的输入一律视为不可信
-import { LIMITS, TAG_COLORS, type Priority, type TagColor } from '@shared/types';
+import { validateRule, type RepeatRule } from '@shared/recurrence';
+import { LIMITS, TAG_COLORS, type Priority, type ReminderSpec, type TagColor } from '@shared/types';
 import { invalid } from './errors';
 
 export function str(v: unknown, field: string, { min = 0, max = Infinity, trim = true } = {}): string {
@@ -55,4 +56,46 @@ export function idList(v: unknown, field: string, max: number): string[] {
   if (!Array.isArray(v)) throw invalid(`${field}格式不正确`);
   if (v.length > max) throw invalid(`${field}最多 ${max} 个`);
   return [...new Set(v.map((x) => id(x, field)))];
+}
+
+const RANGE_MAX_MINUTES = 30 * 24 * 60;
+
+/** 循环规则：结构与取值都校验（FR-REC-02/03） */
+export function repeatRule(v: unknown): RepeatRule | null {
+  if (v === null) return null;
+  const o = obj(v, ['freq', 'interval', 'byDay', 'monthDay', 'end']);
+  if (!['daily', 'weekdays', 'weekly', 'monthly', 'yearly'].includes(o.freq as string)) throw invalid('循环类型不正确');
+  const e = obj(o.end, ['type', 'date', 'count']);
+  let end: RepeatRule['end'];
+  if (e.type === 'never') end = { type: 'never' };
+  else if (e.type === 'until') end = { type: 'until', date: date(e.date) ?? '' };
+  else if (e.type === 'count') end = { type: 'count', count: Number(e.count) };
+  else throw invalid('结束条件不正确');
+  if (o.byDay !== undefined && !Array.isArray(o.byDay)) throw invalid('星期不正确');
+  const rule: RepeatRule = {
+    freq: o.freq as RepeatRule['freq'],
+    interval: Number(o.interval ?? 1),
+    ...(o.byDay !== undefined && { byDay: [...new Set((o.byDay as unknown[]).map(Number))] }),
+    ...(o.monthDay !== undefined && { monthDay: Number(o.monthDay) }),
+    end,
+  };
+  const err = validateRule(rule);
+  if (err) throw invalid(err);
+  return rule;
+}
+
+/** 提醒列表（FR-REM-01）：相对提醒 0–30 天，绝对提醒为毫秒时间戳 */
+export function reminderList(v: unknown): ReminderSpec[] {
+  if (!Array.isArray(v)) throw invalid('提醒格式不正确');
+  if (v.length > LIMITS.remindersPerTodo) throw invalid(`每个待办最多 ${LIMITS.remindersPerTodo} 个提醒`);
+  return v.map((x): ReminderSpec => {
+    const o = obj(x, ['kind', 'offsetMinutes', 'at']);
+    const m = o.offsetMinutes;
+    if (o.kind === 'relative' && Number.isInteger(m) && (m as number) >= 0 && (m as number) <= RANGE_MAX_MINUTES) {
+      return { kind: 'relative', offsetMinutes: m as number };
+    }
+    if (o.kind === 'absolute' && Number.isInteger(o.at) && (o.at as number) > 0)
+      return { kind: 'absolute', at: o.at as number };
+    throw invalid('提醒设置不正确');
+  });
 }

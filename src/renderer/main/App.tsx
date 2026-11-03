@@ -34,6 +34,7 @@ export function App() {
         if (nav.view === 'settings') go({ kind: 'page', page: 'settings' });
         else if (nav.view === 'today') go({ kind: 'view', view: 'today' });
         if (nav.todoId) select(nav.todoId);
+        if (nav.focus === 'quick-add') setTimeout(() => document.getElementById('quick-add')?.focus(), 50);
       }),
     [go, select],
   );
@@ -105,7 +106,7 @@ export function App() {
         <Sidebar counts={counts} tags={tags} rail={collapsed} onToggle={toggleSidebar} />
         {page}
         {showList && selectedId && settings && (
-          <DetailPanel id={selectedId} tags={tags} weekStart={settings.weekStart} />
+          <DetailPanel id={selectedId} tags={tags} weekStart={settings.weekStart} allDayTime={settings.allDayTime} />
         )}
       </div>
       <Toast />

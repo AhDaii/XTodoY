@@ -265,3 +265,91 @@ test('下拉选择：主题化列表，支持鼠标与键盘选择', async () =>
   });
   expect(saved).toEqual([0, 'quit']);
 });
+
+test('循环事项：设置每天循环，完成后进入下一次并可撤销（FR-REC-05）', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '晨跑');
+  await main.locator('.todo', { hasText: '晨跑' }).click();
+  await main.locator('.prop', { hasText: '循环' }).click();
+  await main.getByRole('combobox', { name: '循环类型' }).click();
+  await main.getByRole('option', { name: '每天' }).click();
+  await expect(main.locator('.popover .summary')).toHaveText('每天');
+  await expect(main.locator('.popover .preview-dates li')).toHaveCount(5);
+  await main.keyboard.press('Escape');
+  await expect(main.locator('.prop', { hasText: '循环' })).toContainText('每天');
+
+  await main.getByRole('checkbox', { name: '完成：晨跑' }).first().click();
+  await expect(main.locator('.toast')).toContainText('已完成本次，下一次：明天');
+  await expect(main.getByText('今天没有到期的事项')).toBeVisible();
+  await main.getByRole('button', { name: '撤销' }).click();
+  await expect(main.locator('.todo-list .todo', { hasText: '晨跑' })).toBeVisible();
+});
+
+test('提醒：带时间的事项自动加"准时"提醒；可添加自定义提前量', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '周会');
+  await main.locator('.todo', { hasText: '周会' }).click();
+  await main.locator('.prop', { hasText: '日期' }).click();
+  await main.getByLabel('全天').uncheck();
+  await main.keyboard.press('Escape');
+  await expect(main.locator('.prop', { hasText: '提醒' })).toContainText('准时');
+  await expect(main.locator('.todo', { hasText: '周会' }).locator('.ico[title^="提醒"]')).toBeVisible();
+
+  await main.locator('.prop', { hasText: '提醒' }).click();
+  await main.getByLabel('提前量').fill('20');
+  await main.locator('.popover').getByRole('button', { name: '添加' }).first().click();
+  await expect(main.locator('.popover .reminder-list')).toContainText('提前 20 分钟');
+  await main.keyboard.press('Escape');
+  await expect(main.locator('.prop', { hasText: '提醒' })).toContainText('提前 20 分钟');
+});
+
+test('提醒到时发出系统通知（调度器 → 通知）', async () => {
+  const main = await windowByPage('main');
+  // 在主进程中拦截通知，避免测试时弹出真实通知
+  await app.evaluate(({ Notification }) => {
+    const g = globalThis as unknown as { __shown: string[] };
+    g.__shown = [];
+    Notification.prototype.show = function (this: Electron.Notification) {
+      g.__shown.push(this.title || 'toast');
+    };
+  });
+  const at = Date.now() + 2500;
+  const id = await main.evaluate(async (fireAt) => {
+    const r = await window.xtodoy.todos.create({ title: '马上提醒' });
+    if (!r.ok) throw new Error(r.error.message);
+    await window.xtodoy.todos.setReminders(r.data.id, [{ kind: 'absolute', at: fireAt }]);
+    return r.data.id;
+  }, at);
+  expect(id).toBeTruthy();
+  await expect
+    .poll(() => app.evaluate(() => (globalThis as unknown as { __shown: string[] }).__shown.length), {
+      timeout: 10_000,
+    })
+    .toBe(1);
+});
+
+test('暂停提醒与恢复（FR-BG-06）', async () => {
+  const main = await windowByPage('main');
+  await main.getByRole('button', { name: '设置' }).click();
+  await main.getByRole('button', { name: '暂停 1 小时' }).click();
+  await expect(main.locator('.pause-status')).toContainText('已暂停至');
+  await main.getByRole('button', { name: '恢复' }).click();
+  await expect(main.getByRole('button', { name: '暂停 1 小时' })).toBeVisible();
+});
+
+test('悬浮窗透明度设置生效（FR-FLT-05）', async () => {
+  const main = await windowByPage('main');
+  await windowByPage('floating');
+  await main.getByRole('button', { name: '设置' }).click();
+  await main.getByRole('combobox', { name: '悬浮窗透明度' }).click();
+  await main.getByRole('option', { name: '60%' }).click();
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()
+          .find((w) => w.webContents.getURL().includes('/floating/'))
+          ?.getOpacity(),
+      ),
+    )
+    .toBeCloseTo(0.6, 1);
+});

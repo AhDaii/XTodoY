@@ -26,7 +26,11 @@ const api: XtodoyApi = {
     purgeAll: () => call(Invoke.todoPurgeAll),
     reorder: (id, afterId, beforeId) => call(Invoke.todoReorder, id, afterId, beforeId),
     setTags: (id, tagIds) => call(Invoke.todoSetTags, id, tagIds),
+    setRepeat: (id, rule) => call(Invoke.todoSetRepeat, id, rule),
+    skip: (id) => call(Invoke.todoSkip, id),
+    setReminders: (id, reminders) => call(Invoke.todoSetReminders, id, reminders),
   },
+  pauseReminders: (kind) => call(Invoke.remindersPause, kind),
   tags: {
     tree: () => call(Invoke.tagTree),
     create: (input) => call(Invoke.tagCreate, input),
