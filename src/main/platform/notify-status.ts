@@ -1,15 +1,10 @@
 import { app, shell } from 'electron';
 import { execFile } from 'node:child_process';
+import { parseRegDword } from '../domain/winreg';
 
 export type NotificationStatus = 'allowed' | 'denied' | 'unknown';
 
 const AUMID = 'com.xtodoy.app';
-
-/** 从 `reg query` 的输出中读取 REG_DWORD 值；没有该值时返回 null */
-export function parseRegDword(output: string, name: string): number | null {
-  const m = new RegExp(`^\\s*${name}\\s+REG_DWORD\\s+0x([0-9a-f]+)`, 'im').exec(output);
-  return m ? parseInt(m[1]!, 16) : null;
-}
 
 function regQuery(key: string, value: string): Promise<number | null> {
   return new Promise((resolve) => {

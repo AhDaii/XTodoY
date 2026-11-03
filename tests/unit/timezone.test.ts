@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../src/main/db/migrate';
 import { readZone, zoneChanged } from '../../src/main/domain/timezone';
+import { parseRegDword } from '../../src/main/domain/winreg';
 import { bus } from '../../src/main/events/bus';
 import { Scheduler } from '../../src/main/services/scheduler';
 import { TagService } from '../../src/main/services/tags';
@@ -60,8 +61,7 @@ describe('时区变化（FR-REC-08）', () => {
 });
 
 describe('通知权限（FR-REM-09）', () => {
-  it('解析 reg query 的 REG_DWORD 输出', async () => {
-    const { parseRegDword } = await import('../../src/main/platform/notify-status');
+  it('解析 reg query 的 REG_DWORD 输出', () => {
     const out = ['', 'HKEY_CURRENT_USER/PushNotifications', '    ToastEnabled    REG_DWORD    0x0', '', ''].join(
       '\r\n',
     );
