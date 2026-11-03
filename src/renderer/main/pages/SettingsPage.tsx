@@ -3,6 +3,7 @@ import type { AppInfo, DataInfo } from '@shared/ipc';
 import { acceleratorLabel, isMac } from '@shared/platform';
 import { acceleratorFromEvent } from '@shared/shortcut';
 import type { Settings } from '@shared/types';
+import { holidayYears } from '@shared/workdays';
 import type { UpdateStatus } from '@shared/update';
 import { Icon, type IconName } from '../components/Icon';
 import { Dialog } from '../components/Overlay';
@@ -105,6 +106,15 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
               />
             </div>
             <ShortcutSetting value={settings.quickAddShortcut} />
+            <Switch
+              id="holidays"
+              label="自动更新节假日"
+              hint={`用于"每个工作日""工作日第一天"循环（法定节假日与调休）；${
+                holidayYears().length ? `已有 ${holidayYears()[0]}–${holidayYears().at(-1)} 年的安排，` : ''
+              }每周从 holiday-cn 获取最新安排`}
+              checked={settings.holidayAutoUpdate}
+              onChange={(v) => set('holidayAutoUpdate', v)}
+            />
           </div>
         </section>
 

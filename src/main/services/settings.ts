@@ -67,6 +67,11 @@ const validators: Validators = {
     throw invalid('排序方式取值不正确');
   },
   autoCheckUpdate: (v) => bool(v, '自动检查更新'),
+  holidayAutoUpdate: (v) => bool(v, '自动更新节假日'),
+  holidayCheckedAt: (v) => {
+    if (v === null || (typeof v === 'number' && Number.isFinite(v))) return v;
+    throw invalid('节假日检查时间取值不正确');
+  },
   autoDownloadUpdate: (v) => bool(v, '自动下载更新'),
   updateChannel: (v) => {
     if (v === 'stable' || v === 'beta') return v;

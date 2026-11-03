@@ -1,7 +1,10 @@
-// 循环规则（FR-REC-02~07）：主进程计算下一次实例，渲染进程用于摘要与预览。纯函数，无外部依赖。
-// 存储为 RFC 5545 RRULE 子集，例如 FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR;COUNT=10
+// 循环规则（FR-REC-02~07）：主进程计算下一次实例，渲染进程用于摘要与预览。
+// 存储为 RFC 5545 RRULE 子集，例如 FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR;COUNT=10；
+// "工作日第一天"用扩展属性表示：FREQ=DAILY;INTERVAL=1;X-WORKDAY=FIRST（RFC 5545 允许 X- 前缀的扩展）
+import { isFirstWorkday, isWorkday } from './workdays';
 
-export type RepeatFreq = 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly';
+/** weekdays：按法定节假日与调休判断的工作日；firstWorkday：休息后的第一个工作日（见 workdays.ts） */
+export type RepeatFreq = 'daily' | 'weekdays' | 'firstWorkday' | 'weekly' | 'monthly' | 'yearly';
 
 export type RepeatEnd = { type: 'never' } | { type: 'until'; date: string } | { type: 'count'; count: number };
 
@@ -36,9 +39,18 @@ const mondayOf = (s: string): string => addDays(s, -((parse(s).getDay() + 6) % 7
 
 // ---------- 序列化 ----------
 export function toRRule(r: RepeatRule): string {
-  const freq = { daily: 'DAILY', weekdays: 'WEEKLY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' }[r.freq];
-  const parts = [`FREQ=${freq}`, `INTERVAL=${r.freq === 'weekdays' ? 1 : r.interval}`];
+  const freq = {
+    daily: 'DAILY',
+    weekdays: 'WEEKLY',
+    firstWorkday: 'DAILY',
+    weekly: 'WEEKLY',
+    monthly: 'MONTHLY',
+    yearly: 'YEARLY',
+  }[r.freq];
+  const fixed = r.freq === 'weekdays' || r.freq === 'firstWorkday';
+  const parts = [`FREQ=${freq}`, `INTERVAL=${fixed ? 1 : r.interval}`];
   if (r.freq === 'weekdays') parts.push('BYDAY=MO,TU,WE,TH,FR');
+  if (r.freq === 'firstWorkday') parts.push('X-WORKDAY=FIRST');
   if (r.freq === 'weekly' && r.byDay?.length)
     parts.push(
       `BYDAY=${[...r.byDay]
@@ -69,6 +81,7 @@ export function fromRRule(s: string): RepeatRule {
       : { type: 'never' };
   switch (kv.get('FREQ')) {
     case 'DAILY':
+      if (kv.get('X-WORKDAY') === 'FIRST') return { freq: 'firstWorkday', interval: 1, end };
       return { freq: 'daily', interval, end };
     case 'WEEKLY':
       if (byDay?.length === 5 && [1, 2, 3, 4, 5].every((d) => byDay.includes(d)) && interval === 1) {
@@ -112,7 +125,10 @@ export function matches(r: RepeatRule, anchor: string, date: string): boolean {
     case 'daily':
       return dayDiff(date, anchor) % r.interval === 0;
     case 'weekdays':
-      return d.getDay() >= 1 && d.getDay() <= 5;
+      // 法定节假日休息、调休日上班（没有该年数据时按周一至周五）
+      return isWorkday(date);
+    case 'firstWorkday':
+      return isFirstWorkday(date);
     case 'weekly': {
       const days = r.byDay?.length ? r.byDay : [a.getDay()];
       const weeks = Math.round(dayDiff(mondayOf(date), mondayOf(anchor)) / 7);
@@ -191,6 +207,9 @@ export function repeatSummary(r: RepeatRule | null): string {
       break;
     case 'weekdays':
       s = '每个工作日';
+      break;
+    case 'firstWorkday':
+      s = '休息后的第一个工作日';
       break;
     case 'weekly': {
       const days = [...(r.byDay ?? [])].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));

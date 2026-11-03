@@ -8,16 +8,18 @@ import { useUi, type Route } from './store';
 /**
  * 订阅主进程数据变化：事件到达时重新拉取（数据量小，整体刷新最简单可靠）。
  * key 变化时重新加载（例如切换视图）；load 通过 ref 读取最新闭包。
+ * 只返回属于当前 key 的数据：切换后、新数据到达前返回 initial。之前会继续返回上一个视图的数据，
+ * 形状不同（如回收站只有 1 个分组、今天有 2 个）时页面读取越界、整个界面变为空白（rc.1 反馈）。
  */
 function useLive<T>(load: () => Promise<T>, initial: T, events: ((cb: () => void) => () => void)[], key = ''): T {
-  const [data, setData] = useState<T>(initial);
+  const [state, setState] = useState<{ key: string; data: T }>({ key, data: initial });
   const loadRef = useRef(load);
   useEffect(() => {
     loadRef.current = load;
   });
   useEffect(() => {
     let alive = true;
-    const reload = () => void loadRef.current().then((d) => alive && setData(d), console.error);
+    const reload = () => void loadRef.current().then((data) => alive && setState({ key, data }), console.error);
     reload();
     const offs = events.map((on) => on(reload));
     return () => {
@@ -27,7 +29,7 @@ function useLive<T>(load: () => Promise<T>, initial: T, events: ((cb: () => void
     // events 为模块级常量函数，不会变化
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  return data;
+  return state.key === key ? state.data : initial;
 }
 
 export function useCounts(): ViewCounts {

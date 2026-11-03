@@ -64,7 +64,8 @@ const RANGE_MAX_MINUTES = 30 * 24 * 60;
 export function repeatRule(v: unknown): RepeatRule | null {
   if (v === null) return null;
   const o = obj(v, ['freq', 'interval', 'byDay', 'monthDay', 'end']);
-  if (!['daily', 'weekdays', 'weekly', 'monthly', 'yearly'].includes(o.freq as string)) throw invalid('循环类型不正确');
+  if (!['daily', 'weekdays', 'firstWorkday', 'weekly', 'monthly', 'yearly'].includes(o.freq as string))
+    throw invalid('循环类型不正确');
   const e = obj(o.end, ['type', 'date', 'count']);
   let end: RepeatRule['end'];
   if (e.type === 'never') end = { type: 'never' };

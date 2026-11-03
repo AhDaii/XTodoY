@@ -615,3 +615,57 @@ test('系统通知被关闭时，主窗口与设置页提示并提供系统设�
   await expect(row).toContainText('已关闭');
   await expect(row.getByRole('button', { name: '打开系统设置' })).toBeVisible();
 });
+
+test('rc.1 反馈：快速切换视图不会白屏；单选框没有多余描边；悬浮窗不会被拖出屏幕并贴边吸附', async () => {
+  const main = await windowByPage('main');
+  const errors: string[] = [];
+  main.on('pageerror', (e) => errors.push(e.message));
+  await addTodo(main, '回归测试');
+  await main.getByRole('checkbox', { name: '完成：回归测试' }).click();
+  // 回收站只有 1 个分组、今天有 2 个：切换时不能读到上一个视图的数据
+  for (let i = 0; i < 20; i++) {
+    await main.keyboard.press('Control+5');
+    await main.keyboard.press('Control+1');
+  }
+  await expect(main.locator('#root > *')).not.toHaveCount(0);
+  expect(errors).toEqual([]);
+
+  // 单选框只有自身的边框（之前被 Tailwind 的 ring 工具类加了 1px box-shadow）
+  await addTodo(main, '看单选框');
+  const shadow = await main
+    .locator('.todo', { hasText: '看单选框' })
+    .locator('.ring')
+    .evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).toBe('none');
+
+  const floating = await windowByPage('floating');
+  const area = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
+  // 往左上方拖出很远：卡片停在屏幕内并贴边（窗口四周有 8 px 透明留白）
+  await floating.evaluate(() => {
+    window.xtodoy.moveBy(-10_000, -10_000);
+    window.xtodoy.dragEnd();
+  });
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.getPosition())))
+    .toContainEqual([area.x - 8, area.y - 8]);
+});
+
+test('循环"工作日第一天"：按法定节假日与调休生成实例（holiday-cn 内置数据）', async () => {
+  const main = await windowByPage('main');
+  await main.evaluate(() => window.xtodoy.todos.create({ title: '周报', dueDate: '2026-09-14' } as never));
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  await main.locator('.todo', { hasText: '周报' }).click();
+  await main.locator('.prop', { hasText: '循环' }).click();
+  await main.getByRole('combobox', { name: '循环类型' }).click();
+  await main.getByRole('option', { name: /工作日第一天/ }).click();
+  const popover = main.locator('.popover');
+  await expect(popover.locator('.summary')).toHaveText('休息后的第一个工作日');
+  await expect(popover.locator('.preview-dates li')).toHaveText([
+    /^2026-09-14（周一）$/,
+    /^2026-09-20（周日 · 国庆节调休上班）$/,
+    /^2026-09-28（周一 · 中秋节后）$/,
+    /^2026-10-08（周四 · 国庆节后）$/,
+    /^2026-10-12（周一）$/,
+  ]);
+  await expect(popover).toContainText('按法定节假日与调休计算');
+});

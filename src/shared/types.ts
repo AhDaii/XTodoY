@@ -153,6 +153,9 @@ export interface Settings {
   hardwareAcceleration: boolean;
   /** 全局快捷键：在任意程序中打开主窗口并聚焦快速新建（FR-SET-08），null 为关闭 */
   quickAddShortcut: string | null;
+  /** 每周联网更新法定节假日数据（holiday-cn） */
+  holidayAutoUpdate: boolean;
+  holidayCheckedAt: number | null;
   listSort: Record<SortScope, SortMode>;
   /** 更新（FR-UPD-08） */
   autoCheckUpdate: boolean;
@@ -187,6 +190,8 @@ export const DEFAULT_SETTINGS: Settings = {
   closeTipShown: false,
   hardwareAcceleration: false,
   quickAddShortcut: 'Ctrl+Alt+T',
+  holidayAutoUpdate: true,
+  holidayCheckedAt: null,
   listSort: { today: 'due', plan: 'due', all: 'due', tag: 'due' },
   autoCheckUpdate: true,
   autoDownloadUpdate: true,
