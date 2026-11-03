@@ -55,8 +55,9 @@ P6 实现时把原计划的 4 个通道合并为一个：统计页每次切换�
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
 | `settings:get` / `settings:set` | — / `{ key, value }` | `Settings` | FR-SET-02/03 |
-| `data:export` | — | `{ path }`（系统保存对话框） | FR-SET-06 |
-| `data:import` | — | `{ imported }` | FR-SET-06 |
+| `data:info` | — | `{ dataDir, lastBackupDate }` | FR-SET-07 |
+| `data:export` | — | `{ path } \| null`（系统保存对话框，取消为 null） | FR-SET-06 |
+| `data:import` | — | `{ todos, tags, completionLogs } \| null`（确认在渲染进程完成；覆盖前自动备份） | FR-SET-06 |
 | `data:openFolder` | — | `void` | |
 | `system:notificationStatus` | — | `'allowed'\|'denied'\|'unknown'` | FR-REM-09 |
 | `window:minimize` / `window:close` | — | `void` | 自绘标题栏 |

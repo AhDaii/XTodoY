@@ -36,6 +36,19 @@ export interface AppInfo {
   hardwareAcceleration: boolean;
 }
 
+/** 设置 › 数据 */
+export interface DataInfo {
+  dataDir: string;
+  /** 最近一次每日自动备份的日期 */
+  lastBackupDate: string | null;
+}
+
+export interface ImportSummary {
+  todos: number;
+  tags: number;
+  completionLogs: number;
+}
+
 export interface NavRequest {
   view?: 'today' | 'settings';
   todoId?: string;
@@ -75,6 +88,10 @@ export const Invoke = {
   testNotify: 'system:testNotify',
   relaunch: 'app:relaunch',
   statsGet: 'stats:get',
+  dataInfo: 'data:info',
+  dataExport: 'data:export',
+  dataImport: 'data:import',
+  dataOpenFolder: 'data:openFolder',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -136,6 +153,13 @@ export interface XtodoyApi {
   testNotify(): R<void>;
   /** 统计页数据（SRS F8） */
   stats(q: StatsQuery): R<Stats>;
+  /** 数据备份（FR-SET-06/07）；导出 / 导入在用户取消文件对话框时返回 null */
+  data: {
+    info(): R<DataInfo>;
+    exportJson(): R<{ path: string } | null>;
+    importJson(): R<ImportSummary | null>;
+    openFolder(): R<void>;
+  };
   /** 重启程序（例如切换硬件加速后） */
   relaunch(): R<void>;
   on: {

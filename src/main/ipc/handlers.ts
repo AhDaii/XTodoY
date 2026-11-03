@@ -1,9 +1,11 @@
-import { app, ipcMain, Menu, nativeTheme, type IpcMainInvokeEvent } from 'electron';
+import { app, dialog, ipcMain, Menu, nativeTheme, shell, type IpcMainInvokeEvent } from 'electron';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { Events, Invoke, Send, type AppInfo, type NavRequest, type Result } from '@shared/ipc';
 import type { StatsPeriodKind } from '@shared/stats';
 import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/types';
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
+import type { BackupService } from '../services/backup';
 import type { SettingsService } from '../services/settings';
 import type { StatsService } from '../services/stats';
 import type { TagService } from '../services/tags';
@@ -11,6 +13,7 @@ import type { TodayService } from '../services/today';
 import type { TodoService } from '../services/todos';
 import type { Scheduler } from '../services/scheduler';
 import * as v from '../services/validate';
+import { localDate } from '../domain/time';
 import { showReminder } from '../platform/notifier';
 import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
 
@@ -19,6 +22,7 @@ interface Deps {
   tags: TagService;
   settings: SettingsService;
   stats: StatsService;
+  backup: BackupService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
@@ -70,6 +74,45 @@ export function registerIpc(d: Deps): void {
     app.quit();
   });
   handle(Invoke.todayGet, () => d.today.current);
+
+  // ---- 数据（FR-SET-06/07）----
+  handle(Invoke.dataInfo, () => ({ dataDir: d.dataDir, lastBackupDate: d.backup.lastBackupDate() }));
+  handle(Invoke.dataOpenFolder, async () => {
+    const err = await shell.openPath(d.dataDir);
+    if (err) throw new AppError('OPEN_FAILED', `无法打开数据目录：${err}`);
+  });
+  handle(Invoke.dataExport, async () => {
+    const owner = windows.main ?? undefined;
+    const opts = {
+      title: '导出备份',
+      defaultPath: `XTodoY-backup-${localDate(new Date())}.json`,
+      filters: [{ name: 'XTodoY 备份', extensions: ['json'] }],
+    };
+    const r = owner ? await dialog.showSaveDialog(owner, opts) : await dialog.showSaveDialog(opts);
+    if (r.canceled || !r.filePath) return null;
+    await writeFile(r.filePath, JSON.stringify(d.backup.exportData(), null, 2), 'utf8');
+    return { path: r.filePath };
+  });
+  handle(Invoke.dataImport, async () => {
+    const owner = windows.main ?? undefined;
+    const opts = {
+      title: '导入备份',
+      properties: ['openFile' as const],
+      filters: [{ name: 'XTodoY 备份', extensions: ['json'] }],
+    };
+    const r = owner ? await dialog.showOpenDialog(owner, opts) : await dialog.showOpenDialog(opts);
+    const file = r.filePaths[0];
+    if (r.canceled || !file) return null;
+    if ((await stat(file)).size > 100 * 1024 * 1024)
+      throw new AppError('IMPORT_INVALID', '备份文件过大（超过 100 MB）');
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await readFile(file, 'utf8'));
+    } catch {
+      throw new AppError('IMPORT_INVALID', '不是有效的 JSON 备份文件');
+    }
+    return d.backup.importData(raw);
+  });
 
   // ---- 统计 ----
   handle(Invoke.statsGet, (q) => {

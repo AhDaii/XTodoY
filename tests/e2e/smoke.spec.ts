@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -421,4 +421,34 @@ test('统计：完成后计入日 / 周 / 月统计，明细可跳回事项（FR
   await main.getByRole('checkbox', { name: '完成：写周报' }).click();
   await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
   await expect(main.getByLabel('完成数').locator('.hero-num .num')).toHaveText('0');
+});
+
+test('数据：导出备份后导入，覆盖前确认并自动备份（FR-SET-06）', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '导出前的待办');
+  const file = join(dataDir, 'export.json');
+  // 系统文件对话框无法在测试中操作：在主进程中替换为固定路径
+  await app.evaluate(({ dialog }, f) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: f })) as typeof dialog.showSaveDialog;
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as typeof dialog.showOpenDialog;
+  }, file);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.getByRole('button', { name: '导出' }).click();
+  await expect(main.locator('.toast')).toContainText('已导出到');
+
+  // 导出后新增的待办会被导入覆盖掉
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await addTodo(main, '导出后的待办');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.getByRole('button', { name: '导入…' }).click();
+  const dlg = main.getByRole('dialog', { name: '导入备份' });
+  await expect(dlg).toContainText('导入备份将覆盖当前数据');
+  await dlg.getByRole('button', { name: '选择文件并导入' }).click();
+  await expect(main.locator('.toast')).toContainText('已导入 1 项待办');
+
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await expect(main.locator('.todo', { hasText: '导出前的待办' })).toBeVisible();
+  await expect(main.locator('.todo', { hasText: '导出后的待办' })).toHaveCount(0);
+  expect(readdirSync(join(dataDir, 'backups')).some((f) => f.startsWith('pre-import-'))).toBe(true);
 });

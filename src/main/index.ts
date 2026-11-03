@@ -16,6 +16,7 @@ import {
 } from './platform/windows';
 import { SettingsService } from './services/settings';
 import { StatsService } from './services/stats';
+import { BackupService } from './services/backup';
 import { TagService } from './services/tags';
 import { TodayService } from './services/today';
 import { TodoService } from './services/todos';
@@ -134,11 +135,22 @@ void app.whenReady().then(() => {
     remindMissed: (ids) => showMissed(ids.length, () => openMain({ view: 'today' }), s.get().reminderSound),
   });
 
+  // 每天首次启动时自动备份（FR-SET-07）；延后执行，不占用启动时间
+  const backup = new BackupService(db, dataDir, s, opened.schemaVersion);
+  setTimeout(() => {
+    try {
+      backup.daily();
+    } catch (e) {
+      console.error('[backup] daily backup failed', e);
+    }
+  }, 5_000).unref();
+
   registerIpc({
     todos,
     tags,
     settings: s,
     stats: new StatsService(db, () => s.get()),
+    backup,
     today,
     scheduler,
     dataDir,

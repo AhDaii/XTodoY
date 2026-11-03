@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { AppInfo } from '@shared/ipc';
+import type { AppInfo, DataInfo } from '@shared/ipc';
 import type { Settings } from '@shared/types';
 import { Icon, type IconName } from '../components/Icon';
+import { Dialog } from '../components/Overlay';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
+import { useUi } from '../lib/store';
 
-/** 设置页（UI-10）：P4 提供通用、外观、悬浮窗与关于；提醒、数据、更新在 P5 / P6 补齐 */
+/** 设置页（UI-10，FR-SET-02） */
 function Switch(p: { id: string; label: string; hint: string; checked: boolean; onChange(v: boolean): void }) {
   return (
     <div className="setting">
@@ -143,58 +145,6 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         </section>
 
         <section>
-          <h2>悬浮窗</h2>
-          <div className="setting-card">
-            <div className="setting">
-              <div className="txt">
-                <b id="l-floating">显示悬浮窗</b>
-                <span>桌面置顶显示今日未完成数量，单击打开主窗口</span>
-              </div>
-              <button
-                className="switch"
-                role="switch"
-                aria-checked={settings.floatingEnabled}
-                aria-labelledby="l-floating"
-                onClick={() => set('floatingEnabled', !settings.floatingEnabled)}
-              />
-            </div>
-            <div className="setting">
-              <div className="txt">
-                <b>透明度</b>
-                <span>降低透明度可以减少对桌面的遮挡</span>
-              </div>
-              <Select<100 | 80 | 60>
-                ariaLabel="悬浮窗透明度"
-                width={160}
-                value={settings.floatingOpacity}
-                onChange={(v) => set('floatingOpacity', v)}
-                options={[
-                  { value: 100, label: '100%' },
-                  { value: 80, label: '80%' },
-                  { value: 60, label: '60%' },
-                ]}
-              />
-            </div>
-            <Switch
-              id="floating-lock"
-              label="锁定位置"
-              hint="锁定后无法拖动悬浮窗"
-              checked={settings.floatingLocked}
-              onChange={(v) => set('floatingLocked', v)}
-            />
-            <div className="setting">
-              <div className="txt">
-                <b>重置位置</b>
-                <span>移回主显示器右下角（重新显示悬浮窗后生效）</span>
-              </div>
-              <button className="btn" onClick={() => set('floatingPos', null)}>
-                重置
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section>
           <h2>提醒</h2>
           <div className="setting-card">
             <div className="setting">
@@ -291,6 +241,60 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         </section>
 
         <section>
+          <h2>悬浮窗</h2>
+          <div className="setting-card">
+            <div className="setting">
+              <div className="txt">
+                <b id="l-floating">显示悬浮窗</b>
+                <span>桌面置顶显示今日未完成数量，单击打开主窗口</span>
+              </div>
+              <button
+                className="switch"
+                role="switch"
+                aria-checked={settings.floatingEnabled}
+                aria-labelledby="l-floating"
+                onClick={() => set('floatingEnabled', !settings.floatingEnabled)}
+              />
+            </div>
+            <div className="setting">
+              <div className="txt">
+                <b>透明度</b>
+                <span>降低透明度可以减少对桌面的遮挡</span>
+              </div>
+              <Select<100 | 80 | 60>
+                ariaLabel="悬浮窗透明度"
+                width={160}
+                value={settings.floatingOpacity}
+                onChange={(v) => set('floatingOpacity', v)}
+                options={[
+                  { value: 100, label: '100%' },
+                  { value: 80, label: '80%' },
+                  { value: 60, label: '60%' },
+                ]}
+              />
+            </div>
+            <Switch
+              id="floating-lock"
+              label="锁定位置"
+              hint="锁定后无法拖动悬浮窗"
+              checked={settings.floatingLocked}
+              onChange={(v) => set('floatingLocked', v)}
+            />
+            <div className="setting">
+              <div className="txt">
+                <b>重置位置</b>
+                <span>移回主显示器右下角（重新显示悬浮窗后生效）</span>
+              </div>
+              <button className="btn" onClick={() => set('floatingPos', null)}>
+                重置
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <DataSection />
+
+        <section>
           <h2>关于</h2>
           <div className="setting-card">
             <div className="setting">
@@ -309,5 +313,90 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         </section>
       </div>
     </main>
+  );
+}
+
+/** 设置 › 数据（FR-SET-06/07） */
+function DataSection() {
+  const report = useReportError();
+  const showToast = useUi((u) => u.showToast);
+  const [info, setInfo] = useState<DataInfo | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => void call(api.data.info()).then(setInfo).catch(report), [report]);
+
+  const doExport = () =>
+    void call(api.data.exportJson())
+      .then((r) => r && showToast(`已导出到 ${r.path}`))
+      .catch(report);
+  const doImport = () => {
+    setConfirm(false);
+    void call(api.data.importJson())
+      .then((r) => r && showToast(`已导入 ${r.todos} 项待办、${r.tags} 个标签、${r.completionLogs} 条完成记录`))
+      .catch(report);
+  };
+
+  return (
+    <section>
+      <h2>数据</h2>
+      <div className="setting-card">
+        <div className="setting">
+          <div className="txt">
+            <b>导出备份</b>
+            <span>导出全部事项、标签、提醒、完成记录与设置为 JSON 文件</span>
+          </div>
+          <button className="btn" onClick={doExport}>
+            <Icon name="download" size={14} />
+            导出
+          </button>
+        </div>
+        <div className="setting">
+          <div className="txt">
+            <b>导入备份</b>
+            <span>将覆盖当前数据，覆盖前会自动备份当前数据</span>
+          </div>
+          <button className="btn" onClick={() => setConfirm(true)}>
+            <Icon name="upload" size={14} />
+            导入…
+          </button>
+        </div>
+        <div className="setting">
+          <div className="txt">
+            <b>自动备份</b>
+            <span>
+              每天首次启动时备份，保留最近 7 份 · 最近一次：
+              {info?.lastBackupDate ?? '尚未备份'}
+            </span>
+          </div>
+          <button className="btn ghost" onClick={() => void call(api.data.openFolder()).catch(report)}>
+            <Icon name="folder" size={14} />
+            打开数据目录
+          </button>
+        </div>
+        <div className="setting">
+          <div className="txt">
+            <b>回收站保留</b>
+            <span>删除的事项在回收站保留 30 天后自动永久删除</span>
+          </div>
+          <span className="help">30 天</span>
+        </div>
+      </div>
+      {confirm && (
+        <Dialog onClose={() => setConfirm(false)} label="导入备份">
+          <h2>
+            <Icon name="alert" size={18} />
+            导入备份将覆盖当前数据
+          </h2>
+          <p>导入前会自动备份当前数据库，可在"打开数据目录"的 backups 文件夹中找回。</p>
+          <div className="actions">
+            <button className="btn" onClick={() => setConfirm(false)}>
+              取消
+            </button>
+            <button className="btn danger" onClick={doImport}>
+              选择文件并导入
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </section>
   );
 }

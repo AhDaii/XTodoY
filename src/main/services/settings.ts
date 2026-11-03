@@ -70,7 +70,11 @@ export class SettingsService {
   private cache: Settings;
 
   constructor(private readonly db: DB) {
-    const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
+    this.cache = this.load();
+  }
+
+  private load(): Settings {
+    const rows = this.db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
     const stored: Partial<Settings> = {};
     for (const { key, value } of rows) {
       if (!(key in validators)) continue;
@@ -80,7 +84,13 @@ export class SettingsService {
         // 忽略损坏或过时的值，回到默认值
       }
     }
-    this.cache = { ...DEFAULT_SETTINGS, ...stored };
+    return { ...DEFAULT_SETTINGS, ...stored };
+  }
+
+  /** 设置表被整体替换后（导入备份）重新读取，并广播全部设置 */
+  reload(): void {
+    this.cache = this.load();
+    bus.emit('settings.changed', this.get());
   }
 
   get(): Settings {
