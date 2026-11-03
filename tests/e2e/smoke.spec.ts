@@ -49,7 +49,7 @@ test('勾选完成后可撤销；全部完成时显示完成状态', async () =>
 
   await main.getByRole('checkbox', { name: '完成：回复客户邮件' }).click();
   await expect(main.getByText('今天的事都做完了')).toBeVisible();
-  await expect(floating.locator('#lbl')).toHaveText('完成');
+  await expect(floating.locator('#lbl')).toHaveText('全部完成');
   await expect(floating.locator('#tile')).toHaveClass(/is-done/);
 
   await main.getByRole('button', { name: '撤销' }).click();

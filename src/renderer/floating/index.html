@@ -8,16 +8,14 @@
   </head>
   <body>
     <button id="tile" class="tile is-empty" type="button" aria-label="今日待办，单击打开主窗口">
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true" focusable="false">
-        <circle class="track" cx="30" cy="30" r="26" />
-        <circle id="bar" class="bar" cx="30" cy="30" r="26" />
-      </svg>
-      <span class="center">
+      <span id="date" class="band">今天</span>
+      <span class="page">
         <span id="n" class="n">0</span>
         <svg class="check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M5 12.5l4.5 4.5L19 7.5" />
         </svg>
-        <span id="lbl" class="lbl">今日</span>
+        <span id="lbl" class="lbl">今天无事</span>
+        <span class="bar" aria-hidden="true"><i id="fill"></i></span>
       </span>
     </button>
     <script type="module" src="./floating.ts"></script>

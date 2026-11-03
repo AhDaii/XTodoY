@@ -114,7 +114,7 @@
       box-shadow: 0 5px 14px rgba(15,23,42,.2), 0 1px 3px rgba(15,23,42,.12); border: 1px solid rgba(15,23,42,.06); }
     .dark .ve { background: #18233a; color: #e2e8f0; border-color: rgba(255,255,255,.06); box-shadow: 0 5px 14px rgba(0,0,0,.45); }
     .ve:hover { transform: translateY(-1px); }
-    .ve .top { padding: 3px 0 2px; background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .ve .top { height: 18px; display: grid; place-items: center; padding: 0; background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
     .ve .pg { padding: 5px 0 6px; }
     .ve .num { display: flex; justify-content: center; font-size: 24px; font-weight: 800; line-height: 1; }
     .ve .num.s { font-size: 18px; }
@@ -124,7 +124,9 @@
     .ve.is-done .top { background: var(--success); }
     .ve.is-done .num { color: var(--success); }
     .ve.is-done .bar i { background: var(--success); }
-    .ve.is-empty .top { background: #94a3b8; }
+    .dark .ve .top { color: #0b1324; }
+    .ve.is-done .top, .ve.is-empty .top { color: #fff; }
+    .ve.is-empty .top { background: #64748b; }
     .dark .ve.is-empty .top { background: #475569; }
     .ve.is-empty .num { color: var(--foreground-subtle); }
 
@@ -217,11 +219,11 @@
 
     const VARIANTS = [
       {
-        id: 'A', name: '进度环圆盘', current: true, size: '60 px 圆盘 · 窗口 76 px',
-        idea: '当前 PR #11 的方案：圆盘外圈是今日进度，中心是未完成数。',
-        pro: ['数量与进度同时可见', '圆形最不像"窗口"，存在感适中', '已实现，可直接合并'],
+        id: 'A', name: '进度环圆盘', size: '60 px 圆盘 · 窗口 76 px',
+        idea: '圆盘外圈是今日进度，中心是未完成数（PR #11 的初版）。',
+        pro: ['数量与进度同时可见', '圆形最不像"窗口"，存在感适中'],
         con: ['10 px "今日"字较小', '数字与进度都偏中性，远看不够醒目'],
-        cost: ['已完成', '内存无变化'],
+        cost: ['只改 CSS 与少量结构', '内存无变化'],
         render: (s) => a(`${ring(56, 26, 3.5, s)}<span class="c">${cls(s) === 'done' ? icon('check', 22) : `<span class="num ${small(s)}">${n(s)}</span>`}<span class="lbl">${cls(s) === 'done' ? '完成' : '今日'}</span></span>`, `va ${cls(s)}`, s),
       },
       {
@@ -263,7 +265,7 @@
         },
       },
       {
-        id: 'E', name: '日历页', size: '64 × 70 px · 窗口 80 × 86 px',
+        id: 'E', name: '日历页', current: true, size: '64 × 78 px · 窗口 80 × 94 px',
         idea: '一张撕页日历：顶部色带写今天日期，下面是未完成数和进度条。把"今天"这个概念直接画出来。',
         pro: ['同时告诉你日期，桌面上多一个有用信息', '隐喻直观：今天这一页还剩几件事', '状态用色带颜色区分'],
         con: ['比圆盘高一些', '跨零点时顶部日期要同步刷新（已有零点刷新机制）'],
@@ -320,12 +322,12 @@
         <h1>悬浮窗 · 7 个设计方向</h1>
         <p>都基于现有设计系统（蓝色主色、成功绿、Minimalism & Swiss 风格），表达同样的信息：今日未完成数、今日进度（已完成 / 共）、全部完成、无待办。
         每个方向在同一组示例数据下展示 5 种状态 + 悬停，左侧浅色、右侧深色；下方列出优缺点与实现成本，最后有一张对比表。</p>
-        <div class="toc">${VARIANTS.map((v) => `<a href="#v${v.id}">${v.id} · ${v.name}${v.current ? '（当前）' : ''}</a>`).join('')}<a href="#sum">对比总结</a></div>
+        <div class="toc">${VARIANTS.map((v) => `<a href="#v${v.id}">${v.id} · ${v.name}${v.current ? '（已选定）' : ''}</a>`).join('')}<a href="#sum">对比总结</a></div>
       </section>
       ${VARIANTS.map((v) => `
         <section class="variant" id="v${v.id}">
           <div class="v-head">
-            <div><h2><span class="tag ${v.current ? 'cur' : ''}">${v.id}</span>${v.name}${v.current ? '<span class="help" style="font-weight:400">· PR #11 已实现</span>' : ''}</h2><p class="idea">${v.idea}</p></div>
+            <div><h2><span class="tag ${v.current ? 'cur' : ''}">${v.id}</span>${v.name}${v.current ? '<span class="help" style="font-weight:400">· 已选定，应用已实现</span>' : ''}</h2><p class="idea">${v.idea}</p></div>
             <div class="size">${v.size}</div>
           </div>
           <div class="notes">
@@ -340,11 +342,11 @@
         <table>
           <thead><tr><th>方案</th><th>一眼可读</th><th>不打扰</th><th>信息量</th><th>占用空间</th><th>实现成本</th></tr></thead>
           <tbody>
-            <tr><td>A 进度环圆盘</td><td>★★★</td><td>★★★★</td><td>数量 + 进度</td><td>60 px</td><td>已完成</td></tr>
+            <tr><td>A 进度环圆盘</td><td>★★★</td><td>★★★★</td><td>数量 + 进度</td><td>60 px</td><td>很小</td></tr>
             <tr><td>B 信息胶囊</td><td>★★★★★</td><td>★★★</td><td>数量 + 进度 + 文字</td><td>约 110 × 40</td><td>小</td></tr>
             <tr><td>C 磨砂玻璃</td><td>★★★</td><td>★★★★★</td><td>数量 + 进度</td><td>64 px</td><td>中（仅 Win11 完整效果）</td></tr>
             <tr><td>D 主色徽章</td><td>★★★★★</td><td>★★</td><td>数量 + 进度</td><td>56 px</td><td>很小</td></tr>
-            <tr><td>E 日历页</td><td>★★★★</td><td>★★★</td><td>数量 + 进度 + 日期</td><td>64 × 70</td><td>小</td></tr>
+            <tr><td><b>E 日历页（已选定）</b></td><td>★★★★</td><td>★★★</td><td>数量 + 进度 + 日期</td><td>64 × 70</td><td>小</td></tr>
             <tr><td>F 贴边抽屉</td><td>★★★</td><td>★★★★★</td><td>数量 + 进度 + 前 3 项</td><td>收起 34 px 宽</td><td>中（1–2 天）</td></tr>
             <tr><td>G 精修方块</td><td>★★★★</td><td>★★★★</td><td>数量 + 分段进度</td><td>60 px</td><td>很小</td></tr>
           </tbody>
