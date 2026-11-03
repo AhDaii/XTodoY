@@ -2,8 +2,10 @@ import { BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConstructo
 import { Events } from '@shared/ipc';
 import { preloadPath, rendererEntry } from '../app/paths';
 
-const FLOATING_SIZE = 64;
-const EDGE_MARGIN = 24;
+// 60 px 圆盘 + 四周 8 px 投影（设计系统 §7.5）
+const FLOATING_SIZE = 76;
+// 圆盘距屏幕边缘 24 px（窗口四周已有 8 px 投影留白）
+const EDGE_MARGIN = 16;
 
 const secure: BrowserWindowConstructorOptions['webPreferences'] = {
   contextIsolation: true,

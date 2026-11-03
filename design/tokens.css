@@ -49,7 +49,7 @@
   --size-sidebar: 240px;
   --size-rail: 56px;        /* 侧边栏折叠后的图标栏 */
   --size-detail: 360px;
-  --size-floating: 64px;    /* 悬浮窗 */
+  --size-floating: 60px;    /* 悬浮窗圆盘（窗口 76 px，四周留投影） */
 
   /* ---------- 圆角 ---------- */
   --radius-xs: 4px;

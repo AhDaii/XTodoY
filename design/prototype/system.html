@@ -20,20 +20,33 @@
     .dark .desk { background: linear-gradient(135deg, #0b1430, #16285a 60%, #1f3a7a); }
     .state-label { display: block; margin-top: var(--space-2); text-align: center; font-size: var(--text-xs); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
 
-    /* 悬浮窗 */
+    /* 悬浮窗（§7.5）：60 px 圆盘 + 今日进度环；窗口 76 px，四周 8 px 留给投影 */
     .floating {
-      position: relative; width: var(--size-floating); height: var(--size-floating); border-radius: 16px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-      background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
-      cursor: pointer; user-select: none; transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast);
+      position: relative; width: var(--size-floating); height: var(--size-floating); border-radius: 50%; box-sizing: border-box;
+      display: grid; place-items: center;
+      background: linear-gradient(180deg, #ffffff, #f1f5fe); border: 1px solid rgba(37, 99, 235, .16);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .16), 0 1px 3px rgba(15, 23, 42, .12);
+      cursor: pointer; user-select: none; transition: transform 160ms var(--ease-out), box-shadow 160ms;
       text-decoration: none; color: var(--foreground);
     }
+    .dark .floating { background: linear-gradient(180deg, #1b2741, #131c30); border-color: rgba(96, 165, 250, .24); box-shadow: 0 4px 12px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .4); }
     .floating:hover { transform: translateY(-1px); }
-    .floating .n { font-family: var(--font-num); font-size: var(--text-2xl); font-weight: var(--weight-bold); line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; }
-    .floating .n.small { font-size: 26px; }
-    .floating .lbl { font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.4; }
-    .floating.is-done .n { color: var(--success); }
-    .floating.is-empty .n { color: var(--foreground-subtle); }
+    .floating .ring { position: absolute; inset: 1px; width: 56px; height: 56px; transform: rotate(-90deg); }
+    .floating .ring circle { fill: none; stroke-width: 3.5; }
+    .floating .track { stroke: var(--primary-soft); }
+    .floating .bar { stroke: var(--primary); stroke-linecap: round; }
+    .floating .center { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+    .floating .n { font-size: 21px; font-weight: var(--weight-bold); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .floating .n.small { font-size: 16px; }
+    .floating .lbl { margin-top: 3px; font-size: 10px; font-weight: 600; letter-spacing: .04em; color: var(--foreground-muted); }
+    .floating.is-done .track { stroke: var(--success-soft); }
+    .floating.is-done .bar { stroke: var(--success); }
+    .floating.is-done .center { color: var(--success); }
+    .floating.is-done .lbl { color: var(--success); }
+    .floating.is-empty .track { stroke: #c3cfe3; stroke-width: 3; stroke-linecap: round; stroke-dasharray: .01 5.095; }
+    .dark .floating.is-empty .track { stroke: #3a4a68; }
+    .floating.is-empty .bar { visibility: hidden; }
+    .floating.is-empty .n { color: var(--foreground-muted); }
     .floating .tip {
       position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
       padding: 6px 10px; border-radius: var(--radius-sm); background: var(--surface-raised); border: 1px solid var(--border);
@@ -82,24 +95,31 @@
 
   <script src="icons.js"></script>
   <script>
-    const floating = (cls, n, lbl, tip, label) => `
+    // done / total 决定进度环；周长 2π × 26
+    const floating = (cls, n, lbl, tip, label, done = 0, total = 0) => {
+      const C = 2 * Math.PI * 26, ratio = total ? Math.max(done / total, 0.02) : 0;
+      return `
       <div><a class="floating ${cls}" href="index.html?view=today" aria-label="今日待办：${label}，单击打开主窗口">
-        <span class="n ${String(n).length > 2 ? 'small' : ''}">${n}</span><span class="lbl">${lbl}</span><span class="tip" role="tooltip">${tip}</span>
+        <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle class="track" cx="30" cy="30" r="26"/><circle class="bar" cx="30" cy="30" r="26" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - ratio)}"/></svg>
+        <span class="center">${cls.includes('is-done') ? icon('check', 22) : `<span class="n ${String(n).length > 2 ? 'small' : ''}">${n}</span>`}<span class="lbl">${lbl}</span></span>
+        <span class="tip" role="tooltip">${tip}</span>
       </a><span class="state-label">${label}</span></div>`;
+    };
 
     const col = (title, ic) => `
       <h2>${icon(ic, 20)}${title}</h2>
 
       <section class="spec">
         <h3>UI-11 悬浮窗 · 状态</h3>
-        <span class="help">64 × 64 · 始终置顶 · 不在任务栏显示 · 拖动移动、释放后记住位置 · 单击打开主窗口"今天"视图</span>
+        <span class="help">76 × 76 窗口（60 px 圆盘 + 投影）· 始终置顶 · 不在任务栏显示 · 进度环 = 今日已完成 / 今日共 · 拖动移动、释放后记住位置 · 单击打开主窗口"今天"视图</span>
         <div class="desk">
-          ${floating('', 3, '今日', '今日已完成 2 / 共 5', '有未完成（3）')}
-          ${floating('force-tip', 3, '今日', '今日已完成 2 / 共 5', '悬停提示')}
-          ${floating('', '99+', '今日', '今日已完成 4 / 共 132', '超过 99')}
-          ${floating('is-done', icon('check', 30), '全部完成', '今日 5 项已全部完成', '全部完成')}
+          ${floating('', 3, '今日', '今日未完成 3 项 · 已完成 2 / 共 5', '有未完成（3）', 2, 5)}
+          ${floating('force-tip', 3, '今日', '今日未完成 3 项 · 已完成 2 / 共 5', '悬停提示', 2, 5)}
+          ${floating('', 5, '今日', '今日未完成 5 项 · 已完成 0 / 共 5', '还没开始', 0, 5)}
+          ${floating('', '99+', '今日', '今日未完成 128 项 · 已完成 4 / 共 132', '超过 99', 4, 132)}
+          ${floating('is-done', '', '完成', '今日 5 项已全部完成', '全部完成', 5, 5)}
           ${floating('is-empty', 0, '今日', '今天没有到期的事项', '无待办')}
-          ${floating('opacity-80', 3, '今日', '透明度 80%', '透明度 80%')}
+          ${floating('opacity-80', 3, '今日', '透明度 80%', '透明度 80%', 2, 5)}
         </div>
       </section>
 

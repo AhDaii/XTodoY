@@ -1,68 +1,176 @@
-/* 悬浮窗：只用到少量颜色，直接内联令牌值，避免加载完整 tokens.css 与框架（性能预算见 architecture.md §6） */
+/*
+ * 悬浮窗（设计系统 §7.5）：60 px 圆盘 + 今日进度环。窗口 76 px，四周留 8 px 给投影。
+ * 只用到少量颜色，直接内联令牌值，避免加载完整 tokens.css 与框架（性能预算见 architecture.md §6）。
+ */
 :root {
-  --bg: #ffffff;
-  --border: #dae3f3;
-  --fg-muted: #44536b;
-  --fg-subtle: #5f6f88;
+  --disc-from: #ffffff;
+  --disc-to: #f1f5fe;
+  --edge: rgba(37, 99, 235, 0.16);
+  --shadow: 0 4px 12px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.12);
+  --shadow-hover: 0 6px 16px rgba(15, 23, 42, 0.2), 0 2px 4px rgba(15, 23, 42, 0.12);
+  --fg: #0f172a;
+  --fg-muted: #5f6f88;
+  --track: #dbe6fd;
   --primary: #2563eb;
   --success: #15803d;
+  --success-track: #d3f2dd;
+  --empty: #c3cfe3;
   color-scheme: light;
 }
 :root.dark {
-  --bg: #162036;
-  --border: #1f2b44;
+  --disc-from: #1b2741;
+  --disc-to: #131c30;
+  --edge: rgba(96, 165, 250, 0.24);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --fg: #e2e8f0;
   --fg-muted: #a3b1c8;
-  --fg-subtle: #7c8ba5;
+  --track: #22335a;
   --primary: #60a5fa;
   --success: #4ade80;
+  --success-track: #173a2a;
+  --empty: #3a4a68;
   color-scheme: dark;
 }
 html,
 body {
   margin: 0;
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   overflow: hidden;
   background: transparent;
   user-select: none;
 }
+body {
+  display: grid;
+  place-items: center;
+}
 .tile {
+  position: relative;
   box-sizing: border-box;
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--disc-from), var(--disc-to));
+  box-shadow: var(--shadow);
+  display: grid;
+  place-items: center;
   cursor: pointer;
   font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+  transition:
+    transform 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+.tile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+.tile.dragging {
+  cursor: grabbing;
+  transform: scale(1.04);
+  box-shadow: var(--shadow-hover);
 }
 .tile:focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: -4px;
+  outline-offset: 2px;
+}
+
+/* 进度环：今日已完成 / 今日共（FR-FLT-03） */
+.ring {
+  position: absolute;
+  inset: 1px;
+  width: 56px;
+  height: 56px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.ring circle {
+  fill: none;
+  stroke-width: 3.5;
+}
+.track {
+  stroke: var(--track);
+}
+.bar {
+  stroke: var(--primary);
+  stroke-linecap: round;
+  transition:
+    stroke-dashoffset 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    stroke 200ms;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
 }
 .n {
-  font-size: 30px;
+  font-size: 21px;
   font-weight: 700;
-  line-height: 1;
-  color: var(--primary);
+  letter-spacing: -0.02em;
+  color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
 .n.small {
-  font-size: 22px;
+  font-size: 16px;
 }
 .lbl {
-  margin-top: 2px;
-  font-size: 11px;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--fg-muted);
 }
+.check {
+  display: none;
+  width: 22px;
+  height: 22px;
+}
+.check path {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 全部完成：满环成功色 + 对勾 */
+.tile.is-done .track {
+  stroke: var(--success-track);
+}
+.tile.is-done .bar {
+  stroke: var(--success);
+}
 .tile.is-done .n {
+  display: none;
+}
+.tile.is-done .check {
+  display: block;
+}
+.tile.is-done .lbl {
   color: var(--success);
 }
+
+/* 今天没有到期事项：32 个圆点组成的弱化环 + 灰色 0（周长 163.36 / 32 = 5.105） */
+.tile.is-empty .track {
+  stroke: var(--empty);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 0.01 5.095;
+}
+.tile.is-empty .bar {
+  visibility: hidden;
+}
 .tile.is-empty .n {
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .bar {
+    transition: none;
+  }
 }
