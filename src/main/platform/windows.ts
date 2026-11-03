@@ -2,8 +2,11 @@ import { BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConstructo
 import { Events } from '@shared/ipc';
 import { preloadPath, rendererEntry } from '../app/paths';
 
-const FLOATING_SIZE = 64;
-const EDGE_MARGIN = 24;
+// 64 × 78 日历页 + 四周 8 px 投影（设计系统 §7.5）
+const FLOATING_W = 80;
+const FLOATING_H = 94;
+// 日历页距屏幕边缘 24 px（窗口四周已有 8 px 投影留白）
+const EDGE_MARGIN = 16;
 
 const secure: BrowserWindowConstructorOptions['webPreferences'] = {
   contextIsolation: true,
@@ -99,8 +102,8 @@ export function createFloatingWindow(saved?: { x: number; y: number }): BrowserW
   const pos = validPosition(saved) ?? defaultPosition();
   floatingWin = new BrowserWindow({
     ...pos,
-    width: FLOATING_SIZE,
-    height: FLOATING_SIZE,
+    width: FLOATING_W,
+    height: FLOATING_H,
     frame: false,
     transparent: true,
     resizable: false,
@@ -151,8 +154,8 @@ export function floatingPosition(): { x: number; y: number } | null {
 function defaultPosition(): { x: number; y: number } {
   const { workArea } = screen.getPrimaryDisplay();
   return {
-    x: workArea.x + workArea.width - FLOATING_SIZE - EDGE_MARGIN,
-    y: workArea.y + workArea.height - FLOATING_SIZE - EDGE_MARGIN,
+    x: workArea.x + workArea.width - FLOATING_W - EDGE_MARGIN,
+    y: workArea.y + workArea.height - FLOATING_H - EDGE_MARGIN,
   };
 }
 
@@ -160,7 +163,7 @@ function defaultPosition(): { x: number; y: number } {
 function validPosition(p?: { x: number; y: number }): { x: number; y: number } | null {
   if (!p) return null;
   const visible = screen.getAllDisplays().some(({ workArea: a }) => {
-    return p.x >= a.x && p.y >= a.y && p.x + FLOATING_SIZE <= a.x + a.width && p.y + FLOATING_SIZE <= a.y + a.height;
+    return p.x >= a.x && p.y >= a.y && p.x + FLOATING_W <= a.x + a.width && p.y + FLOATING_H <= a.y + a.height;
   });
   return visible ? p : null;
 }

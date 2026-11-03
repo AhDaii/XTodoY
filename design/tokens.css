@@ -49,7 +49,7 @@
   --size-sidebar: 240px;
   --size-rail: 56px;        /* 侧边栏折叠后的图标栏 */
   --size-detail: 360px;
-  --size-floating: 64px;    /* 悬浮窗 */
+  --size-floating: 64px;    /* 悬浮窗日历页宽度（64 × 78，窗口 80 × 94，四周留投影） */
 
   /* ---------- 圆角 ---------- */
   --radius-xs: 4px;

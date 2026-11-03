@@ -1,68 +1,196 @@
-/* 悬浮窗：只用到少量颜色，直接内联令牌值，避免加载完整 tokens.css 与框架（性能预算见 architecture.md §6） */
+/*
+ * 悬浮窗（设计系统 §7.5）：日历页——顶部色带写今天日期，下面是今日未完成数与进度条。
+ * 页面 64 × 78，窗口 80 × 94，四周 8 px 留给投影。
+ * 只用到少量颜色，直接内联令牌值，避免加载完整 tokens.css 与框架（性能预算见 architecture.md §6）。
+ */
 :root {
-  --bg: #ffffff;
-  --border: #dae3f3;
-  --fg-muted: #44536b;
-  --fg-subtle: #5f6f88;
+  --page: #ffffff;
+  --edge: rgba(15, 23, 42, 0.06);
+  --shadow: 0 5px 14px rgba(15, 23, 42, 0.2), 0 1px 3px rgba(15, 23, 42, 0.12);
+  --shadow-hover: 0 7px 18px rgba(15, 23, 42, 0.24), 0 2px 4px rgba(15, 23, 42, 0.12);
+  --fg: #0f172a;
+  --fg-muted: #5f6f88;
+  --fg-subtle: #8191ab;
   --primary: #2563eb;
+  --primary-soft: #dbe6fd;
   --success: #15803d;
+  --success-band: #15803d;
+  --success-soft: #d3f2dd;
+  --empty-band: #64748b;
+  --on-band: #ffffff;
   color-scheme: light;
 }
 :root.dark {
-  --bg: #162036;
-  --border: #1f2b44;
+  --page: #18233a;
+  --edge: rgba(255, 255, 255, 0.06);
+  --shadow: 0 5px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 7px 18px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --fg: #e2e8f0;
   --fg-muted: #a3b1c8;
   --fg-subtle: #7c8ba5;
   --primary: #60a5fa;
+  --primary-soft: #22335a;
   --success: #4ade80;
+  --success-band: #15803d;
+  --success-soft: #173a2a;
+  --empty-band: #475569;
+  --on-band: #ffffff;
   color-scheme: dark;
 }
 html,
 body {
   margin: 0;
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 94px;
   overflow: hidden;
   background: transparent;
   user-select: none;
 }
+body {
+  display: grid;
+  place-items: center;
+}
 .tile {
   box-sizing: border-box;
   width: 64px;
-  height: 64px;
+  height: 78px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--page);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+  transition:
+    transform 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+.tile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+.tile.dragging {
+  cursor: grabbing;
+  transform: scale(1.04);
+  box-shadow: var(--shadow-hover);
+}
+.tile:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* 顶部色带：今天的日期（跨零点随今日计数一起刷新） */
+.band {
+  flex: none;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--on-band);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  transition: background 200ms;
+}
+:root.dark .band {
+  color: #0b1324;
+}
+
+.page {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
-}
-.tile:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -4px;
+  padding-bottom: 2px;
 }
 .n {
-  font-size: 30px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1;
-  color: var(--primary);
+  letter-spacing: -0.02em;
+  color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
 .n.small {
-  font-size: 22px;
+  font-size: 18px;
+  line-height: 24px;
+}
+.check {
+  display: none;
+  width: 24px;
+  height: 24px;
+}
+.check path {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .lbl {
-  margin-top: 2px;
-  font-size: 11px;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.2;
   color: var(--fg-muted);
 }
+
+/* 今日进度：已完成 / 今日共（FR-FLT-03） */
+.bar {
+  width: 46px;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 3px;
+  background: var(--primary-soft);
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 全部完成：绿色色带 + 对勾 + 满进度 */
+.tile.is-done .band {
+  background: var(--success-band);
+  color: #fff;
+}
 .tile.is-done .n {
+  display: none;
+}
+.tile.is-done .check {
+  display: block;
+}
+.tile.is-done .lbl {
   color: var(--success);
+}
+.tile.is-done .bar {
+  background: var(--success-soft);
+}
+.tile.is-done .bar i {
+  background: var(--success);
+}
+
+/* 今天没有到期事项：灰色色带 + 灰色 0 */
+.tile.is-empty .band {
+  background: var(--empty-band);
+  color: #fff;
 }
 .tile.is-empty .n {
   color: var(--fg-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .band,
+  .bar i {
+    transition: none;
+  }
 }
