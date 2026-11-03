@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 悬浮窗方案对比</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #e2e8f0; }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); }
+    .intro { padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--surface); color: var(--foreground); }
+    .intro h1 { margin: 0 0 var(--space-2); font-size: var(--text-xl); }
+    .intro p { margin: 0; color: var(--foreground-muted); font-size: var(--text-sm); line-height: 1.7; }
+    .toc { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .toc a { padding: 4px 10px; border-radius: var(--radius-full); background: var(--primary-soft); color: var(--primary-soft-foreground); font-size: var(--text-xs); font-weight: var(--weight-semibold); text-decoration: none; }
+
+    .variant { border-radius: var(--radius-lg); background: var(--surface); color: var(--foreground); overflow: hidden; }
+    .v-head { display: grid; grid-template-columns: 1fr auto; gap: var(--space-4); padding: var(--space-5) var(--space-6) var(--space-4); }
+    .v-head h2 { margin: 0; font-size: var(--text-lg); display: flex; align-items: center; gap: var(--space-2); }
+    .v-head h2 .tag { padding: 2px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); }
+    .v-head h2 .tag.cur { background: var(--success); }
+    .v-head .idea { margin: var(--space-1) 0 0; color: var(--foreground-muted); font-size: var(--text-sm); }
+    .v-head .size { align-self: start; font-size: var(--text-xs); color: var(--foreground-subtle); text-align: right; line-height: 1.6; }
+    .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); padding: 0 var(--space-6) var(--space-4); font-size: var(--text-xs); line-height: 1.7; }
+    .notes b { display: block; margin-bottom: 2px; font-size: var(--text-xs); }
+    .notes .pro b { color: var(--success); }
+    .notes .con b { color: var(--accent); }
+    .notes .cost b { color: var(--foreground-muted); }
+    .notes ul { margin: 0; padding-left: 16px; color: var(--foreground-muted); }
+    .desks { display: grid; grid-template-columns: 1fr 1fr; }
+    .desk {
+      padding: 52px var(--space-5) var(--space-5); min-height: 150px;
+      background: linear-gradient(135deg, #3b5ba9, #5f86d6 60%, #8db3ef);
+      display: flex; gap: 48px 26px; flex-wrap: wrap; align-items: flex-end; justify-content: center;
+    }
+    .desk { --fw-empty: #c3cfe3; }
+    .desk.dark { --fw-empty: #3a4a68; }
+    .desk.dark { background: linear-gradient(135deg, #0b1430, #16285a 60%, #1f3a7a); }
+    /* 方案 C 需要有纹理的壁纸才能看出磨砂效果 */
+    .desk.photo { background: radial-gradient(circle at 20% 30%, #f59e0b 0 14%, transparent 15%), radial-gradient(circle at 70% 70%, #10b981 0 18%, transparent 19%), linear-gradient(135deg, #3b5ba9, #8db3ef); }
+    .desk.photo.dark { background: radial-gradient(circle at 20% 30%, #b45309 0 14%, transparent 15%), radial-gradient(circle at 70% 70%, #047857 0 18%, transparent 19%), linear-gradient(135deg, #0b1430, #1f3a7a); }
+    .desk.edge { justify-content: flex-end; padding-right: 0; }
+    .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .state { font-size: 11px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); white-space: nowrap; }
+    .fw { cursor: pointer; user-select: none; text-decoration: none; font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif; transition: transform 160ms var(--ease-out), box-shadow 160ms; }
+    .fw .num { font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+    .ring-svg { transform: rotate(-90deg); display: block; }
+    .ring-svg circle { fill: none; }
+
+    /* ---------- A 进度环圆盘（PR #11） ---------- */
+    .va { position: relative; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center;
+      background: linear-gradient(180deg, #fff, #f1f5fe); border: 1px solid rgba(37,99,235,.16);
+      box-shadow: 0 4px 12px rgba(15,23,42,.16), 0 1px 3px rgba(15,23,42,.12); color: #0f172a; }
+    .dark .va { background: linear-gradient(180deg, #1b2741, #131c30); border-color: rgba(96,165,250,.24); box-shadow: 0 4px 12px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.4); color: #e2e8f0; }
+    .va:hover { transform: translateY(-1px); }
+    .va .ring-svg { position: absolute; inset: 1px; }
+    .va .c { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+    .va .num { font-size: 21px; font-weight: 700; }
+    .va .num.s { font-size: 16px; }
+    .va .lbl { margin-top: 3px; font-size: 10px; font-weight: 600; letter-spacing: .04em; color: var(--foreground-muted); }
+    .va.is-done .lbl, .va.is-done .c { color: var(--success); }
+    .va.is-empty .num { color: var(--foreground-muted); }
+
+    /* ---------- B 胶囊 ---------- */
+    .vb { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px; border-radius: 999px;
+      background: rgba(255,255,255,.96); border: 1px solid rgba(37,99,235,.14); box-shadow: 0 4px 14px rgba(15,23,42,.18); color: #0f172a; }
+    .dark .vb { background: rgba(22,32,54,.96); border-color: rgba(96,165,250,.22); box-shadow: 0 4px 14px rgba(0,0,0,.45); color: #e2e8f0; }
+    .vb:hover { transform: translateY(-1px); }
+    .vb .mini { position: relative; width: 28px; height: 28px; display: grid; place-items: center; }
+    .vb .mini .ring-svg { position: absolute; inset: 0; }
+    .vb .mini .ic { color: var(--primary); display: grid; }
+    .vb .txt { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+    .vb .num { font-size: 20px; font-weight: 700; line-height: 1; }
+    .vb .unit { font-size: 12px; color: var(--foreground-muted); }
+    .vb .sub { font-size: 11px; color: var(--foreground-subtle); margin-left: 2px; }
+    .vb.is-done .txt { color: var(--success); font-size: 13px; font-weight: 600; }
+    .vb.is-done .mini .ic { color: var(--success); }
+    .vb.is-empty .txt { color: var(--foreground-muted); font-size: 13px; }
+    .vb.is-empty .mini .ic { color: var(--foreground-subtle); }
+
+    /* ---------- C 磨砂玻璃 ---------- */
+    .vc { position: relative; width: 64px; height: 64px; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.42); -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+      border: 1px solid rgba(255,255,255,.65); box-shadow: 0 6px 18px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.7); color: #0f172a; }
+    .dark .vc { background: rgba(15,23,42,.45); border-color: rgba(255,255,255,.14); box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08); color: #f1f5f9; }
+    .vc:hover { transform: translateY(-1px); }
+    .vc .num { font-size: 26px; font-weight: 700; line-height: 1; }
+    .vc .num.s { font-size: 19px; }
+    .vc .lbl { margin-top: 2px; font-size: 10px; font-weight: 600; opacity: .72; }
+    .vc .bar { position: absolute; left: 10px; right: 10px; bottom: 7px; height: 3px; border-radius: 3px; background: rgba(15,23,42,.12); overflow: hidden; }
+    .dark .vc .bar { background: rgba(255,255,255,.14); }
+    .vc .bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+    .vc.is-done .bar i { background: var(--success); }
+    .vc.is-done .ic { color: var(--success); }
+    .vc.is-empty .num { opacity: .55; }
+
+    /* ---------- D 主色实心徽章 ---------- */
+    .vd { position: relative; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+      background: radial-gradient(circle at 30% 25%, #4f8bff, #2563eb 55%, #1d4ed8);
+      box-shadow: 0 6px 16px rgba(37,99,235,.45), 0 1px 3px rgba(15,23,42,.25), inset 0 1px 0 rgba(255,255,255,.35); }
+    .dark .vd { background: radial-gradient(circle at 30% 25%, #6aa6ff, #3b82f6 55%, #2563eb); box-shadow: 0 6px 16px rgba(37,99,235,.4), 0 1px 3px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3); }
+    .vd:hover { transform: scale(1.05); }
+    .vd .ring-svg { position: absolute; inset: 3px; }
+    .vd .c { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+    .vd .num { font-size: 22px; font-weight: 800; }
+    .vd .num.s { font-size: 16px; }
+    .vd .lbl { margin-top: 2px; font-size: 9.5px; font-weight: 600; opacity: .85; }
+    .vd.is-done { background: radial-gradient(circle at 30% 25%, #4ade80, #16a34a 55%, #15803d); box-shadow: 0 6px 16px rgba(22,163,74,.4), 0 1px 3px rgba(15,23,42,.25), inset 0 1px 0 rgba(255,255,255,.35); }
+    .vd.is-empty { background: rgba(255,255,255,.92); color: var(--foreground-muted); box-shadow: 0 4px 12px rgba(15,23,42,.18); border: 1.5px dashed #b6c3da; }
+    .dark .vd.is-empty { background: rgba(22,32,54,.92); border-color: #3a4a68; }
+
+    /* ---------- E 日历页 ---------- */
+    .ve { width: 64px; border-radius: 12px; overflow: hidden; background: #fff; color: #0f172a; text-align: center;
+      box-shadow: 0 5px 14px rgba(15,23,42,.2), 0 1px 3px rgba(15,23,42,.12); border: 1px solid rgba(15,23,42,.06); }
+    .dark .ve { background: #18233a; color: #e2e8f0; border-color: rgba(255,255,255,.06); box-shadow: 0 5px 14px rgba(0,0,0,.45); }
+    .ve:hover { transform: translateY(-1px); }
+    .ve .top { height: 18px; display: grid; place-items: center; padding: 0; background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .ve .pg { padding: 5px 0 6px; }
+    .ve .num { display: flex; justify-content: center; font-size: 24px; font-weight: 800; line-height: 1; }
+    .ve .num.s { font-size: 18px; }
+    .ve .lbl { margin-top: 3px; font-size: 9.5px; color: var(--foreground-muted); }
+    .ve .bar { height: 3px; margin: 5px 9px 0; border-radius: 3px; background: var(--primary-soft); overflow: hidden; }
+    .ve .bar i { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+    .ve.is-done .top { background: var(--success); }
+    .ve.is-done .num { color: var(--success); }
+    .ve.is-done .bar i { background: var(--success); }
+    .dark .ve .top { color: #0b1324; }
+    .ve.is-done .top, .ve.is-empty .top { color: #fff; }
+    .ve.is-empty .top { background: #64748b; }
+    .dark .ve.is-empty .top { background: #475569; }
+    .ve.is-empty .num { color: var(--foreground-subtle); }
+
+    /* ---------- F 贴边抽屉 ---------- */
+    .vf { display: flex; align-items: stretch; color: #0f172a; }
+    .dark .vf { color: #e2e8f0; }
+    .vf .tab { width: 34px; padding: 10px 0; border-radius: 14px 0 0 14px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.96); box-shadow: -3px 4px 14px rgba(15,23,42,.2); border: 1px solid rgba(37,99,235,.14); border-right: 0; }
+    .dark .vf .tab { background: rgba(22,32,54,.96); box-shadow: -3px 4px 14px rgba(0,0,0,.45); border-color: rgba(96,165,250,.22); }
+    .vf .tab .num { font-size: 18px; font-weight: 800; line-height: 1; color: var(--primary); }
+    .vf .tab .dots { display: flex; flex-direction: column; gap: 3px; }
+    .vf .tab .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--primary-soft); }
+    .vf .tab .dots i.on { background: var(--primary); }
+    .vf .tab .vlbl { writing-mode: vertical-rl; font-size: 10px; letter-spacing: .2em; color: var(--foreground-muted); }
+    .vf.is-done .tab .num { color: var(--success); }
+    .vf.is-done .tab .dots i.on { background: var(--success); }
+    .vf.is-empty .tab .num { color: var(--foreground-subtle); }
+    .vf .panel-x { width: 224px; padding: 12px 14px; border-radius: 14px 0 0 14px; background: var(--surface-raised); border: 1px solid var(--border); border-right: 0; box-shadow: -4px 6px 20px rgba(15,23,42,.24); }
+    .vf .panel-x h4 { margin: 0 0 8px; font-size: 12px; display: flex; justify-content: space-between; color: var(--foreground); }
+    .vf .panel-x h4 span { color: var(--foreground-subtle); font-weight: 400; }
+    .vf .panel-x ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+    .vf .panel-x li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--foreground); }
+    .vf .panel-x li i { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--control-border); }
+    .vf .panel-x li time { margin-left: auto; color: var(--foreground-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .vf .panel-x .add { margin-top: 10px; padding: 6px 8px; border-radius: 6px; background: var(--surface-sunken); color: var(--foreground-subtle); font-size: 11px; }
+
+    /* ---------- G 精修方块 ---------- */
+    .vg { position: relative; width: 60px; height: 60px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #fff; box-shadow: 0 4px 12px rgba(15,23,42,.16), 0 0 0 1px rgba(15,23,42,.05); color: #0f172a; overflow: hidden; }
+    .dark .vg { background: #18233a; box-shadow: 0 4px 12px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06); color: #e2e8f0; }
+    .vg:hover { transform: translateY(-1px); }
+    .vg::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); }
+    .vg .num { font-size: 24px; font-weight: 800; line-height: 1; }
+    .vg .num.s { font-size: 18px; }
+    .vg .lbl { margin-top: 3px; font-size: 10px; color: var(--foreground-muted); font-weight: 600; }
+    .vg .meter { display: flex; gap: 2px; margin-top: 6px; }
+    .vg .meter i { width: 6px; height: 3px; border-radius: 2px; background: var(--primary-soft); }
+    .vg .meter i.on { background: var(--primary); }
+    .vg.is-done::before, .vg.is-done .meter i.on { background: var(--success); }
+    .vg.is-done .ic { color: var(--success); }
+    .vg.is-empty::before { background: #b6c3da; }
+    .dark .vg.is-empty::before { background: #3a4a68; }
+    .vg.is-empty .num { color: var(--foreground-subtle); }
+
+    .tipbox { position: relative; }
+    .tipbox .tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 5px 9px; border-radius: 6px;
+      background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-md); font-size: 11px; color: var(--foreground); }
+    .sum { padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--surface); color: var(--foreground); }
+    .sum h2 { margin: 0 0 var(--space-3); font-size: var(--text-lg); }
+    .sum table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    .sum th, .sum td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    .sum th { color: var(--foreground-muted); font-weight: 600; font-size: var(--text-xs); }
+    @media (max-width: 1000px) { .desks { grid-template-columns: 1fr; } .notes { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="proto-bar" role="note">
+    <strong>XTodoY 悬浮窗方案对比</strong><span>7 个方向 · 每个方向左浅色 / 右深色 · 放在桌面壁纸上看效果 · 悬停可看交互</span>
+    <span class="spacer"></span><a href="system.html">系统组件原型</a><a href="index.html" style="margin-left:12px">← 主界面原型</a>
+  </div>
+  <div class="wrap" id="root"></div>
+
+  <script src="icons.js"></script>
+  <script>
+    // 统一的示例数据：进行中 2/5、未开始 0/5、超过 99、全部完成、无待办
+    const STATES = [
+      { key: 'open', label: '进行中', open: 3, done: 2, total: 5 },
+      { key: 'start', label: '未开始', open: 5, done: 0, total: 5 },
+      { key: 'many', label: '超过 99', open: 128, done: 4, total: 132 },
+      { key: 'done', label: '全部完成', open: 0, done: 5, total: 5 },
+      { key: 'empty', label: '无待办', open: 0, done: 0, total: 0 },
+    ];
+    const cls = (s) => (s.total === 0 ? 'empty' : s.open === 0 ? 'done' : '');
+    const n = (s) => (s.open > 99 ? '99+' : s.open);
+    const small = (s) => (s.open > 99 ? 's' : '');
+    const tipOf = (s) => (s.total ? (s.open ? `今日未完成 ${s.open} 项 · 已完成 ${s.done} / 共 ${s.total}` : `今日 ${s.total} 项已全部完成`) : '今天没有到期的事项');
+    const C = (r) => 2 * Math.PI * r;
+    function ring(size, r, w, s, { track = 'var(--primary-soft)', color = 'var(--primary)', doneColor = 'var(--success)', doneTrack = 'var(--success-soft)', emptyTrack = 'var(--fw-empty)', dots = 32 } = {}) {
+      const c = C(r), ratio = s.total ? Math.max(s.done / s.total, s.open ? 0.02 : 1) : 0, st = cls(s);
+      const t = st === 'done' ? doneTrack : st === 'empty' ? emptyTrack : track;
+      const dash = st === 'empty' ? `stroke-linecap="round" stroke-dasharray="0.01 ${(c / dots).toFixed(3)}"` : '';
+      return `<svg class="ring-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${t}" stroke-width="${w}" ${dash}/>
+        ${st === 'empty' ? '' : `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${st === 'done' ? doneColor : color}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - ratio)}"/>`}
+      </svg>`;
+    }
+    const pct = (s) => (s.total ? Math.round((s.done / s.total) * 100) : 0);
+    // 状态类名用 is-done / is-empty，避免与 styles.css 中的 .empty（空状态区块）冲突
+    const a = (inner, c, s) => `<a class="fw ${c.replace(/\b(done|empty)\b/, 'is-$1')}" href="index.html?view=today" title="${tipOf(s)}" aria-label="${tipOf(s)}，单击打开主窗口">${inner}</a>`;
+
+    const VARIANTS = [
+      {
+        id: 'A', name: '进度环圆盘', size: '60 px 圆盘 · 窗口 76 px',
+        idea: '圆盘外圈是今日进度，中心是未完成数（PR #11 的初版）。',
+        pro: ['数量与进度同时可见', '圆形最不像"窗口"，存在感适中'],
+        con: ['10 px "今日"字较小', '数字与进度都偏中性，远看不够醒目'],
+        cost: ['只改 CSS 与少量结构', '内存无变化'],
+        render: (s) => a(`${ring(56, 26, 3.5, s)}<span class="c">${cls(s) === 'done' ? icon('check', 22) : `<span class="num ${small(s)}">${n(s)}</span>`}<span class="lbl">${cls(s) === 'done' ? '完成' : '今日'}</span></span>`, `va ${cls(s)}`, s),
+      },
+      {
+        id: 'B', name: '信息胶囊', size: '约 110 × 40 px（随文字变宽）',
+        idea: '横向胶囊：左侧迷你进度环，右侧直接写出"3 项待办"。一眼读懂，不需要猜数字的含义。',
+        pro: ['文字说明最清楚，新用户无需学习', '高度只有 40 px，贴在任务栏上方很自然', '可以在右侧加"已完成 2/5"小字'],
+        con: ['占用宽度是方块的近两倍', '宽度随数字变化，需要固定最小宽度避免跳动'],
+        cost: ['窗口改为 120 × 48 并靠右对齐', '工作量小（约半天）'],
+        render: (s) => {
+          const st = cls(s);
+          const txt = st === 'done' ? '今日已全部完成' : st === 'empty' ? '今天没有待办' : `<span class="num">${n(s)}</span><span class="unit">项待办</span><span class="sub">${s.done}/${s.total}</span>`;
+          const ic = st === 'done' ? icon('check', 14) : st === 'empty' ? icon('sun', 14) : '';
+          return a(`<span class="mini">${ring(28, 11.5, 3, s, { dots: 16 })}<span class="ic">${ic}</span></span><span class="txt">${txt}</span>`, `vb ${st}`, s);
+        },
+      },
+      {
+        id: 'C', name: '磨砂玻璃', size: '64 px 圆角方块 · 窗口 80 px', desk: 'photo',
+        idea: '半透明亚克力材质透出壁纸颜色，与 Windows 11 的小组件、通知中心风格一致；底部细进度条。',
+        pro: ['最"原生"，和系统界面融为一体', '不抢眼，长时间放在桌面不打扰', '浅色 / 深色都自然'],
+        con: ['Windows 10 不支持亚克力，只能退化为半透明纯色', '壁纸很花时数字对比度会下降（需加深底色兜底）'],
+        cost: ['需 Electron backgroundMaterial: "acrylic"（仅 Win11 22H2+）', '透明窗口 + 材质有额外 GPU / 内存开销，需在关闭硬件加速下实测'],
+        render: (s) => {
+          const st = cls(s);
+          const mid = st === 'done' ? `<span class="ic">${icon('check', 26)}</span>` : `<span class="num ${small(s)}">${n(s)}</span>`;
+          return a(`${mid}<span class="lbl">${st === 'done' ? '已完成' : '今日待办'}</span><span class="bar"><i style="width:${st === 'done' ? 100 : pct(s)}%"></i></span>`, `vc ${st}`, s);
+        },
+      },
+      {
+        id: 'D', name: '主色徽章', size: '56 px 实心圆 · 窗口 72 px',
+        idea: '像 App 角标一样的实心主色圆，白色大数字；全部完成时整个变绿，没有待办时变成浅色虚线圆。',
+        pro: ['最醒目，扫一眼就能看到', '状态靠整体颜色区分，远距离也能分辨', '品牌感强（与图标同色）'],
+        con: ['常驻桌面略显"吵"，有待办时一直是高饱和蓝色', '深色壁纸上发光感较强'],
+        cost: ['只改 CSS，工作量很小', '内存无变化'],
+        render: (s) => {
+          const st = cls(s);
+          const ringHtml = st === 'empty' ? '' : ring(50, 22.5, 2.5, s, { track: 'rgba(255,255,255,.28)', color: '#fff', doneColor: '#fff', doneTrack: 'rgba(255,255,255,.28)' });
+          const mid = st === 'done' ? icon('check', 24) : `<span class="num ${small(s)}">${n(s)}</span><span class="lbl">今日</span>`;
+          return a(`${ringHtml}<span class="c">${mid}</span>`, `vd ${st}`, s).replace('class="ring-svg"', 'class="ring-svg" style="position:absolute;inset:3px"');
+        },
+      },
+      {
+        id: 'E', name: '日历页', current: true, size: '64 × 78 px · 窗口 80 × 94 px',
+        idea: '一张撕页日历：顶部色带写今天日期，下面是未完成数和进度条。把"今天"这个概念直接画出来。',
+        pro: ['同时告诉你日期，桌面上多一个有用信息', '隐喻直观：今天这一页还剩几件事', '状态用色带颜色区分'],
+        con: ['比圆盘高一些', '跨零点时顶部日期要同步刷新（已有零点刷新机制）'],
+        cost: ['需要把日期传给悬浮窗（已有 today:count 事件，可附带日期）', '工作量小（约半天）'],
+        render: (s) => {
+          const st = cls(s);
+          const mid = st === 'done' ? `<span class="num">${icon('check', 22)}</span>` : `<span class="num ${small(s)}">${n(s)}</span>`;
+          return a(`<div class="top">11/3 周二</div><div class="pg">${mid}<div class="lbl">${st === 'done' ? '全部完成' : st === 'empty' ? '今天无事' : '项待办'}</div><div class="bar"><i style="width:${st === 'done' ? 100 : pct(s)}%"></i></div></div>`, `ve ${st}`, s);
+        },
+      },
+      {
+        id: 'F', name: '贴边抽屉', size: '收起 34 × 约 96 px · 展开 260 × 约 150 px', desk: 'edge',
+        idea: '贴在屏幕右边缘的小标签，平时几乎不占地方；鼠标移上去向左滑出，列出接下来的 3 件事，还能直接新建。',
+        pro: ['收起时最不挡桌面', '展开后不用打开主窗口就能看到具体事项', '圆点直观显示进度（每项一个点）'],
+        con: ['交互更复杂：悬停展开、移开收起，需要防误触延迟', '只能贴在左右边缘，不能随意摆放', '展开面板需要读取事项列表'],
+        cost: ['窗口要在悬停时改变尺寸并做动画', '需新增"今日前 3 项"的接口', '工作量中等（1–2 天）'],
+        render: (s) => {
+          const st = cls(s);
+          const dots = s.total ? Array.from({ length: Math.min(s.total, 6) }, (_, i) => `<i class="${i < Math.round((s.done / s.total) * Math.min(s.total, 6)) ? 'on' : ''}"></i>`).join('') : '';
+          return a(`<span class="tab"><span class="num">${st === 'done' ? icon('check', 16) : n(s)}</span><span class="dots">${dots}</span><span class="vlbl">今日</span></span>`, `vf ${st}`, s);
+        },
+        extra: () => `<div class="cell"><a class="fw vf" href="index.html?view=today"><span class="panel-x">
+            <h4>今日待办 <span>已完成 2 / 5</span></h4>
+            <ul><li><i></i>评审界面原型<time>10:00</time></li><li><i></i>项目A 周会<time>14:30</time></li><li><i></i>背 30 个单词<time>全天</time></li></ul>
+            <div class="add">＋ 新建待办…</div></span>
+            <span class="tab"><span class="num">3</span><span class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span class="vlbl">今日</span></span></a>
+          <span class="state">悬停展开</span></div>`,
+      },
+      {
+        id: 'G', name: '精修方块', size: '60 px 圆角方块 · 窗口 76 px',
+        idea: '保留原来的方块形状，只做精修：左侧主色竖条、更粗的数字、底部分段进度（每项一格）。改动最小。',
+        pro: ['和原来的认知一致，用户无需适应', '分段进度能数出还剩几项', '实现最简单'],
+        con: ['形状仍然"像个小窗口"，辨识度不如圆形', '事项超过 8 项时分段要合并显示'],
+        cost: ['只改 CSS 与少量结构', '内存无变化'],
+        render: (s) => {
+          const st = cls(s);
+          const segs = s.total ? Math.min(s.total, 8) : 0;
+          const on = s.total ? Math.round((s.done / s.total) * segs) : 0;
+          const meter = segs ? `<span class="meter">${Array.from({ length: segs }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</span>` : '<span class="meter"></span>';
+          const mid = st === 'done' ? `<span class="ic">${icon('check', 24)}</span>` : `<span class="num ${small(s)}">${n(s)}</span>`;
+          return a(`${mid}<span class="lbl">${st === 'done' ? '完成' : '今日'}</span>${meter}`, `vg ${st}`, s);
+        },
+      },
+    ];
+
+    const desk = (v, dark) => {
+      const cells = STATES.map((s) => `<div class="cell">${v.render(s)}<span class="state">${s.label}</span></div>`).join('');
+      const hover = `<div class="cell tipbox">${v.render(STATES[0])}<span class="tip">${tipOf(STATES[0])}</span><span class="state">悬停提示</span></div>`;
+      return `<div class="desk ${v.desk || ''} ${dark ? 'dark' : ''}">${cells}${v.extra ? v.extra() : hover}</div>`;
+    };
+
+    document.getElementById('root').innerHTML = `
+      <section class="intro">
+        <h1>悬浮窗 · 7 个设计方向</h1>
+        <p>都基于现有设计系统（蓝色主色、成功绿、Minimalism & Swiss 风格），表达同样的信息：今日未完成数、今日进度（已完成 / 共）、全部完成、无待办。
+        每个方向在同一组示例数据下展示 5 种状态 + 悬停，左侧浅色、右侧深色；下方列出优缺点与实现成本，最后有一张对比表。</p>
+        <div class="toc">${VARIANTS.map((v) => `<a href="#v${v.id}">${v.id} · ${v.name}${v.current ? '（已选定）' : ''}</a>`).join('')}<a href="#sum">对比总结</a></div>
+      </section>
+      ${VARIANTS.map((v) => `
+        <section class="variant" id="v${v.id}">
+          <div class="v-head">
+            <div><h2><span class="tag ${v.current ? 'cur' : ''}">${v.id}</span>${v.name}${v.current ? '<span class="help" style="font-weight:400">· 已选定，应用已实现</span>' : ''}</h2><p class="idea">${v.idea}</p></div>
+            <div class="size">${v.size}</div>
+          </div>
+          <div class="notes">
+            <div class="pro"><b>优点</b><ul>${v.pro.map((x) => `<li>${x}</li>`).join('')}</ul></div>
+            <div class="con"><b>缺点</b><ul>${v.con.map((x) => `<li>${x}</li>`).join('')}</ul></div>
+            <div class="cost"><b>实现成本</b><ul>${v.cost.map((x) => `<li>${x}</li>`).join('')}</ul></div>
+          </div>
+          <div class="desks">${desk(v, false)}${desk(v, true)}</div>
+        </section>`).join('')}
+      <section class="sum" id="sum">
+        <h2>对比总结</h2>
+        <table>
+          <thead><tr><th>方案</th><th>一眼可读</th><th>不打扰</th><th>信息量</th><th>占用空间</th><th>实现成本</th></tr></thead>
+          <tbody>
+            <tr><td>A 进度环圆盘</td><td>★★★</td><td>★★★★</td><td>数量 + 进度</td><td>60 px</td><td>很小</td></tr>
+            <tr><td>B 信息胶囊</td><td>★★★★★</td><td>★★★</td><td>数量 + 进度 + 文字</td><td>约 110 × 40</td><td>小</td></tr>
+            <tr><td>C 磨砂玻璃</td><td>★★★</td><td>★★★★★</td><td>数量 + 进度</td><td>64 px</td><td>中（仅 Win11 完整效果）</td></tr>
+            <tr><td>D 主色徽章</td><td>★★★★★</td><td>★★</td><td>数量 + 进度</td><td>56 px</td><td>很小</td></tr>
+            <tr><td><b>E 日历页（已选定）</b></td><td>★★★★</td><td>★★★</td><td>数量 + 进度 + 日期</td><td>64 × 70</td><td>小</td></tr>
+            <tr><td>F 贴边抽屉</td><td>★★★</td><td>★★★★★</td><td>数量 + 进度 + 前 3 项</td><td>收起 34 px 宽</td><td>中（1–2 天）</td></tr>
+            <tr><td>G 精修方块</td><td>★★★★</td><td>★★★★</td><td>数量 + 分段进度</td><td>60 px</td><td>很小</td></tr>
+          </tbody>
+        </table>
+        <p class="help" style="margin-top:12px">也可以组合：例如 A 的圆盘 + E 的日期、或 D 的配色 + F 的贴边展开。</p>
+      </section>`;
+  </script>
+</body>
+</html>

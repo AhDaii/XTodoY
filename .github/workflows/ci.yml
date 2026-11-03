@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: E2E
+        run: pnpm test:e2e
+      - name: Package and check contents
+        shell: bash
+        run: |
+          pnpm exec electron-builder --win --dir --publish never
+          node scripts/check-package.mjs $(ls -d release/*/win-unpacked | head -1)
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
+  # macOS / Linux（次要平台，NFR-POR-01）：类型检查、单元测试、打包，并启动打包后的程序做冒烟测试
+  # （指标模式：打开数据库、创建托盘、运行约 20 秒后写出结果并退出，验证原生模块与启动流程）
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            pack: --mac --dir --arm64
+            exe: release/*/mac-arm64/XTodoY.app/Contents/MacOS/XTodoY
+            resources: release/*/mac-arm64/XTodoY.app/Contents/Resources
+            run: ''
+          - os: ubuntu-latest
+            pack: --linux --dir --x64
+            exe: release/*/linux-unpacked/xtodoy
+            resources: release/*/linux-unpacked
+            run: xvfb-run -a
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Package
+        run: pnpm exec electron-builder ${{ matrix.pack }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Check package contents
+        shell: bash
+        run: node scripts/check-package.mjs $(ls -d ${{ matrix.resources }} | head -1)
+      - name: Smoke test packaged app
+        shell: bash
+        run: |
+          exe=$(ls -d ${{ matrix.exe }} | head -1)
+          out="$RUNNER_TEMP/metrics.json"
+          XTODOY_DATA_DIR="$RUNNER_TEMP/data" XTODOY_METRICS_SCENARIO=tray XTODOY_METRICS_OUT="$out" XTODOY_METRICS_SETTLE_MS=3000 \
+            ${{ matrix.run }} "$exe" --no-sandbox
+          test -s "$out" && head -c 600 "$out"
+          test -f "$RUNNER_TEMP/data/xtodoy.db"

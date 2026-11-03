@@ -1,6 +1,6 @@
 # XTodoY 项目规划
 
-> 版本：v0.2（规划稿） · 日期：2026-11-02 · 仓库：https://github.com/AhDaii/XTodoY.git
+> 版本：v0.3（规划稿，补充自动更新） · 日期：2026-11-02 · 仓库：https://github.com/AhDaii/XTodoY.git
 
 ---
 
@@ -21,6 +21,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | F7 | 悬浮窗 | 置顶小窗显示「今日待办数量」（未完成 / 总数）；可拖动、位置记忆、可开关；单击悬浮窗唤起并聚焦主界面 |
 | F8 | 统计 | 按 天 / 周 / 月 统计已完成事项数量与明细；趋势图、按标签分布、完成率 |
 | F9 | 外观 | 浅色 / 深色 / 跟随系统 三种主题 |
+| F10 | 更新 | 自动 / 手动检查新版本，后台下载并校验，提示"重启以更新"或在退出时安装；可关闭（SRS v1.1 新增） |
 
 ### 1.2 非功能目标（初定，SRS 阶段细化）
 
@@ -32,7 +33,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | 空闲 CPU 占用 | ≈ 0%（无轮询，事件 / 定时器驱动），平均 < 0.5% |
 | 冷启动到可交互 | ≤ 2 s |
 | 提醒准时性 | 误差 ≤ 5 s；休眠唤醒后补发错过的提醒 |
-| 安装包体积 | ≤ 90 MB |
+| 安装包体积 | ≤ 300 MB（P3 后放宽，暂定上限，后续视情况调整） |
 | 支持平台 | Windows 10 / 11（主要）；macOS、Linux（次要，保持可构建） |
 
 > 内存为所有进程（主进程 + 渲染进程 + GPU 进程等）之和，以任务管理器「提交大小 / 工作集」口径在 P3 Spike 中实测后定稿。
@@ -63,7 +64,7 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 | 数据存储 | SQLite：better-sqlite3（WAL 模式）+ Drizzle ORM（schema 与迁移） | 本地单文件，位于 `app.getPath('userData')` |
 | 循环规则 | `rrule`（RFC 5545 子集） | 便于未来与日历互通 |
 | 系统集成 | `Tray`、`Notification`（Windows 用 `toastXml` 实现操作按钮）、`app.setLoginItemSettings`、`app.requestSingleInstanceLock`、`powerMonitor`、`nativeTheme` | 均为 Electron 内置 |
-| 打包发布 | electron-builder（Windows NSIS 安装包）；electron-updater 预留自动更新 | |
+| 打包发布 | electron-builder（Windows NSIS 当前用户级安装包）+ electron-updater 自动更新 | 发布源为本仓库（公开）的 GitHub Releases |
 | 测试 | Vitest + Testing Library（单元 / 组件）；Playwright `_electron`（E2E） | |
 | 质量 | ESLint + Prettier、TypeScript strict、Husky + commitlint | |
 | CI/CD | GitHub Actions：lint / test / 多平台构建 / Release 打包 | |
@@ -186,49 +187,65 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 
 ### P3 技术设计与验证
 
-- [ ] `docs/design/architecture.md`：模块划分、进程与窗口生命周期、事件流
-- [ ] `docs/design/database.md`：表结构、索引、迁移策略
-- [ ] `docs/design/ipc.md`：preload 暴露的 API 与主进程 → 渲染进程事件定义
-- [ ] 技术验证 Spike：
+- [x] `docs/design/architecture.md`：模块划分、进程与窗口生命周期、事件流
+- [x] `docs/design/database.md`：表结构、索引、迁移策略
+- [x] `docs/design/ipc.md`：preload 暴露的 API 与主进程 → 渲染进程事件定义
+- [x] `docs/design/release.md`：版本号规则、发布流程、发布仓库与更新通道、签名方案
+- [x] 补充更新相关原型（SRS UI-17：更新详情、下载进度、"重启以更新"、设置 › 更新分组、更新后横幅）
+- [x] 技术验证 Spike：
   1. 销毁主窗口后仅托盘 / 托盘 + 悬浮窗的常驻内存与 CPU 实测
   2. Windows Toast 通知带「完成」「稍后提醒」操作按钮
   3. 透明、无边框、置顶悬浮窗的拖动与点击唤起主窗口
   4. 休眠唤醒后提醒补发
   5. better-sqlite3 原生模块在 electron-builder 打包后的可用性
-- [ ] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
+  6. 自动更新全流程：从本仓库 GitHub Releases 读取 `latest.yml` → 后台下载 → SHA-512 校验 → 退出时静默安装 → 数据库迁移；验证未签名时的 SmartScreen 表现
+- [x] 搭建工程脚手架（electron-vite + React + TS + Tailwind + shadcn/ui）、CI 流水线
 
 **出口标准**：Spike 结果满足 §1.2 指标（或经评审调整指标），脚手架与 CI 就绪。
 
+**P3 结果**（2026-11-02，详见 [`docs/design/spike-report.md`](design/spike-report.md)）：内存与 CPU 全部达标；better-sqlite3 打包可用；通知按钮、悬浮窗拖动、休眠唤醒需在安装版上人工验证；安装包 114 MB，指标已放宽为 ≤ 300 MB（SRS v1.1.1）。
+
 ### P4 开发迭代 1：基础能力
 
-- [ ] 数据层：SQLite 初始化、Drizzle schema 与迁移、仓储
-- [ ] 待办 CRUD、勾选完成 / 取消完成、排序
-- [ ] 日期时间设置
-- [ ] 多级标签、标签筛选（含子标签）、标签管理页
-- [ ] 主题系统（浅 / 深 / 跟随系统）接入设计令牌
-- [ ] 单元测试覆盖仓储与业务逻辑
+- [x] 数据层：SQLite 迁移、服务层（待办 / 标签 / 设置）、撤销、输入校验
+- [x] 待办 CRUD、勾选完成 / 取消完成（写完成记录）、回收站、搜索
+- [x] 日期时间设置（日期选择器、全天 / 指定时间）、优先级、备注
+- [x] 多级标签、标签筛选（含子标签）、标签管理页（重命名、颜色、拖拽改层级、删除、合并）
+- [x] 主题系统（浅 / 深 / 跟随系统）接入设计令牌，设置持久化
+- [x] 单元测试（43 个）覆盖视图分组与服务层；E2E（8 个）覆盖主流程
+- [x] 列表内拖拽手动排序（P6 完成：各列表可选排序方式，手动排序下拖拽 / Alt+↑↓）
 
 ### P5 开发迭代 2：系统能力
 
-- [ ] 循环规则编辑器与实例生成
-- [ ] 提醒设置、提醒调度器、系统通知（含「完成」「稍后提醒」）
-- [ ] 托盘常驻、关闭到托盘、单实例、开机自启
-- [ ] 悬浮窗：今日待办数、拖动与位置记忆、点击唤起主窗口、跨零点自动刷新
+- [x] 循环规则（每天 / 工作日 / 每周多选 / 每月含月末规则 / 每年，间隔与结束条件）、编辑器与预览、完成后前进与撤销、跳过本次
+- [x] 提醒：多提醒（预设、自定义提前量、指定时刻）、默认提醒、全天事项提醒时间
+- [x] 提醒调度器：单定时器、休眠唤醒与时间跳跃后补发（24 小时内，> 3 条合并）、稍后提醒、暂停提醒
+- [x] 系统通知（含「完成」「稍后提醒」按钮，经 `xtodoy://` 协议回到程序）、提醒声音开关
+- [x] 托盘：暂停 / 恢复提醒、新建待办；首次关闭提示；关闭即退出
+- [x] 开机自启（仅安装版注册系统登录项）
+- [x] 悬浮窗：右键菜单（新建、打开、锁定位置、透明度、隐藏）、透明度与锁定设置、跨零点刷新
+- [ ] 安装版人工验证：通知按钮回调、开机自启、休眠唤醒补发（见 spike-report §2–4）
 
 ### P6 开发迭代 3：统计与打磨
 
-- [ ] 完成记录聚合查询（日 / 周 / 月）、统计页图表与明细
-- [ ] 设置页、数据导入导出（JSON 备份）
-- [ ] 性能优化：包体积、内存、启动时间；键盘快捷键（如全局快捷键快速新建）
-- [ ] 可访问性与细节动效
+- [x] 完成记录聚合查询（日 / 周 / 月）、统计页图表与明细（标签分布可下钻）
+- [x] 设置页、数据导入导出（JSON 备份）、每日自动备份
+- [x] 自动更新（SRS F10）：检查调度、提示、后台下载、校验、退出时安装、更新前备份、失败处理、更新日志
+- [x] 键盘快捷键：全局快捷键快速新建（可录制 / 关闭）；列表排序方式与手动拖拽排序
+- [ ] 性能优化：包体积、内存、启动时间（P6 新增功能后复测，见 spike-report）
+- [ ] 可访问性与细节动效（新增界面已按设计系统做键盘与读屏支持；整体复查在 P7 测试中完成）
+- [ ] 人工验证（安装版）：真实发布源上的检查 / 下载 / 安装、通知按钮、开机自启、休眠补发
 
 ### P7 测试与发布
 
-- [ ] 功能测试：按 SRS 追踪矩阵逐条验证
-- [ ] E2E 测试：主流程自动化（Playwright `_electron`）
-- [ ] 性能测试：24 小时常驻内存 / CPU 曲线、提醒准时性
-- [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（悬浮窗位置）
-- [ ] 打包：Windows NSIS 安装包（可选代码签名），macOS / Linux 构建
+- [x] 功能测试：按 SRS 逐条核对，补齐缺口（数据库恢复、时区、通知权限、标签视图）；追踪矩阵 `docs/test/traceability.md`
+- [x] E2E 测试：主流程自动化（Playwright `_electron`，25 项）
+- [x] 容量 / 性能测试：1 万事项 / 10 万完成记录 / 500 标签、冷启动、1000 条时的内存与响应（`docs/test/test-plan.md` §5；修复标签树 2 秒卡顿与长列表内存超标）
+- [ ] 长时间测试：24 小时 / 7 天常驻内存与 CPU（人工清单 M-12、M-13）
+- [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（人工清单 M-04、M-05、M-08）
+- [x] 打包：Windows NSIS 安装包（暂不签名，见 release.md §4），macOS DMG / ZIP、Linux AppImage / deb
+- [x] 发布流水线：GitHub Actions 打 tag 后三平台构建，并把安装包与版本清单上传到本仓库 GitHub Releases 草稿
+- [ ] 更新测试：v1.0.0-rc → v1.0.0 真实升级、断网 / 校验失败 / 安装失败场景
 - [ ] 编写用户手册与 CHANGELOG，发布 GitHub Release `v1.0.0`
 
 ---
@@ -273,7 +290,7 @@ XTodoY/
 │  └─ prototype/               # 高保真 HTML 原型（浅 / 深色）
 ├─ src/
 │  ├─ main/                    # 主进程
-│  │  └─ db/ scheduler/ recurrence/ stats/ tray/ notifier/ windows/ ipc/
+│  │  └─ db/ scheduler/ recurrence/ stats/ tray/ notifier/ windows/ ipc/ updater/
 │  ├─ preload/                 # contextBridge 暴露的 API
 │  ├─ renderer/
 │  │  ├─ main/                 # 主窗口（React）：app/ pages/ components/ stores/ api/ styles/
@@ -295,6 +312,9 @@ XTodoY/
 | 循环规则与时区 / 夏令时边界问题 | 时间错乱 | 统一以本地时区规则计算 + 边界单元测试 |
 | better-sqlite3 原生模块与 Electron 版本不匹配 | 打包后无法运行 | 使用 electron-builder `install-app-deps` 重建；CI 固定 Electron 与 Node 版本 |
 | 需求蔓延（同步、协作等） | 延期 | v1.0 范围以 SRS 冻结为准，新需求进入 Backlog |
+| GitHub 在国内访问不稳定 | 部分用户检查 / 下载更新失败 | 失败静默重试并提供手动下载入口（SRS FR-UPD-09）；必要时增加国内镜像（如对象存储）作为备用发布源 |
+| 未取得代码签名证书 | SmartScreen 警告、无法校验发布者 | 发布前申请证书；在此之前仅做 SHA-512 校验并在发布说明中提示 |
+| 更新安装中断或迁移失败 | 程序无法启动或数据损坏 | 更新前备份、迁移失败回滚、当前用户级安装避免权限问题（SRS FR-UPD-07 / 09） |
 
 ---
 

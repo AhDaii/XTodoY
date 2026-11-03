@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 交互原型</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // 首帧前应用主题，避免闪烁
+    (function () {
+      var v = localStorage.getItem('xtodoy-theme') || 'system';
+      if (v === 'dark' || (v === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+    })();
+  </script>
+</head>
+<body>
+  <noscript>此原型需要启用 JavaScript。</noscript>
+  <script src="icons.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
