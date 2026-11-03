@@ -82,10 +82,10 @@ export class UpdateService {
 
   start(): void {
     if (!this.updater) return;
-    this.updater.configure({ allowPrerelease: this.settings.get().updateChannel === 'beta' });
+    this.updater.configure({ allowPrerelease: this.allowPrerelease(this.settings.get().updateChannel) });
     bus.on('settings.changed', (patch) => {
       if (patch.updateChannel !== undefined)
-        this.updater?.configure({ allowPrerelease: patch.updateChannel === 'beta' });
+        this.updater?.configure({ allowPrerelease: this.allowPrerelease(patch.updateChannel) });
       if (patch.autoCheckUpdate !== undefined) this.arm(FIRST_CHECK_DELAY);
     });
     // 休眠唤醒后距上次检查超过 24 小时则补做一次（FR-UPD-01）
@@ -93,6 +93,14 @@ export class UpdateService {
       if (reason === 'resume' && this.due()) this.arm(5_000);
     });
     this.arm(FIRST_CHECK_DELAY);
+  }
+
+  /**
+   * 测试版通道获取预发布版本（FR-UPD-10）。当前运行的本身是预发布版（rc / beta）时也获取，
+   * 否则装了 rc.1 的测试者永远收不到 rc.2；正式版发布后版本号更高，会照常升级到正式版。
+   */
+  private allowPrerelease(channel: Settings['updateChannel']): boolean {
+    return channel === 'beta' || this.current.includes('-');
   }
 
   stop(): void {

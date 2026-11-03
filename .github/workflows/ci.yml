@@ -30,6 +30,11 @@ jobs:
       - run: pnpm build
       - name: E2E
         run: pnpm test:e2e
+      - name: Package and check contents
+        shell: bash
+        run: |
+          pnpm exec electron-builder --win --dir --publish never
+          node scripts/check-package.mjs $(ls -d release/*/win-unpacked | head -1)
       - uses: actions/upload-artifact@v5
         if: failure()
         with:
@@ -47,10 +52,12 @@ jobs:
           - os: macos-latest
             pack: --mac --dir --arm64
             exe: release/*/mac-arm64/XTodoY.app/Contents/MacOS/XTodoY
+            resources: release/*/mac-arm64/XTodoY.app/Contents/Resources
             run: ''
           - os: ubuntu-latest
             pack: --linux --dir --x64
             exe: release/*/linux-unpacked/xtodoy
+            resources: release/*/linux-unpacked
             run: xvfb-run -a
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
@@ -69,6 +76,9 @@ jobs:
         run: pnpm exec electron-builder ${{ matrix.pack }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Check package contents
+        shell: bash
+        run: node scripts/check-package.mjs $(ls -d ${{ matrix.resources }} | head -1)
       - name: Smoke test packaged app
         shell: bash
         run: |

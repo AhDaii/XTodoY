@@ -144,6 +144,16 @@ describe('UpdateService', () => {
     expect(svc.status.phase).toBe('available');
   });
 
+  it('测试版通道或当前为预发布版本时获取预发布版本（FR-UPD-10）', () => {
+    make('1.0.0').start();
+    expect(updater.configure).toHaveBeenLastCalledWith({ allowPrerelease: false });
+    make('1.0.0-rc.1').start();
+    expect(updater.configure).toHaveBeenLastCalledWith({ allowPrerelease: true });
+    settings.updateChannel = 'beta';
+    make('1.0.0').start();
+    expect(updater.configure).toHaveBeenLastCalledWith({ allowPrerelease: true });
+  });
+
   it('已是最新版本；开发环境不支持更新', async () => {
     remote = null;
     const svc = make();

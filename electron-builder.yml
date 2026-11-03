@@ -8,9 +8,11 @@ files:
   - out/**
   - package.json
   - '!**/*.map'
-  # better-sqlite3 自带 N-API 预编译包：去掉源码；各平台只保留自己的预编译包（见下方 win / mac / linux 的 files）
-  - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark}/**'
+  # better-sqlite3 自带 N-API 预编译包：去掉源码与本地编译产物（build/）
+  - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark,build}/**'
   - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
+# 注意：平台下的 files 会整体替换上面的列表（不是追加），所以各平台都要写全；
+# 打包后用 scripts/check-package.mjs 检查包内容（CI 与发布流水线中执行）
 # N-API 预编译包与 Electron ABI 无关，无需重编译
 npmRebuild: false
 # 只打包中文与英文语言包（Chromium 默认 55 种，约 49 MB）
@@ -25,6 +27,11 @@ win:
   icon: build/icon.png
   artifactName: XTodoY-Setup-${version}.${ext}
   files:
+    - out/**
+    - package.json
+    - '!**/*.map'
+    - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark,build}/**'
+    - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/{darwin,linux}-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/win32-arm64.node'
 # macOS（次要平台）：未签名，使用 ad-hoc 签名以便 Apple 芯片可以运行；无法程序内自动更新（见 release.md）
@@ -44,6 +51,11 @@ mac:
   extendInfo:
     LSUIElement: false
   files:
+    - out/**
+    - package.json
+    - '!**/*.map'
+    - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark,build}/**'
+    - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/{win32,linux}-*.node'
 dmg:
   artifactName: XTodoY-${version}-mac-${arch}.${ext}
@@ -61,6 +73,11 @@ linux:
   maintainer: AhDaii <https://github.com/AhDaii/XTodoY/issues>
   artifactName: XTodoY-${version}-linux-${arch}.${ext}
   files:
+    - out/**
+    - package.json
+    - '!**/*.map'
+    - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark,build}/**'
+    - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/{win32,darwin}-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/linux-arm64.node'
 nsis:
