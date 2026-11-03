@@ -1,4 +1,6 @@
-import { BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConstructorOptions } from 'electron';
+import { app, BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConstructorOptions } from 'electron';
+
+const isMac = process.platform === 'darwin';
 import { Events } from '@shared/ipc';
 import { preloadPath, rendererEntry } from '../app/paths';
 
@@ -77,15 +79,27 @@ export function showMainWindow(): BrowserWindow {
     show: false,
     title: 'XTodoY',
     backgroundColor: dark ? '#0a1020' : '#f4f7ff',
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: dark ? '#0c1324' : '#eaf0fd', symbolColor: dark ? '#e2e8f0' : '#0f172a', height: 40 },
+    // 自绘标题栏：Windows / Linux 用系统绘制的右侧按钮（titleBarOverlay），macOS 用左侧红绿灯
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 13 } }
+      : {
+          titleBarStyle: 'hidden' as const,
+          titleBarOverlay: {
+            color: dark ? '#0c1324' : '#eaf0fd',
+            symbolColor: dark ? '#e2e8f0' : '#0f172a',
+            height: 40,
+          },
+        }),
     webPreferences: { ...secure, preload: preloadPath('main') },
   });
   harden(mainWin);
+  // macOS：主窗口打开时显示 Dock 图标，关闭后只留菜单栏图标（与 Windows 托盘常驻一致）
+  if (isMac) void app.dock?.show();
   mainWin.once('ready-to-show', () => mainWin?.show());
   // 关闭即销毁（不是隐藏），释放渲染进程内存；托盘与悬浮窗继续工作
   mainWin.on('closed', () => {
     mainWin = null;
+    if (isMac) app.dock?.hide();
     mainClosedHandlers.forEach((fn) => fn());
   });
   load(mainWin, 'main');
@@ -93,6 +107,7 @@ export function showMainWindow(): BrowserWindow {
 }
 
 export function setTitleBarTheme(dark: boolean): void {
+  if (isMac) return;
   windows.main?.setTitleBarOverlay({ color: dark ? '#0c1324' : '#eaf0fd', symbolColor: dark ? '#e2e8f0' : '#0f172a' });
 }
 

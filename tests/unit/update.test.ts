@@ -62,6 +62,7 @@ describe('UpdateService', () => {
     updater = {
       checks: 0,
       installed: 0,
+      canInstall: true,
       configure: vi.fn(),
       check: async () => {
         updater.checks++;
@@ -130,6 +131,17 @@ describe('UpdateService', () => {
     expect(svc.status.phase).toBe('idle');
     await svc.check(true);
     expect(svc.status).toMatchObject({ phase: 'error', error: '无网络连接，请检查网络后重试' });
+  });
+
+  it('只能手动下载的平台（未签名 macOS、deb）：只提示，不自动下载，下载请求被忽略', async () => {
+    const manual = { ...updater, canInstall: false };
+    const svc = make('1.0.0', manual);
+    expect(svc.status.canInstall).toBe(false);
+    await svc.check(false);
+    expect(svc.status.phase).toBe('available');
+    expect(out.notify).toHaveBeenCalledExactlyOnceWith('available', '1.1.0');
+    await svc.download();
+    expect(svc.status.phase).toBe('available');
   });
 
   it('已是最新版本；开发环境不支持更新', async () => {

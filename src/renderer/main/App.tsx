@@ -8,6 +8,7 @@ import { api, call } from './lib/api';
 import { updateNeedsAttention } from '@shared/update';
 import { InstallingOverlay, UpdateDialog } from './components/Update';
 import { useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
+import { kbd, mod } from './lib/platform';
 import { useUi } from './lib/store';
 import { ListPage } from './pages/ListPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -50,23 +51,23 @@ export function App() {
   // 全局快捷键（IR-02）
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+      if (mod(e) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         const r = useUi.getState().route;
         if (r.kind === 'page' || (r.kind === 'view' && (r.view === 'done' || r.view === 'trash'))) {
           go({ kind: 'view', view: 'today' });
         }
         setTimeout(() => document.getElementById('quick-add')?.focus());
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'b') {
+      } else if (mod(e) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         toggleSidebar();
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+      } else if (mod(e) && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         searchRef.current?.focus();
-      } else if (e.ctrlKey && e.key === ',') {
+      } else if (mod(e) && e.key === ',') {
         e.preventDefault();
         go({ kind: 'page', page: 'settings' });
-      } else if (e.ctrlKey && /^[1-5]$/.test(e.key)) {
+      } else if (mod(e) && /^[1-5]$/.test(e.key)) {
         e.preventDefault();
         go({ kind: 'view', view: VIEW_KEYS[Number(e.key) - 1]! });
       } else if (e.key === 'Escape' && useUi.getState().selectedId && !document.querySelector('.overlay')) {
@@ -107,7 +108,7 @@ export function App() {
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setSearch('')}
           />
-          <kbd>Ctrl+F</kbd>
+          <kbd>{kbd('Ctrl+F')}</kbd>
         </label>
       </header>
       <div className={`body ${collapsed ? 'sidebar-collapsed' : ''}`}>

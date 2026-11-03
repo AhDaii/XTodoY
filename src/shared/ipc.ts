@@ -129,6 +129,8 @@ type R<T> = Promise<Result<T>>;
 
 /** 主窗口 preload 暴露的 API（window.xtodoy） */
 export interface XtodoyApi {
+  /** 运行平台：win32 / darwin / linux（快捷键与标题栏布局随平台变化） */
+  platform: string;
   appInfo(): R<AppInfo>;
   getToday(): R<TodayCount>;
   todos: {

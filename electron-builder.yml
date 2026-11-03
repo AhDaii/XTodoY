@@ -8,10 +8,9 @@ files:
   - out/**
   - package.json
   - '!**/*.map'
-  # better-sqlite3 自带 N-API 预编译包：只保留 Windows x64，去掉源码
+  # better-sqlite3 自带 N-API 预编译包：去掉源码；各平台只保留自己的预编译包（见下方 win / mac / linux 的 files）
   - '!**/node_modules/better-sqlite3/{deps,src,docs,benchmark}/**'
-  - '!**/node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node'
-  - '!**/node_modules/better-sqlite3/prebuilds/win32-arm64.node'
+  - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
 # N-API 预编译包与 Electron ABI 无关，无需重编译
 npmRebuild: false
 # 只打包中文与英文语言包（Chromium 默认 55 种，约 49 MB）
@@ -25,6 +24,45 @@ win:
       arch: [x64]
   icon: build/icon.png
   artifactName: XTodoY-Setup-${version}.${ext}
+  files:
+    - '!**/node_modules/better-sqlite3/prebuilds/{darwin,linux}-*.node'
+    - '!**/node_modules/better-sqlite3/prebuilds/win32-arm64.node'
+# macOS（次要平台）：未签名，使用 ad-hoc 签名以便 Apple 芯片可以运行；无法程序内自动更新（见 release.md）
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  icon: build/icon.png
+  category: public.app-category.productivity
+  artifactName: XTodoY-${version}-mac-${arch}.${ext}
+  identity: '-'
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  electronLanguages: [en, zh_CN]
+  extendInfo:
+    LSUIElement: false
+  files:
+    - '!**/node_modules/better-sqlite3/prebuilds/{win32,linux}-*.node'
+dmg:
+  artifactName: XTodoY-${version}-mac-${arch}.${ext}
+# Linux（次要平台）：AppImage 支持程序内自动更新；deb 需要手动下载新版本
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: build/icon.png
+  category: Office
+  executableName: xtodoy
+  synopsis: 轻量、常驻后台的桌面待办软件
+  maintainer: AhDaii <https://github.com/AhDaii/XTodoY/issues>
+  artifactName: XTodoY-${version}-linux-${arch}.${ext}
+  files:
+    - '!**/node_modules/better-sqlite3/prebuilds/{win32,darwin}-*.node'
+    - '!**/node_modules/better-sqlite3/prebuilds/linux-arm64.node'
 nsis:
   oneClick: true
   perMachine: false

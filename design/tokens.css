@@ -7,11 +7,13 @@
 
 :root {
   /* ---------- 字体 ---------- */
+  /* Windows：Segoe UI + 微软雅黑；macOS：苹方；Linux：Noto Sans CJK */
   --font-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
-    "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-display: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", -apple-system, BlinkMacSystemFont,
+    "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", Consolas, "Courier New", monospace;
-  --font-num: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; /* 数字用 tabular-nums */
+  --font-num: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; /* 数字用 tabular-nums */
 
   /* 字号阶梯（桌面端：正文 14px，最小 12px） */
   --text-xs: 12px;   /* 辅助信息：时间、计数、标签胶囊 */

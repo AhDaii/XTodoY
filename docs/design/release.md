@@ -45,6 +45,18 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
 - 安装前由 update 服务调用备份服务做"更新前备份"（FR-UPD-07）。
 - 状态机与 IPC 见 [ipc.md](ipc.md) §2.5，界面见原型 UI-17。
 
+## 3.1 多平台（NFR-POR-01）
+
+| 平台 | 产物 | 程序内更新 | 说明 |
+|---|---|---|---|
+| Windows（主平台） | NSIS 安装包（x64） | ✅ 下载、校验、退出时安装 | 当前用户安装，无需管理员权限 |
+| macOS 12+（次要） | DMG + ZIP（x64 / arm64） | ❌ 只检查，引导到发布页下载 | 未签名（ad-hoc 签名）；首次打开需在"隐私与安全性"中允许。Squirrel.Mac 要求开发者签名，取得证书后可开启程序内更新 |
+| Linux（次要） | AppImage + deb（x64） | AppImage ✅ / deb ❌（引导到发布页） | 开机自启写入 `~/.config/autostart/xtodoy.desktop` |
+
+- CI（`.github/workflows/ci.yml`）在 macOS / Linux 上做类型检查、单元测试、打包，并以指标模式启动打包后的程序做冒烟测试；E2E 只在 Windows 上运行。
+- 发布流水线按平台矩阵构建，三个平台的产物与各自的版本清单（`latest.yml`、`latest-mac.yml`、`latest-linux.yml`）上传到同一个 Release 草稿。
+- 平台差异集中在：`platform/windows.ts`（macOS 左侧红绿灯、Dock 图标随主窗口显示 / 隐藏）、`platform/tray.ts`（macOS 模板图标 + 菜单栏数字）、`platform/autostart.ts`、`platform/updater.ts`（canInstall）、`shared/platform.ts`（⌘ / Ctrl 快捷键与显示）；macOS 设置应用菜单以支持 ⌘C / ⌘V / ⌘Q。
+
 ## 4 代码签名（A-5，NFR-SEC-05）
 
 | 阶段 | 方案 |

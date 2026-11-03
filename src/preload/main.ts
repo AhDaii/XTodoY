@@ -10,6 +10,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 const call = (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args);
 
 const api: XtodoyApi = {
+  platform: process.platform,
   appInfo: () => call(Invoke.appInfo),
   getToday: () => call(Invoke.todayGet),
   todos: {

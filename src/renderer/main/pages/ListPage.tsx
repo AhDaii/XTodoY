@@ -10,6 +10,7 @@ import { api, call } from '../lib/api';
 import { useGroups, useNotificationStatus, useReportError } from '../lib/data';
 import { friendlyDate, parse, today, weekday } from '../lib/dates';
 import { dropNeighbors, stepNeighbors } from '@shared/reorder';
+import { kbd } from '../lib/platform';
 import { useUi } from '../lib/store';
 
 const VIEW_META = {
@@ -35,7 +36,7 @@ const EMPTY: Record<string, [IconName, string, string]> = {
 
 const SORT_OPTIONS: { value: SortMode; label: string; hint?: string }[] = [
   { value: 'due', label: '按截止时间', hint: '日期 → 时间 → 优先级' },
-  { value: 'manual', label: '手动排序', hint: '拖动或 Alt+↑↓ 调整顺序' },
+  { value: 'manual', label: '手动排序', hint: `拖动或 ${kbd('Alt+↑↓')} 调整顺序` },
   { value: 'priority', label: '按优先级' },
   { value: 'created', label: '按创建时间', hint: '最新的在前' },
   { value: 'title', label: '按标题' },
@@ -210,7 +211,7 @@ export function ListPage({
             onKeyDown={(e) => e.key === 'Enter' && void add()}
           />
           {addHint && <span className="hint">{addHint}</span>}
-          <kbd className="hint">Ctrl+N</kbd>
+          <kbd className="hint">{kbd('Ctrl+N')}</kbd>
         </label>
       )}
 

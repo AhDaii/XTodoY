@@ -1,4 +1,4 @@
-import { app, nativeTheme } from 'electron';
+import { app, Menu, nativeTheme } from 'electron';
 import { join } from 'node:path';
 import type { DB } from './db/client';
 import { installCrashGuards, openDatabaseOrRecover } from './app/startup';
@@ -29,6 +29,7 @@ import { runMetricsIfRequested } from './app/metrics';
 import { readHardwareAcceleration } from './app/launch-prefs';
 import { installFileLog } from './app/log';
 import { applyQuickAddShortcut } from './platform/shortcut';
+import { applyAutostart, startedAtLogin } from './platform/autostart';
 import { createUpdater } from './platform/updater';
 import { UpdateService } from './services/update';
 import { updateNeedsAttention } from '@shared/update';
@@ -56,7 +57,6 @@ app.setAppUserModelId('com.xtodoy.app');
 // 自定义协议只在安装版中注册，开发环境不改动系统注册表
 if (app.isPackaged) app.setAsDefaultProtocolClient('xtodoy');
 
-const startHidden = process.argv.includes('--hidden'); // 开机自启时只显示托盘与悬浮窗（FR-BG-05）
 let db: DB | null = null;
 let today: TodayService | null = null;
 let settings: SettingsService | null = null;
@@ -100,13 +100,25 @@ app.on('will-quit', () => {
   db?.close();
 });
 
-/** 开机自启（FR-BG-05）：只在安装版注册，开发环境不改动系统登录项 */
-function applyAutostart(on: boolean): void {
-  if (!app.isPackaged) return;
-  app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
-}
+// macOS：通知按钮与 xtodoy:// 链接通过 open-url 事件到达；单击 Dock 图标重新打开主窗口
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  handleProtocol([url]);
+});
+const bootAt = Date.now();
+app.on('activate', () => {
+  // 启动时 macOS 也会发一次 activate：开机自启（只显示菜单栏图标）时忽略这一次
+  if (startedAtLogin() && Date.now() - bootAt < 3000) return;
+  openMain();
+});
 
 void app.whenReady().then(() => {
+  // macOS 需要应用菜单，否则输入框里的 ⌘C / ⌘V / ⌘Z 与 ⌘Q 都不可用；其他平台用自绘标题栏，不显示菜单
+  Menu.setApplicationMenu(
+    process.platform === 'darwin'
+      ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+      : null,
+  );
   const opened = openDatabaseOrRecover(dataDir);
   if (!opened) return app.quit();
   db = opened.db;
@@ -261,6 +273,7 @@ void app.whenReady().then(() => {
     createFloatingWindow(s.get().floatingPos ?? undefined);
     applyFloatingPrefs({ opacity: s.get().floatingOpacity, locked: s.get().floatingLocked });
   }
-  if (!startHidden) showMainWindow();
+  // 开机自启时只显示托盘与悬浮窗（FR-BG-05）
+  if (!startedAtLogin()) showMainWindow();
   handleProtocol(process.argv);
 });

@@ -9,6 +9,8 @@ type CancellationToken = import('electron-updater').CancellationToken;
  * 第一次检查时才加载模块，不占用常驻内存。
  */
 class ElectronUpdater implements Updater {
+  // 未签名的 macOS 应用无法被 Squirrel.Mac 更新；Linux 只有 AppImage 支持程序内更新
+  readonly canInstall = process.platform === 'win32' || (process.platform === 'linux' && !!process.env['APPIMAGE']);
   private au: AppUpdater | null = null;
   private allowPrerelease = false;
   private token: CancellationToken | null = null;
@@ -70,15 +72,18 @@ class ElectronUpdater implements Updater {
 }
 
 /**
- * 开发 / 测试用的模拟更新器：XTODOY_FAKE_UPDATE=<版本号>[,fail-check|fail-download]。
+ * 开发 / 测试用的模拟更新器：XTODOY_FAKE_UPDATE=<版本号>[,fail-check|fail-download|manual]（manual 模拟只能手动下载的平台）。
  * 只在未打包时可用，便于在原型之外演示与端到端测试更新界面。
  */
 class FakeUpdater implements Updater {
   private cancelled = false;
+  readonly canInstall: boolean;
   constructor(
     private readonly version: string,
     private readonly fail: string | undefined,
-  ) {}
+  ) {
+    this.canInstall = fail !== 'manual';
+  }
   configure(): void {}
   async check(): Promise<RemoteVersion | null> {
     await delay(200);

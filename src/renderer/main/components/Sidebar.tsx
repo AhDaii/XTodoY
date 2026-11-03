@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import type { SmartView, TagNode, ViewCounts } from '@shared/types';
+import { kbd } from '../lib/platform';
 import { useUi, type Route } from '../lib/store';
 import { Icon, type IconName } from './Icon';
 
@@ -36,7 +37,7 @@ export function Sidebar({
       className="nav-item"
       aria-current={current(r)}
       aria-label={rail ? `${label}${count ? `，${count} 项` : ''}` : undefined}
-      title={`${label}${rail && count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}`}
+      title={`${label}${rail && count ? ` · ${count}` : ''}${key ? `（${kbd(`Ctrl+${key}`)}）` : ''}${badge ? ` · ${badge}` : ''}`}
       onClick={() => go(r)}
     >
       <Icon name={icon} size={rail ? 20 : 16} />
@@ -144,13 +145,13 @@ export function Sidebar({
           className="nav-item sidebar-toggle"
           aria-controls="sidebar"
           aria-expanded={!rail}
-          aria-label={rail ? '展开侧边栏（Ctrl+B）' : '收起侧边栏（Ctrl+B）'}
-          title={rail ? '展开侧边栏（Ctrl+B）' : '收起侧边栏（Ctrl+B）'}
+          aria-label={`${rail ? '展开' : '收起'}侧边栏（${kbd('Ctrl+B')}）`}
+          title={`${rail ? '展开' : '收起'}侧边栏（${kbd('Ctrl+B')}）`}
           onClick={onToggle}
         >
           <Icon name={rail ? 'panelLeftOpen' : 'panelLeftClose'} size={rail ? 20 : 16} />
           <span className="label">收起侧边栏</span>
-          <kbd className="count">Ctrl+B</kbd>
+          <kbd className="count">{kbd('Ctrl+B')}</kbd>
         </button>
       </div>
     </aside>

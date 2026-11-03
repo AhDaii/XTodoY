@@ -1,3 +1,4 @@
+import { defaultQuickAddShortcut } from '@shared/platform';
 import { isValidAccelerator } from '@shared/shortcut';
 import { DEFAULT_SETTINGS, SORT_MODES, type Settings, type SortMode } from '@shared/types';
 import type { DB } from '../db/client';
@@ -126,7 +127,8 @@ export class SettingsService {
         // 忽略损坏或过时的值，回到默认值
       }
     }
-    return { ...DEFAULT_SETTINGS, ...stored };
+    // 全局快捷键默认值随平台变化（macOS 为 ⌘⌥T）
+    return { ...DEFAULT_SETTINGS, quickAddShortcut: defaultQuickAddShortcut(process.platform), ...stored };
   }
 
   /** 设置表被整体替换后（导入备份）重新读取，并广播全部设置 */
