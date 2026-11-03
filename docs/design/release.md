@@ -36,6 +36,10 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
 | `disableDifferentialDownload` | false | 使用 blockmap 差分下载 |
 | 检查时机 | 启动 60 秒后、之后每 24 小时、休眠唤醒且距上次 > 24 小时 | FR-UPD-01，复用单定时器 |
 
+- 实现：`src/main/services/update.ts`（状态机、调度、通知、跳过 / 稍后、横幅）+ `src/main/platform/updater.ts`（electron-updater 适配）。`autoDownload` 固定为 false，是否下载由服务按"自动下载更新"设置决定；electron-updater 在第一次检查时才加载，不占用常驻内存。
+- 状态持久化在设置 `update`（DR-07）：上次检查时间、跳过的版本、已通知过的版本（每个版本"可以更新了""已就绪"各最多通知一次）、上次运行的版本（用于更新后横幅）。
+- 自动检查失败静默、保持原状态；手动检查显示失败原因（无网络 / 服务器不可用 / 安全连接 / 校验失败 / 发布页无安装包）。
+- 开发环境（未打包）不检查更新；设置环境变量 `XTODOY_FAKE_UPDATE=<版本>[,fail-check|fail-download]` 使用模拟更新器，用于演示与 E2E 测试。
 - electron-updater 内置校验 `latest.yml` 中的 SHA-512；Windows 安装包已签名时额外校验发布者（`publisherName`）。
 - 用户级 NSIS（`perMachine: false`、`oneClick: true`），安装与更新都不需要管理员权限（IR-10）。
 - 安装前由 update 服务调用备份服务做"更新前备份"（FR-UPD-07）。

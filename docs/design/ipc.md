@@ -69,12 +69,15 @@ P6 实现时把原计划的 4 个通道合并为一个：统计页每次切换�
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
 | `update:getStatus` | — | `UpdateStatus` | FR-UPD-02/08 |
-| `update:check` | — | `UpdateStatus` | FR-UPD-02 |
+| `update:check` | — | `UpdateStatus`（手动检查：失败时 `phase: 'error'` 并带原因） | FR-UPD-02 |
 | `update:download` / `update:cancel` | — | `void` | FR-UPD-04 |
-| `update:installNow` | — | `void`（程序将退出并重启） | FR-UPD-06 |
-| `update:skip` | `{ version }` | `void` | FR-UPD-03 |
+| `update:installNow` | — | `void`（先做更新前备份，程序随后退出、安装并重启） | FR-UPD-06/07 |
+| `update:skip` | — | `void`（跳过当前发现的版本） | FR-UPD-03 |
+| `update:later` | — | `void`（本次运行不再发更新通知） | FR-UPD-03 |
+| `update:dismissBanner` | — | `void`（关闭"已更新到"横幅） | FR-UPD-11 |
+| `app:openExternal` | `url` | `void`（只允许本项目的 GitHub 页面，如发布页） | FR-UPD-09 |
 
-`UpdateStatus = { phase: 'idle'|'checking'|'latest'|'available'|'downloading'|'ready'|'error', current, latest?, releaseNotes?, releaseDate?, size?, progress?, lastCheckAt?, error? }`，与原型 `design/prototype/app.js` 中的状态一一对应。
+`UpdateStatus`（`src/shared/update.ts`）= `{ phase: 'idle'|'checking'|'latest'|'available'|'downloading'|'ready'|'error', current, supported, latest?, releaseDate?, notes?, size?, progress?, transferred?, lastCheckAt, error?, skipped, justUpdated }`，与原型 `design/prototype/app.js` 中的状态一一对应；`supported` 为 false 表示开发环境（不检查更新）。
 
 ## 3 主进程 → 渲染进程事件
 
@@ -86,7 +89,7 @@ P6 实现时把原计划的 4 个通道合并为一个：统计页每次切换�
 | `settings:changed` | `Partial<Settings>` | 主窗口、悬浮窗 |
 | `theme:changed` | `{ dark: boolean }` | 主窗口、悬浮窗 |
 | `update:status` | `UpdateStatus` | 主窗口 |
-| `nav:open` | `{ view?, todoId? }` | 主窗口（通知 / 悬浮窗 / 托盘要求定位） |
+| `nav:open` | `{ view?, todoId?, focus?: 'quick-add'\|'update' }` | 主窗口（通知 / 悬浮窗 / 托盘 / 全局快捷键要求定位） |
 
 ## 4 悬浮窗 API（`preload/floating.ts`）
 
