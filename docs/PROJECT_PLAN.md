@@ -238,12 +238,13 @@ XTodoY 是一款面向 PC 桌面端的待办事项管理软件，主打 **轻量
 
 ### P7 测试与发布
 
-- [ ] 功能测试：按 SRS 追踪矩阵逐条验证
-- [ ] E2E 测试：主流程自动化（Playwright `_electron`）
-- [ ] 性能测试：24 小时常驻内存 / CPU 曲线、提醒准时性
-- [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（悬浮窗位置）
-- [ ] 打包：Windows NSIS 安装包（代码签名），macOS / Linux 构建
-- [ ] 发布流水线：GitHub Actions 打 tag 后构建、签名，并把安装包与 `latest.yml` 上传到本仓库 GitHub Releases
+- [x] 功能测试：按 SRS 逐条核对，补齐缺口（数据库恢复、时区、通知权限、标签视图）；追踪矩阵 `docs/test/traceability.md`
+- [x] E2E 测试：主流程自动化（Playwright `_electron`，25 项）
+- [x] 容量 / 性能测试：1 万事项 / 10 万完成记录 / 500 标签、冷启动、1000 条时的内存与响应（`docs/test/test-plan.md` §5；修复标签树 2 秒卡顿与长列表内存超标）
+- [ ] 长时间测试：24 小时 / 7 天常驻内存与 CPU（人工清单 M-12、M-13）
+- [ ] 兼容性测试：Windows 10 / 11、高 DPI、多显示器（人工清单 M-04、M-05、M-08）
+- [x] 打包：Windows NSIS 安装包（暂不签名，见 release.md §4），macOS DMG / ZIP、Linux AppImage / deb
+- [x] 发布流水线：GitHub Actions 打 tag 后三平台构建，并把安装包与版本清单上传到本仓库 GitHub Releases 草稿
 - [ ] 更新测试：v1.0.0-rc → v1.0.0 真实升级、断网 / 校验失败 / 安装失败场景
 - [ ] 编写用户手册与 CHANGELOG，发布 GitHub Release `v1.0.0`
 

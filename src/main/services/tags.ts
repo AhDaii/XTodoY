@@ -39,19 +39,25 @@ export class TagService {
   tree(): TagNode[] {
     const rows = this.rows();
     const byId = new Map(rows.map((r) => [r.id, r]));
-    const open = new Map(
-      (
-        this.db
-          .prepare(
-            `SELECT g.id, COUNT(DISTINCT t.id) AS n FROM tags g
-             JOIN tags d ON d.path LIKE g.path || '%'
-             JOIN todo_tags tt ON tt.tag_id = d.id
-             JOIN todos t ON t.id = tt.todo_id AND t.status = 'open' AND t.deleted_at IS NULL
-             GROUP BY g.id`,
-          )
-          .all() as { id: string; n: number }[]
-      ).map((r) => [r.id, r.n]),
-    );
+    // 每个标签（含子孙）下的未完成事项数：一次取出未完成事项所挂标签的路径，在内存中按祖先去重累加。
+    // 之前用 tags × tags 的 LIKE 前缀连接，1 万条事项、500 个标签时约 2 秒（tests/perf/capacity.test.ts）
+    const openByTag = new Map<string, Set<string>>();
+    const links = this.db
+      .prepare(
+        `SELECT tt.todo_id AS todo, d.path FROM todo_tags tt
+         JOIN tags d ON d.id = tt.tag_id
+         JOIN todos t ON t.id = tt.todo_id AND t.status = 'open' AND t.deleted_at IS NULL`,
+      )
+      .all() as { todo: string; path: string }[];
+    for (const { todo, path } of links) {
+      for (const id of path.split('/')) {
+        if (!id) continue;
+        let set = openByTag.get(id);
+        if (!set) openByTag.set(id, (set = new Set()));
+        set.add(todo);
+      }
+    }
+    const open = new Map([...openByTag].map(([id, set]) => [id, set.size]));
     const direct = new Map(
       (
         this.db

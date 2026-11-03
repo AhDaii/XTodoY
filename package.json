@@ -25,7 +25,8 @@
     "pack": "pnpm build && electron-builder --win --dir",
     "dist": "pnpm build && electron-builder --win --publish never",
     "spike:metrics": "node scripts/measure-memory.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:perf": "vitest run --config vitest.perf.config.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
