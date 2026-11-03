@@ -1,6 +1,7 @@
 import { app, Menu, nativeImage, nativeTheme, Tray } from 'electron';
 import type { TodayCount } from '@shared/ipc';
 import { resourcePath } from '../app/paths';
+import { quickAddShortcut } from './shortcut';
 
 export interface TrayActions {
   openMain(): void;
@@ -11,6 +12,8 @@ export interface TrayActions {
   resumeReminders(): void;
   pausedUntil(): number | null;
   checkUpdate(): void;
+  /** 有新版本或更新就绪时，菜单顶部的主色提示行与退出项文字（UI-17） */
+  update(): { label: string; ready: boolean; click(): void } | null;
   openSettings(): void;
   quit(): void;
 }
@@ -36,14 +39,19 @@ export function createTray(actions: TrayActions): Tray {
   const rebuild = (): void => {
     tray?.setContextMenu(
       Menu.buildFromTemplate([
+        ...updateItems(actions),
         { label: '打开主窗口', click: actions.openMain },
-        { label: '新建待办', accelerator: 'Ctrl+Alt+T', click: actions.newTodo },
+        { label: '新建待办', accelerator: quickAddShortcut() ?? undefined, click: actions.newTodo },
         { label: '显示悬浮窗', type: 'checkbox', checked: actions.isFloatingVisible(), click: actions.toggleFloating },
         pausedItem(actions),
         { label: '检查更新', click: actions.checkUpdate },
         { label: '设置', click: actions.openSettings },
         { type: 'separator' },
-        { label: '退出 XTodoY', accelerator: 'Ctrl+Q', click: actions.quit },
+        {
+          label: actions.update()?.ready ? '退出并安装更新' : '退出 XTodoY',
+          accelerator: 'Ctrl+Q',
+          click: actions.quit,
+        },
       ]),
     );
   };
@@ -52,6 +60,11 @@ export function createTray(actions: TrayActions): Tray {
   nativeTheme.on('updated', () => tray?.setImage(icon()));
   app.on('before-quit', () => tray?.destroy());
   return tray;
+}
+
+function updateItems(actions: TrayActions): Electron.MenuItemConstructorOptions[] {
+  const u = actions.update();
+  return u ? [{ label: u.label, click: u.click }, { type: 'separator' }] : [];
 }
 
 /** 暂停中显示"恢复提醒（暂停至 …）"，否则显示暂停子菜单（FR-BG-06） */

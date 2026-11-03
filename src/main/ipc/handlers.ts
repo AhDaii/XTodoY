@@ -1,14 +1,20 @@
-import { app, ipcMain, Menu, nativeTheme, type IpcMainInvokeEvent } from 'electron';
+import { app, dialog, ipcMain, Menu, nativeTheme, shell, type IpcMainInvokeEvent } from 'electron';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { Events, Invoke, Send, type AppInfo, type NavRequest, type Result } from '@shared/ipc';
+import type { StatsPeriodKind } from '@shared/stats';
 import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/types';
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
+import type { BackupService } from '../services/backup';
 import type { SettingsService } from '../services/settings';
+import type { StatsService } from '../services/stats';
+import type { UpdateService } from '../services/update';
 import type { TagService } from '../services/tags';
 import type { TodayService } from '../services/today';
 import type { TodoService } from '../services/todos';
 import type { Scheduler } from '../services/scheduler';
 import * as v from '../services/validate';
+import { localDate } from '../domain/time';
 import { showReminder } from '../platform/notifier';
 import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
 
@@ -16,11 +22,16 @@ interface Deps {
   todos: TodoService;
   tags: TagService;
   settings: SettingsService;
+  stats: StatsService;
+  backup: BackupService;
+  update: UpdateService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
   schemaVersion: number;
   hardwareAcceleration: boolean;
+  /** 注册快速新建全局快捷键，被占用时返回 false */
+  applyShortcut(accelerator: string | null): boolean;
 }
 
 const VIEWS: readonly SmartView[] = ['today', 'plan', 'all', 'done', 'trash'];
@@ -67,6 +78,74 @@ export function registerIpc(d: Deps): void {
     app.quit();
   });
   handle(Invoke.todayGet, () => d.today.current);
+
+  // ---- 数据（FR-SET-06/07）----
+  handle(Invoke.dataInfo, () => ({ dataDir: d.dataDir, lastBackupDate: d.backup.lastBackupDate() }));
+  handle(Invoke.dataOpenFolder, async () => {
+    const err = await shell.openPath(d.dataDir);
+    if (err) throw new AppError('OPEN_FAILED', `无法打开数据目录：${err}`);
+  });
+  handle(Invoke.dataExport, async () => {
+    const owner = windows.main ?? undefined;
+    const opts = {
+      title: '导出备份',
+      defaultPath: `XTodoY-backup-${localDate(new Date())}.json`,
+      filters: [{ name: 'XTodoY 备份', extensions: ['json'] }],
+    };
+    const r = owner ? await dialog.showSaveDialog(owner, opts) : await dialog.showSaveDialog(opts);
+    if (r.canceled || !r.filePath) return null;
+    await writeFile(r.filePath, JSON.stringify(d.backup.exportData(), null, 2), 'utf8');
+    return { path: r.filePath };
+  });
+  handle(Invoke.dataImport, async () => {
+    const owner = windows.main ?? undefined;
+    const opts = {
+      title: '导入备份',
+      properties: ['openFile' as const],
+      filters: [{ name: 'XTodoY 备份', extensions: ['json'] }],
+    };
+    const r = owner ? await dialog.showOpenDialog(owner, opts) : await dialog.showOpenDialog(opts);
+    const file = r.filePaths[0];
+    if (r.canceled || !file) return null;
+    if ((await stat(file)).size > 100 * 1024 * 1024)
+      throw new AppError('IMPORT_INVALID', '备份文件过大（超过 100 MB）');
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await readFile(file, 'utf8'));
+    } catch {
+      throw new AppError('IMPORT_INVALID', '不是有效的 JSON 备份文件');
+    }
+    return d.backup.importData(raw);
+  });
+
+  // ---- 更新（SRS F10）----
+  handle(Invoke.updateGetStatus, () => d.update.status);
+  handle(Invoke.updateCheck, () => d.update.check(true));
+  handle(Invoke.updateDownload, () => void d.update.download());
+  handle(Invoke.updateCancel, () => d.update.cancel());
+  handle(Invoke.updateInstallNow, () => d.update.installNow());
+  handle(Invoke.updateSkip, () => d.update.skip());
+  handle(Invoke.updateLater, () => d.update.later());
+  handle(Invoke.updateDismissBanner, () => d.update.dismissBanner());
+  // 只允许打开项目自己的 GitHub 页面（发布页、主页）
+  handle(Invoke.openExternal, async (url) => {
+    const u = v.str(url, '链接', { max: 200 });
+    if (!/^https:\/\/github\.com\/AhDaii\/XTodoY(\/[\w./-]*)?$/.test(u)) throw invalid('不支持打开该链接');
+    await shell.openExternal(u);
+  });
+
+  // ---- 统计 ----
+  handle(Invoke.statsGet, (q) => {
+    const o = v.obj(q, ['period', 'offset', 'tagId']);
+    if (!['day', 'week', 'month'].includes(o.period as string)) throw invalid('统计维度不正确');
+    if (!Number.isInteger(o.offset) || (o.offset as number) > 0 || (o.offset as number) < -1200)
+      throw invalid('统计周期不正确');
+    return d.stats.get({
+      period: o.period as StatsPeriodKind,
+      offset: o.offset as number,
+      tagId: o.tagId === undefined || o.tagId === null ? undefined : v.id(o.tagId, '标签'),
+    });
+  });
 
   // ---- 待办 ----
   handle(Invoke.todoList, (q) => d.todos.list(listQuery(q)));
@@ -142,9 +221,20 @@ export function registerIpc(d: Deps): void {
 
   // ---- 设置 ----
   handle(Invoke.settingsGet, () => d.settings.get());
-  handle(Invoke.settingsSet, (key, value) =>
-    d.settings.set(v.str(key, '设置项', { min: 1, max: 40 }) as keyof Settings, value),
-  );
+  handle(Invoke.settingsSet, (key, value) => {
+    const k = v.str(key, '设置项', { min: 1, max: 40 }) as keyof Settings;
+    // 快捷键先向系统注册，成功后才保存（FR-SET-08）
+    if (k === 'quickAddShortcut') {
+      const before = d.settings.get().quickAddShortcut;
+      const next = d.settings.set(k, value);
+      if (!d.applyShortcut(next.quickAddShortcut)) {
+        d.settings.set(k, before);
+        throw new AppError('SHORTCUT_TAKEN', '这个快捷键已被其他程序占用，请换一个组合');
+      }
+      return next;
+    }
+    return d.settings.set(k, value);
+  });
 
   // ---- 系统：测试通知（FR-REM-04 人工验证用） ----
   handle(Invoke.testNotify, () => {

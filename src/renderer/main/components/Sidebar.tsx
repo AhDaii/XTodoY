@@ -19,21 +19,24 @@ export function Sidebar({
   tags,
   rail,
   onToggle,
+  settingsBadge,
 }: {
   counts: ViewCounts;
   tags: TagNode[];
   rail: boolean;
   onToggle(): void;
+  /** 设置项上的更新圆点说明（有新版本 / 更新就绪时） */
+  settingsBadge?: string | null;
 }) {
   const { route, search, collapsedTags, go, toggleTag } = useUi();
   const current = (r: Route) => (!search && same(route, r) ? ('page' as const) : undefined);
 
-  const item = (r: Route, icon: IconName, label: string, count?: number, key?: number) => (
+  const item = (r: Route, icon: IconName, label: string, count?: number, key?: number, badge?: string | null) => (
     <button
       className="nav-item"
       aria-current={current(r)}
       aria-label={rail ? `${label}${count ? `，${count} 项` : ''}` : undefined}
-      title={`${label}${rail && count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}`}
+      title={`${label}${rail && count ? ` · ${count}` : ''}${key ? `（Ctrl+${key}）` : ''}${badge ? ` · ${badge}` : ''}`}
       onClick={() => go(r)}
     >
       <Icon name={icon} size={rail ? 20 : 16} />
@@ -44,6 +47,7 @@ export function Sidebar({
           {count > 99 ? '99+' : count}
         </span>
       ) : null}
+      {badge && <span className="badge-dot" role="img" aria-label={badge} />}
     </button>
   );
 
@@ -134,7 +138,7 @@ export function Sidebar({
       <div className="sidebar-footer">
         {item({ kind: 'page', page: 'stats' }, 'chart', '统计')}
         {item({ kind: 'page', page: 'tags' }, 'tag', '标签管理')}
-        {item({ kind: 'page', page: 'settings' }, 'settings', '设置')}
+        {item({ kind: 'page', page: 'settings' }, 'settings', '设置', undefined, undefined, settingsBadge)}
         {/* 折叠按钮固定在侧边栏底部：展开时为"收起侧边栏"，图标栏中为展开图标 */}
         <button
           className="nav-item sidebar-toggle"

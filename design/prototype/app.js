@@ -19,8 +19,11 @@ const state = {
     autostart: false, closeAction: 'tray', weekStart: 1, theme: localStorage.getItem('xtodoy-theme') || 'system',
     defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, inAppPopup: false, gpu: false,
     floating: true, floatingOpacity: 100, floatingLock: false,
-    autoCheck: true, autoDownload: true, channel: 'stable',
+    autoCheck: true, autoDownload: true, channel: 'stable', shortcut: 'Ctrl+Alt+T',
   },
+  // 各列表的排序方式（FR-TODO-06）
+  sort: { today: 'due', plan: 'due', all: 'due', tag: 'due' },
+  recordingShortcut: false,
   // 更新（SRS F10）：phase = latest | checking | available | downloading | ready | error
   update: { phase: 'latest', current: '1.0.0', latest: '1.1.0', size: 38.6, progress: 0, lastCheck: '今天 09:12', error: '', skipped: false, justUpdated: false },
 };
@@ -140,6 +143,19 @@ function counts() {
 const byTime = (a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99') || prioRank(a) - prioRank(b);
 const prioRank = (t) => ({ high: 0, medium: 1, low: 2, none: 3 }[t.priority]);
 
+// 排序（FR-TODO-06）：手动顺序即 state.todos 中的先后
+const SORTS = [['due', '按截止时间'], ['manual', '手动排序'], ['priority', '按优先级'], ['created', '按创建时间'], ['title', '按标题']];
+const sortScope = () => (state.search ? null : state.view.startsWith('tag:') ? 'tag' : ['today', 'plan', 'all'].includes(state.view) ? state.view : null);
+function cmpFor(scope) {
+  const manual = (a, b) => state.todos.indexOf(a) - state.todos.indexOf(b);
+  const mode = scope ? state.sort[scope] : 'due';
+  if (mode === 'manual') return manual;
+  if (mode === 'priority') return (a, b) => prioRank(a) - prioRank(b) || byTime(a, b);
+  if (mode === 'created') return (a, b) => state.todos.indexOf(b) - state.todos.indexOf(a);
+  if (mode === 'title') return (a, b) => a.title.localeCompare(b.title, 'zh-CN', { numeric: true });
+  return (a, b) => byTime(a, b) || manual(a, b);
+}
+
 function groupsForView() {
   const live = liveTodos();
   const v = state.view;
@@ -148,14 +164,14 @@ function groupsForView() {
     return [{ id: 'search', title: `搜索"${state.search}"`, items: live.filter((t) => (t.title + t.note).toLowerCase().includes(q)).sort(byTime) }];
   }
   if (v === 'today') {
-    const all = todayTodos().sort(byTime);
+    const all = todayTodos().sort(cmpFor('today'));
     return [
       { id: 'todayOpen', title: null, items: all.filter((t) => !t.done) },
       { id: 'todayDone', title: '今日已完成', items: all.filter((t) => t.done), collapsible: true },
     ];
   }
   if (v === 'plan') {
-    const open = live.filter((t) => !t.done && t.date).sort(byTime);
+    const open = live.filter((t) => !t.done && t.date).sort(cmpFor('plan'));
     const weekEnd = addDays(weekStartOf(TODAY), 6);
     return [
       { id: 'overdue', title: '逾期', items: open.filter((t) => t.date < TODAY), tone: 'overdue' },
@@ -166,7 +182,7 @@ function groupsForView() {
     ];
   }
   if (v === 'all') {
-    const open = live.filter((t) => !t.done).sort(byTime);
+    const open = live.filter((t) => !t.done).sort(cmpFor('all'));
     return [
       { id: 'aDated', title: '有日期', items: open.filter((t) => t.date) },
       { id: 'aNone', title: '无日期', items: open.filter((t) => !t.date) },
@@ -182,7 +198,7 @@ function groupsForView() {
   if (v.startsWith('tag:')) {
     const id = v.slice(4);
     const ids = state.includeChildren ? [id, ...descendants(id)] : [id];
-    return [{ id: 'tag', title: null, items: live.filter((t) => !t.done && t.tags.some((x) => ids.includes(x))).sort(byTime) }];
+    return [{ id: 'tag', title: null, items: live.filter((t) => !t.done && t.tags.some((x) => ids.includes(x))).sort(cmpFor('tag')) }];
   }
   return [];
 }
@@ -310,6 +326,7 @@ function renderList() {
       <header class="main-header">
         <div><h1>${title}</h1><div class="sub">${sub}</div></div>
         <span class="spacer"></span>${extra}
+        ${sortScope() ? `<select class="select" data-sort aria-label="排序方式">${SORTS.map(([v, l]) => `<option value="${v}" ${state.sort[sortScope()] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
         ${state.view === 'trash' && total ? '<button class="btn sm ghost" data-action="purge-all">清空回收站</button>' : ''}
       </header>
       ${state.update.justUpdated && !state.search ? `<div class="banner info" role="status">${icon('checkCircle')}<span>已更新到 XTodoY ${state.update.current}</span><button class="btn sm ghost" data-action="upd-details">查看更新内容</button><span style="flex:1"></span><button class="icon-btn" data-action="upd-dismiss-banner" aria-label="关闭提示">${icon('x', 14)}</button></div>` : ''}
@@ -333,7 +350,9 @@ function renderGroups(groups) {
       <button class="group-title ${g.tone || ''}" data-action="toggle-group" data-id="${g.id}" aria-expanded="${!collapsed}">
         ${icon('chevronDown', 12)}${g.tone === 'overdue' ? icon('alert', 12) : ''}<span>${g.title}</span><span class="count">${g.items.length}</span>
       </button>` : '';
-    return `<section class="group">${head}${collapsed ? '' : `<ul class="todo-list" role="listbox" aria-label="${g.title || '待办'}">${g.items.map(todoRow).join('')}</ul>`}</section>`;
+    const manual = sortScope() && state.sort[sortScope()] === 'manual';
+    const row = (t) => (manual ? todoRow(t).replace('<li class="todo', `<li draggable="true" data-group="${g.id}" class="todo`).replace('>', `><span class="drag-handle" aria-hidden="true">${icon('grip', 14)}</span>`) : todoRow(t));
+    return `<section class="group">${head}${collapsed ? '' : `<ul class="todo-list" role="listbox" aria-label="${g.title || '待办'}">${g.items.map(row).join('')}</ul>`}</section>`;
   }).join('');
 }
 
@@ -787,6 +806,9 @@ function renderSettings() {
           ${sw('autostart', '开机自启', '登录系统后在后台启动，只显示托盘与悬浮窗')}
           ${sel('closeAction', '关闭主窗口时', '选择"最小化到托盘"可继续接收提醒', [['tray', '最小化到托盘'], ['quit', '退出程序']])}
           ${sel('weekStart', '每周起始日', '影响日期选择器、"本周"分组与周统计', [[1, '周一'], [0, '周日']])}
+          <div class="setting"><div class="txt"><b id="l-shortcut">快速新建快捷键</b><span>在任意程序中按下即可打开 XTodoY 并新建待办</span></div>
+            <button class="btn shortcut-rec ${state.recordingShortcut ? 'recording' : ''}" aria-labelledby="l-shortcut" data-action="rec-shortcut">${state.recordingShortcut ? '请按下组合键…' : s.shortcut ? `<kbd>${s.shortcut}</kbd>` : '未设置'}</button>
+            ${s.shortcut && !state.recordingShortcut ? '<button class="btn ghost" data-action="clear-shortcut">关闭</button>' : ''}</div>
         </div></section>
         <section><h2>外观</h2><div class="setting-card">
           <div class="setting"><div class="txt"><b>主题</b><span>跟随系统时会随 Windows 的浅色 / 深色设置自动切换</span></div>
@@ -1117,6 +1139,8 @@ document.addEventListener('click', (e) => {
     case 'pop-tags': tagsPopover(a); break;
     case 'stats-tab': state.statsTab = val; state.statsOffset = 0; render(); break;
     case 'stats-nav': state.statsOffset = val === '0' ? 0 : Math.min(0, state.statsOffset + Number(val)); render(); break;
+    case 'rec-shortcut': state.recordingShortcut = true; render(); document.querySelector('.shortcut-rec')?.focus(); break;
+    case 'clear-shortcut': state.settings.shortcut = null; render(); break;
     case 'set-toggle': state.settings[a.dataset.key] = !state.settings[a.dataset.key]; render(); break;
     case 'theme': setTheme(val); break;
     case 'toast': toast(a.dataset.msg); break;
@@ -1162,6 +1186,7 @@ function onPopoverClick(e) {
 
 document.addEventListener('change', (e) => {
   const el = e.target;
+  if (el.hasAttribute('data-sort')) { state.sort[sortScope()] = el.value; render(); return; }
   if (el.dataset.set) { const k = el.dataset.set; state.settings[k] = /^-?\d+$/.test(el.value) ? Number(el.value) : el.value; render(); return; }
   if (!pop || !el.closest('.popover')) return;
   const t = current(); const k = el.dataset.pop;
@@ -1191,6 +1216,15 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  // 录制全局快捷键（设置 › 通用）：需包含 Ctrl / Alt / Win 之一，Esc 取消
+  if (state.recordingShortcut) {
+    e.preventDefault();
+    if (e.key === 'Escape') { state.recordingShortcut = false; render(); return; }
+    const key = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : /^Digit\d$/.test(e.code) ? e.code.slice(5) : /^F\d{1,2}$/.test(e.code) ? e.code : null;
+    if (!key || !(e.ctrlKey || e.altKey || e.metaKey)) return;
+    state.settings.shortcut = [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Win', key].filter(Boolean).join('+');
+    state.recordingShortcut = false; render(); toast(`快捷键已设为 ${state.settings.shortcut}`); return;
+  }
   const el = e.target;
   if (el.id === 'quick-add' && e.key === 'Enter') { const v = el.value.trim(); if (v) quickAdd(v); return; }
   if (el.dataset.rename) {
@@ -1242,6 +1276,28 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   const tg = tagById(dragId); tg.parent = target;
   toast(`"${tg.name}"已移到${target ? `"${tagById(target).name}"下` : '根级'}`);
+  render();
+});
+
+/* 待办拖拽（手动排序，只能在同一分组内移动） */
+let dragTodo = null;
+document.addEventListener('dragstart', (e) => { const r = e.target.closest?.('.todo[draggable]'); if (!r) return; dragTodo = { id: r.dataset.id, group: r.dataset.group }; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+document.addEventListener('dragend', () => { dragTodo = null; document.querySelectorAll('.todo.dragging, .drop-before, .drop-after').forEach((x) => x.classList.remove('dragging', 'drop-before', 'drop-after')); });
+document.addEventListener('dragover', (e) => {
+  const r = e.target.closest?.('.todo[draggable]'); if (!r || !dragTodo || r.dataset.group !== dragTodo.group) return;
+  e.preventDefault();
+  const after = e.clientY > r.getBoundingClientRect().top + r.offsetHeight / 2;
+  document.querySelectorAll('.drop-before, .drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
+  if (r.dataset.id !== dragTodo.id) r.classList.add(after ? 'drop-after' : 'drop-before');
+});
+document.addEventListener('drop', (e) => {
+  const r = e.target.closest?.('.todo[draggable]'); if (!r || !dragTodo || r.dataset.group !== dragTodo.group || r.dataset.id === dragTodo.id) return;
+  e.preventDefault();
+  const after = r.classList.contains('drop-after');
+  const moving = state.todos.find((t) => t.id === dragTodo.id);
+  state.todos.splice(state.todos.indexOf(moving), 1);
+  const at = state.todos.findIndex((t) => t.id === r.dataset.id) + (after ? 1 : 0);
+  state.todos.splice(at, 0, moving);
   render();
 });
 

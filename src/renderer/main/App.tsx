@@ -5,10 +5,13 @@ import { Icon, Logo } from './components/Icon';
 import { Toast } from './components/Overlay';
 import { Sidebar } from './components/Sidebar';
 import { api, call } from './lib/api';
-import { useCounts, useReportError, useSettings, useTagTree } from './lib/data';
+import { updateNeedsAttention } from '@shared/update';
+import { InstallingOverlay, UpdateDialog } from './components/Update';
+import { useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
 import { useUi } from './lib/store';
 import { ListPage } from './pages/ListPage';
-import { SettingsPage, StatsPage } from './pages/SettingsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { StatsPage } from './pages/StatsPage';
 import { TagsPage } from './pages/TagsPage';
 
 const VIEW_KEYS: SmartView[] = ['today', 'plan', 'all', 'done', 'trash'];
@@ -17,7 +20,10 @@ export function App() {
   const counts = useCounts();
   const tags = useTagTree();
   const settings = useSettings();
-  const { route, selectedId, search, go, select, setSearch } = useUi();
+  const { route, selectedId, search, go, select, setSearch, updateDialog, installing, setUpdateDialog } = useUi();
+  const upd = useUpdateStatus();
+  const settingsBadge =
+    upd && updateNeedsAttention(upd) ? (upd.phase === 'ready' ? '更新已就绪' : `新版本 ${upd.latest} 可用`) : null;
   const report = useReportError();
   const collapsed = settings?.sidebarCollapsed ?? false;
   // 折叠状态保存在设置里，重启后保持（标题栏按钮 / Ctrl+B）
@@ -35,8 +41,10 @@ export function App() {
         else if (nav.view === 'today') go({ kind: 'view', view: 'today' });
         if (nav.todoId) select(nav.todoId);
         if (nav.focus === 'quick-add') setTimeout(() => document.getElementById('quick-add')?.focus(), 50);
+        // 更新通知：打开设置并显示更新详情（FR-UPD-03）
+        if (nav.focus === 'update') setUpdateDialog(true);
       }),
-    [go, select],
+    [go, select, setUpdateDialog],
   );
 
   // 全局快捷键（IR-02）
@@ -71,13 +79,13 @@ export function App() {
 
   const showList = route.kind !== 'page' || search !== '';
   const page = showList ? (
-    <ListPage tags={tags} counts={counts} />
+    <ListPage tags={tags} counts={counts} settings={settings} updatedTo={upd?.justUpdated ?? null} />
   ) : route.page === 'tags' ? (
     <TagsPage tags={tags} />
   ) : route.page === 'settings' && settings ? (
-    <SettingsPage settings={settings} />
+    <SettingsPage settings={settings} update={upd} />
   ) : (
-    <StatsPage />
+    <StatsPage weekStart={settings?.weekStart ?? 1} />
   );
 
   return (
@@ -103,13 +111,15 @@ export function App() {
         </label>
       </header>
       <div className={`body ${collapsed ? 'sidebar-collapsed' : ''}`}>
-        <Sidebar counts={counts} tags={tags} rail={collapsed} onToggle={toggleSidebar} />
+        <Sidebar counts={counts} tags={tags} rail={collapsed} onToggle={toggleSidebar} settingsBadge={settingsBadge} />
         {page}
         {showList && selectedId && settings && (
           <DetailPanel id={selectedId} tags={tags} weekStart={settings.weekStart} allDayTime={settings.allDayTime} />
         )}
       </div>
       <Toast />
+      {updateDialog && upd && (upd.latest || upd.justUpdated) && <UpdateDialog status={upd} />}
+      {installing && <InstallingOverlay version={upd?.latest} />}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Settings, TagNode, TodoGroup, ViewCounts } from '@shared/types';
+import type { Stats, StatsQuery } from '@shared/stats';
+import type { UpdateStatus } from '@shared/update';
 import { api, call } from './api';
 import { useUi, type Route } from './store';
 
@@ -48,7 +50,8 @@ export function useGroups(route: Route, search: string, includeChildren: boolean
       return Promise.resolve([]);
     },
     null,
-    [api.on.todosChanged, api.on.tagsChanged],
+    // 设置变化时也刷新：排序方式与周起始日影响列表
+    [api.on.todosChanged, api.on.tagsChanged, api.on.settingsChanged],
     key,
   );
 }
@@ -61,4 +64,29 @@ export function useSettings(): Settings | null {
 export function useReportError(): (e: unknown) => void {
   const showToast = useUi((s) => s.showToast);
   return useCallback((e: unknown) => showToast(e instanceof Error ? e.message : '操作失败，请重试'), [showToast]);
+}
+
+/** 统计页数据：事项、标签或设置（周起始日）变化后自动刷新 */
+export function useStats(q: StatsQuery): Stats | null {
+  return useLive<Stats | null>(
+    () => call(api.stats(q)),
+    null,
+    [api.on.todosChanged, api.on.tagsChanged, api.on.settingsChanged],
+    JSON.stringify(q),
+  );
+}
+
+/** 更新状态：初次拉取，之后由主进程推送 update:status */
+export function useUpdateStatus(): UpdateStatus | null {
+  const [s, setS] = useState<UpdateStatus | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void call(api.update.status()).then((x) => alive && setS(x), console.error);
+    const off = api.on.updateStatus(setS);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  return s;
 }

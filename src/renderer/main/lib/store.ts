@@ -20,6 +20,11 @@ interface UiState {
   collapsedGroups: Set<string>;
   collapsedTags: Set<string>;
   toast: ToastState | null;
+  /** 更新详情对话框、正在安装遮罩（SRS F10） */
+  updateDialog: boolean;
+  installing: boolean;
+  setUpdateDialog(v: boolean): void;
+  setInstalling(v: boolean): void;
   go(route: Route): void;
   select(id: string | null): void;
   setSearch(q: string): void;
@@ -48,6 +53,10 @@ export const useUi = create<UiState>((set) => ({
   collapsedGroups: new Set(['today-done']),
   collapsedTags: new Set(),
   toast: null,
+  updateDialog: false,
+  installing: false,
+  setUpdateDialog: (updateDialog) => set({ updateDialog }),
+  setInstalling: (installing) => set({ installing }),
   go: (route) => set({ route, selectedId: null, search: '' }),
   select: (selectedId) => set({ selectedId }),
   setSearch: (search) => set({ search, selectedId: null }),

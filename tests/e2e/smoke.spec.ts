@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -388,4 +388,181 @@ test('硬件加速为可选项：默认关闭，开启后提示重启，重启�
   await expect(again.getByRole('switch', { name: '硬件加速' })).toHaveAttribute('aria-checked', 'true');
   await expect(again.locator('.restart-hint')).toHaveCount(0);
   expect(await decided(again)).toBe(true);
+});
+
+test('统计：完成后计入日 / 周 / 月统计，明细可跳回事项（FR-STA-02/05）', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '写周报');
+  await addTodo(main, '回复邮件');
+  await main.getByRole('checkbox', { name: '完成：写周报' }).click();
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  const dims = main.getByRole('group', { name: '统计维度' });
+  // 默认周视图：摘要卡片、到期完成率（今天到期 2 项完成 1 项）
+  await expect(main.getByLabel('完成数').locator('.hero-num .num')).toHaveText('1');
+  await expect(main.locator('.ring-txt')).toHaveText('50%');
+  await expect(main.getByLabel('连续完成天数').locator('.hero-num .num')).toHaveText('1');
+  await expect(main.getByRole('img', { name: /本周每天完成数折线图/ })).toBeVisible();
+
+  await dims.getByRole('button', { name: '日' }).click();
+  await expect(main.locator('.timeline li')).toHaveCount(1);
+  await expect(main.getByRole('button', { name: '下一天' })).toBeDisabled();
+  await main.getByRole('button', { name: '上一天' }).click();
+  await expect(main.locator('.period')).toHaveText('昨天');
+  await expect(main.getByText('这一天还没有完成记录')).toBeVisible();
+  await main.getByRole('button', { name: '回到本期' }).click();
+
+  await dims.getByRole('button', { name: '月' }).click();
+  await expect(main.locator('.hm-cell.is-today .nn')).toHaveText('1');
+
+  // 取消完成后统计同步减少
+  await main.locator('.log-list').getByRole('button', { name: '写周报' }).click();
+  await expect(main.locator('.detail')).toBeVisible();
+  await main.getByRole('checkbox', { name: '完成：写周报' }).click();
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  await expect(main.getByLabel('完成数').locator('.hero-num .num')).toHaveText('0');
+});
+
+test('数据：导出备份后导入，覆盖前确认并自动备份（FR-SET-06）', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '导出前的待办');
+  const file = join(dataDir, 'export.json');
+  // 系统文件对话框无法在测试中操作：在主进程中替换为固定路径
+  await app.evaluate(({ dialog }, f) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: f })) as typeof dialog.showSaveDialog;
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as typeof dialog.showOpenDialog;
+  }, file);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.getByRole('button', { name: '导出' }).click();
+  await expect(main.locator('.toast')).toContainText('已导出到');
+
+  // 导出后新增的待办会被导入覆盖掉
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await addTodo(main, '导出后的待办');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.getByRole('button', { name: '导入…' }).click();
+  const dlg = main.getByRole('dialog', { name: '导入备份' });
+  await expect(dlg).toContainText('导入备份将覆盖当前数据');
+  await dlg.getByRole('button', { name: '选择文件并导入' }).click();
+  await expect(main.locator('.toast')).toContainText('已导入 1 项待办');
+
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await expect(main.locator('.todo', { hasText: '导出前的待办' })).toBeVisible();
+  await expect(main.locator('.todo', { hasText: '导出后的待办' })).toHaveCount(0);
+  expect(readdirSync(join(dataDir, 'backups')).some((f) => f.startsWith('pre-import-'))).toBe(true);
+});
+
+test('全局快捷键：默认 Ctrl+Alt+T，可录制新组合或关闭（FR-SET-08）', async () => {
+  const main = await windowByPage('main');
+  const registered = (acc: string) => app.evaluate(({ globalShortcut }, a) => globalShortcut.isRegistered(a), acc);
+  expect(await registered('Ctrl+Alt+T')).toBe(true);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const rec = main.getByRole('button', { name: '快速新建快捷键' });
+  await expect(rec).toContainText('Ctrl+Alt+T');
+  await rec.click();
+  await expect(rec).toContainText('请按下组合键');
+  await main.keyboard.press('Shift+K'); // 只有 Shift 不合法
+  await expect(main.getByRole('alert')).toContainText('需要包含 Ctrl、Alt 或 Win');
+  await main.keyboard.press('Control+Alt+K');
+  await expect(rec).toContainText('Ctrl+Alt+K');
+  expect(await registered('Ctrl+Alt+K')).toBe(true);
+  expect(await registered('Ctrl+Alt+T')).toBe(false);
+
+  await main.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(rec).toContainText('未设置');
+  expect(await registered('Ctrl+Alt+K')).toBe(false);
+});
+
+test('排序：按视图记忆排序方式；手动模式下拖拽与 Alt+↑↓ 调整顺序，重启后保持（FR-TODO-06）', async () => {
+  let main = await windowByPage('main');
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  for (const t of ['乙', '甲', '丙']) await addTodo(main, t);
+  const order = (p: Page) => p.locator('.todo .text').allTextContents();
+  // 新建的在最上面（截止时间相同时按手动顺序）
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙']);
+
+  const sortSel = main.getByRole('combobox', { name: '排序方式' });
+  await sortSel.click();
+  await main.getByRole('option', { name: /标题/ }).click();
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙'].sort(new Intl.Collator('zh-CN').compare));
+
+  await sortSel.click();
+  await main.getByRole('option', { name: /手动/ }).click();
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙']);
+  await main.locator('.todo', { hasText: '乙' }).dragTo(main.locator('.todo', { hasText: '丙' }), {
+    targetPosition: { x: 40, y: 4 },
+  });
+  await expect.poll(() => order(main)).toEqual(['乙', '丙', '甲']);
+  await main.locator('.todo', { hasText: '乙' }).focus();
+  await main.keyboard.press('Alt+ArrowDown');
+  await expect.poll(() => order(main)).toEqual(['丙', '乙', '甲']);
+
+  // "今天"视图独立记忆，仍是默认的截止时间
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await expect(main.getByRole('combobox', { name: '排序方式' })).toContainText('截止时间');
+
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir } });
+  main = await windowByPage('main');
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  await expect(main.getByRole('combobox', { name: '排序方式' })).toContainText('手动');
+  await expect.poll(() => order(main)).toEqual(['丙', '乙', '甲']);
+});
+
+async function relaunch(env: Record<string, string>) {
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir, ...env } });
+  return windowByPage('main');
+}
+
+test('更新：手动检查 → 后台下载 → 就绪，侧边栏圆点与更新详情（FR-UPD-02/03/04/06）', async () => {
+  let main = await windowByPage('main');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  // 开发环境默认不检查更新
+  await expect(main.locator('.update-status')).toContainText('开发环境不检查更新');
+
+  main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const status = main.locator('.update-status');
+  await status.getByRole('button', { name: '检查更新' }).click();
+  await expect(status).toContainText('正在下载 9.9.0');
+  await expect(status.getByRole('progressbar', { name: '下载进度' })).toBeVisible();
+  await expect(status).toContainText('更新已就绪', { timeout: 10_000 });
+  await expect(main.locator('.nav-item .badge-dot')).toHaveAttribute('aria-label', '更新已就绪');
+
+  await status.getByRole('button', { name: '查看更新内容' }).click();
+  const dlg = main.getByRole('dialog', { name: 'XTodoY 9.9.0 更新内容' });
+  await expect(dlg.locator('.rn-new')).toHaveText('新增');
+  await expect(dlg.locator('.rn-fix')).toHaveText('修复');
+  await expect(dlg.getByRole('button', { name: '立即重启并更新' })).toBeVisible();
+  await dlg.getByRole('button', { name: '稍后' }).click();
+  await expect(dlg).toHaveCount(0);
+});
+
+test('更新：关闭自动下载后手动下载、跳过版本；检查失败显示原因（FR-UPD-03/08/09）', async () => {
+  let main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  // 关闭自动检查时"自动下载"置灰
+  await main.getByRole('switch', { name: '自动检查更新' }).click();
+  await expect(main.getByRole('switch', { name: '自动下载更新' })).toBeDisabled();
+  await main.getByRole('switch', { name: '自动检查更新' }).click();
+  await main.getByRole('switch', { name: '自动下载更新' }).click();
+
+  const status = main.locator('.update-status');
+  await status.getByRole('button', { name: '检查更新' }).click();
+  await expect(status).toContainText('发现新版本 9.9.0');
+  await expect(main.locator('.nav-item .badge-dot')).toHaveAttribute('aria-label', '新版本 9.9.0 可用');
+  await status.getByRole('button', { name: '查看更新内容' }).click();
+  await main.getByRole('button', { name: '跳过此版本' }).click();
+  await expect(main.locator('.toast')).toContainText('已跳过 9.9.0');
+  await expect(main.locator('.nav-item .badge-dot')).toHaveCount(0);
+  await expect(status).toContainText('已跳过此版本');
+
+  main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0,fail-check' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.locator('.update-status').getByRole('button', { name: '检查更新' }).click();
+  await expect(main.locator('.update-status')).toContainText('无网络连接');
+  await expect(main.locator('.update-status').getByRole('button', { name: '前往下载页' })).toBeVisible();
 });

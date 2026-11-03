@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import type { HTMLAttributes, KeyboardEvent } from 'react';
 import { fromRRule, repeatSummary } from '@shared/recurrence';
 import type { Todo } from '@shared/types';
 import { LIMITS } from '@shared/types';
@@ -19,23 +19,32 @@ interface Props {
   onRestore(): void;
   onPurge(): void;
   onKeyDown(e: KeyboardEvent<HTMLLIElement>): void;
+  /** 手动排序模式下的拖拽事件与放置指示（drop-before / drop-after / dragging） */
+  drag?: { props: HTMLAttributes<HTMLLIElement>; className: string };
 }
 
-export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, ...h }: Props) {
+export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, ...h }: Props) {
   const now = today();
   const overdue = t.status === 'open' && t.dueDate !== null && t.dueDate < now;
   const shown = t.tags.slice(0, 2);
   const done = t.status === 'done';
   return (
     <li
-      className={`todo ${done ? 'is-done' : ''}`}
+      className={`todo ${done ? 'is-done' : ''} ${drag?.className ?? ''}`}
       role="option"
       aria-selected={selected}
       tabIndex={0}
       data-id={t.id}
       onClick={h.onSelect}
       onKeyDown={h.onKeyDown}
+      draggable={drag ? true : undefined}
+      {...drag?.props}
     >
+      {drag && (
+        <span className="drag-handle" aria-hidden="true">
+          <Icon name="grip" size={14} />
+        </span>
+      )}
       {inTrash ? (
         <span style={{ width: 32 }} />
       ) : (

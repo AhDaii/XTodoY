@@ -1,3 +1,4 @@
+import { compareSortKeys } from '@shared/reorder';
 import { generateKeyBetween } from 'fractional-indexing';
 import { LIMITS, type TagColor, type TagNode } from '@shared/types';
 import type { DB } from '../db/client';
@@ -65,7 +66,7 @@ export class TagService {
     for (const r of rows) children.set(r.parent_id, [...(children.get(r.parent_id) ?? []), r]);
     const out: TagNode[] = [];
     const walk = (parent: string | null): void => {
-      for (const r of (children.get(parent) ?? []).sort((a, b) => a.sort_key.localeCompare(b.sort_key))) {
+      for (const r of (children.get(parent) ?? []).sort((a, b) => compareSortKeys(a.sort_key, b.sort_key))) {
         out.push({
           id: r.id,
           parentId: r.parent_id,

@@ -23,7 +23,7 @@ export function openDatabase(dataDir: string): { db: DB; schemaVersion: number }
  * 用 VACUUM INTO 生成一致性快照（同步执行，包含 WAL 中尚未合并的数据）。
  * 数据量在 10 万条完成记录以内时耗时 < 1 秒。
  */
-export function backup(db: DB, dataDir: string, kind: 'daily' | 'pre-migrate' | 'pre-update'): string {
+export function backup(db: DB, dataDir: string, kind: 'daily' | 'pre-migrate' | 'pre-update' | 'pre-import'): string {
   const dir = join(dataDir, 'backups');
   mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');

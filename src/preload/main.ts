@@ -45,6 +45,24 @@ const api: XtodoyApi = {
   },
   testNotify: () => call(Invoke.testNotify),
   relaunch: () => call(Invoke.relaunch),
+  stats: (q) => call(Invoke.statsGet, q),
+  data: {
+    info: () => call(Invoke.dataInfo),
+    exportJson: () => call(Invoke.dataExport),
+    importJson: () => call(Invoke.dataImport),
+    openFolder: () => call(Invoke.dataOpenFolder),
+  },
+  update: {
+    status: () => call(Invoke.updateGetStatus),
+    check: () => call(Invoke.updateCheck),
+    download: () => call(Invoke.updateDownload),
+    cancel: () => call(Invoke.updateCancel),
+    installNow: () => call(Invoke.updateInstallNow),
+    skip: () => call(Invoke.updateSkip),
+    later: () => call(Invoke.updateLater),
+    dismissBanner: () => call(Invoke.updateDismissBanner),
+  },
+  openExternal: (url) => call(Invoke.openExternal, url),
   on: {
     todosChanged: (cb) => subscribe(Events.todosChanged, cb),
     tagsChanged: (cb) => subscribe(Events.tagsChanged, cb),
@@ -52,6 +70,7 @@ const api: XtodoyApi = {
     todayCount: (cb) => subscribe(Events.todayCount, cb),
     themeChanged: (cb) => subscribe(Events.themeChanged, cb),
     navOpen: (cb) => subscribe(Events.navOpen, cb),
+    updateStatus: (cb) => subscribe(Events.updateStatus, cb),
   },
 };
 

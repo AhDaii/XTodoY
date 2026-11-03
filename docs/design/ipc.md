@@ -46,18 +46,18 @@
 
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
-| `stats:summary` | `{ period: 'day'\|'week'\|'month', offset }` | 摘要卡片数据（完成数、同期对比、到期完成率、连续天数） | FR-STA-02/03/06 |
-| `stats:series` | 同上 | 日：24 小时分布 + 时间线；周：7 天 + 前一周；月：每日计数 | FR-STA-02 |
-| `stats:byTag` | 同上 | 根标签分布 | FR-STA-04 |
-| `stats:logs` | 同上 + 分页 | 完成明细 | FR-STA-05 |
+| `stats:get` | `{ period: 'day'\|'week'\|'month', offset ≤ 0, tagId? }` | `Stats`（`src/shared/stats.ts`）：周期范围、完成数与上期**同期**完成数、最多的一天、24 小时分布、每日计数（含上一周期）、到期完成率、连续天数与最近 7 天、按根标签分布（传 `tagId` 时为该根标签下一级子标签的分布）、完成明细（倒序，最多 500 条） | FR-STA-01~06 |
+
+P6 实现时把原计划的 4 个通道合并为一个：统计页每次切换都需要全部数据，一次往返更简单，查询都落在 `completed_local_date` 索引上。
 
 ### 2.4 设置、数据、系统
 
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
 | `settings:get` / `settings:set` | — / `{ key, value }` | `Settings` | FR-SET-02/03 |
-| `data:export` | — | `{ path }`（系统保存对话框） | FR-SET-06 |
-| `data:import` | — | `{ imported }` | FR-SET-06 |
+| `data:info` | — | `{ dataDir, lastBackupDate }` | FR-SET-07 |
+| `data:export` | — | `{ path } \| null`（系统保存对话框，取消为 null） | FR-SET-06 |
+| `data:import` | — | `{ todos, tags, completionLogs } \| null`（确认在渲染进程完成；覆盖前自动备份） | FR-SET-06 |
 | `data:openFolder` | — | `void` | |
 | `system:notificationStatus` | — | `'allowed'\|'denied'\|'unknown'` | FR-REM-09 |
 | `window:minimize` / `window:close` | — | `void` | 自绘标题栏 |
@@ -69,12 +69,15 @@
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
 | `update:getStatus` | — | `UpdateStatus` | FR-UPD-02/08 |
-| `update:check` | — | `UpdateStatus` | FR-UPD-02 |
+| `update:check` | — | `UpdateStatus`（手动检查：失败时 `phase: 'error'` 并带原因） | FR-UPD-02 |
 | `update:download` / `update:cancel` | — | `void` | FR-UPD-04 |
-| `update:installNow` | — | `void`（程序将退出并重启） | FR-UPD-06 |
-| `update:skip` | `{ version }` | `void` | FR-UPD-03 |
+| `update:installNow` | — | `void`（先做更新前备份，程序随后退出、安装并重启） | FR-UPD-06/07 |
+| `update:skip` | — | `void`（跳过当前发现的版本） | FR-UPD-03 |
+| `update:later` | — | `void`（本次运行不再发更新通知） | FR-UPD-03 |
+| `update:dismissBanner` | — | `void`（关闭"已更新到"横幅） | FR-UPD-11 |
+| `app:openExternal` | `url` | `void`（只允许本项目的 GitHub 页面，如发布页） | FR-UPD-09 |
 
-`UpdateStatus = { phase: 'idle'|'checking'|'latest'|'available'|'downloading'|'ready'|'error', current, latest?, releaseNotes?, releaseDate?, size?, progress?, lastCheckAt?, error? }`，与原型 `design/prototype/app.js` 中的状态一一对应。
+`UpdateStatus`（`src/shared/update.ts`）= `{ phase: 'idle'|'checking'|'latest'|'available'|'downloading'|'ready'|'error', current, supported, latest?, releaseDate?, notes?, size?, progress?, transferred?, lastCheckAt, error?, skipped, justUpdated }`，与原型 `design/prototype/app.js` 中的状态一一对应；`supported` 为 false 表示开发环境（不检查更新）。
 
 ## 3 主进程 → 渲染进程事件
 
@@ -86,7 +89,7 @@
 | `settings:changed` | `Partial<Settings>` | 主窗口、悬浮窗 |
 | `theme:changed` | `{ dark: boolean }` | 主窗口、悬浮窗 |
 | `update:status` | `UpdateStatus` | 主窗口 |
-| `nav:open` | `{ view?, todoId? }` | 主窗口（通知 / 悬浮窗 / 托盘要求定位） |
+| `nav:open` | `{ view?, todoId?, focus?: 'quick-add'\|'update' }` | 主窗口（通知 / 悬浮窗 / 托盘 / 全局快捷键要求定位） |
 
 ## 4 悬浮窗 API（`preload/floating.ts`）
 

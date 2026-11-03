@@ -1,4 +1,5 @@
-import { DEFAULT_SETTINGS, type Settings } from '@shared/types';
+import { isValidAccelerator } from '@shared/shortcut';
+import { DEFAULT_SETTINGS, SORT_MODES, type Settings, type SortMode } from '@shared/types';
 import type { DB } from '../db/client';
 import { bus } from '../events/bus';
 import { invalid } from './errors';
@@ -52,6 +53,47 @@ const validators: Validators = {
   },
   closeTipShown: (v) => bool(v, '关闭提示'),
   hardwareAcceleration: (v) => bool(v, '硬件加速'),
+  listSort: (v) => {
+    const o = v as Record<string, unknown>;
+    const scopes = ['today', 'plan', 'all', 'tag'] as const;
+    if (
+      typeof o === 'object' &&
+      o !== null &&
+      Object.keys(o).length === scopes.length &&
+      scopes.every((k) => SORT_MODES.includes(o[k] as SortMode))
+    )
+      return { today: o['today'], plan: o['plan'], all: o['all'], tag: o['tag'] } as Settings['listSort'];
+    throw invalid('排序方式取值不正确');
+  },
+  autoCheckUpdate: (v) => bool(v, '自动检查更新'),
+  autoDownloadUpdate: (v) => bool(v, '自动下载更新'),
+  updateChannel: (v) => {
+    if (v === 'stable' || v === 'beta') return v;
+    throw invalid('更新通道取值不正确');
+  },
+  update: (v) => {
+    const o = v as Record<string, unknown>;
+    const ver = (x: unknown) => x === null || (typeof x === 'string' && x.length <= 64);
+    if (
+      typeof o === 'object' &&
+      o !== null &&
+      (o['lastCheckAt'] === null || Number.isFinite(o['lastCheckAt'])) &&
+      ['skipped', 'notifiedAvailable', 'notifiedReady', 'lastRunVersion', 'banner'].every((k) => ver(o[k]))
+    )
+      return {
+        lastCheckAt: o['lastCheckAt'] as number | null,
+        skipped: o['skipped'] as string | null,
+        notifiedAvailable: o['notifiedAvailable'] as string | null,
+        notifiedReady: o['notifiedReady'] as string | null,
+        lastRunVersion: o['lastRunVersion'] as string | null,
+        banner: o['banner'] as string | null,
+      };
+    throw invalid('更新状态取值不正确');
+  },
+  quickAddShortcut: (v) => {
+    if (v === null || (typeof v === 'string' && isValidAccelerator(v))) return v;
+    throw invalid('快捷键需要包含 Ctrl、Alt 或 Win 之一，再加一个按键');
+  },
   sidebarCollapsed: (v) => {
     if (typeof v === 'boolean') return v;
     throw invalid('侧边栏折叠状态取值不正确');
@@ -70,7 +112,11 @@ export class SettingsService {
   private cache: Settings;
 
   constructor(private readonly db: DB) {
-    const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
+    this.cache = this.load();
+  }
+
+  private load(): Settings {
+    const rows = this.db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
     const stored: Partial<Settings> = {};
     for (const { key, value } of rows) {
       if (!(key in validators)) continue;
@@ -80,7 +126,13 @@ export class SettingsService {
         // 忽略损坏或过时的值，回到默认值
       }
     }
-    this.cache = { ...DEFAULT_SETTINGS, ...stored };
+    return { ...DEFAULT_SETTINGS, ...stored };
+  }
+
+  /** 设置表被整体替换后（导入备份）重新读取，并广播全部设置 */
+  reload(): void {
+    this.cache = this.load();
+    bus.emit('settings.changed', this.get());
   }
 
   get(): Settings {
