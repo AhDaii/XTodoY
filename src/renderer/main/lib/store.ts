@@ -17,6 +17,8 @@ interface UiState {
   selectedId: string | null;
   search: string;
   includeChildren: boolean;
+  /** 标签视图显示已完成（FR-TAG-04） */
+  showDoneInTag: boolean;
   collapsedGroups: Set<string>;
   collapsedTags: Set<string>;
   toast: ToastState | null;
@@ -29,6 +31,7 @@ interface UiState {
   select(id: string | null): void;
   setSearch(q: string): void;
   setIncludeChildren(v: boolean): void;
+  setShowDoneInTag(v: boolean): void;
   toggleGroup(id: string): void;
   toggleTag(id: string): void;
   showToast(message: string, undo?: () => void): void;
@@ -50,6 +53,7 @@ export const useUi = create<UiState>((set) => ({
   selectedId: null,
   search: '',
   includeChildren: true,
+  showDoneInTag: false,
   collapsedGroups: new Set(['today-done']),
   collapsedTags: new Set(),
   toast: null,
@@ -61,6 +65,7 @@ export const useUi = create<UiState>((set) => ({
   select: (selectedId) => set({ selectedId }),
   setSearch: (search) => set({ search, selectedId: null }),
   setIncludeChildren: (includeChildren) => set({ includeChildren }),
+  setShowDoneInTag: (showDoneInTag) => set({ showDoneInTag }),
   toggleGroup: (id) => set((s) => ({ collapsedGroups: toggleIn(s.collapsedGroups, id) })),
   toggleTag: (id) => set((s) => ({ collapsedTags: toggleIn(s.collapsedTags, id) })),
   showToast: (message, undo) => set({ toast: { id: ++toastSeq, message, undo } }),

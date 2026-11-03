@@ -88,6 +88,8 @@ export interface ListQuery {
   view?: SmartView;
   tagId?: string;
   includeChildren?: boolean;
+  /** 标签视图同时列出已完成的事项（FR-TAG-04） */
+  showDone?: boolean;
   search?: string;
 }
 

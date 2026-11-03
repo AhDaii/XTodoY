@@ -1,6 +1,7 @@
 import { app, nativeTheme } from 'electron';
 import { join } from 'node:path';
-import { openDatabase, type DB } from './db/client';
+import type { DB } from './db/client';
+import { installCrashGuards, openDatabaseOrRecover } from './app/startup';
 import { bus } from './events/bus';
 import { registerIpc } from './ipc/handlers';
 import { parseProtocolUrl, showInfo, showMissed, showReminder } from './platform/notifier';
@@ -44,6 +45,7 @@ if (!app.requestSingleInstanceLock()) {
 const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
 // 安装版没有控制台：主进程日志写入数据目录（FR-UPD-09）
 if (app.isPackaged) installFileLog(dataDir);
+installCrashGuards();
 
 // 硬件加速默认关闭：界面没有重度动画，软件渲染足够，常驻内存约少 20%（spike-report.md §1）。
 // 用户可在"设置 › 外观"中开启，重启后生效；XTODOY_ENABLE_GPU=1 可临时强制开启。
@@ -105,7 +107,8 @@ function applyAutostart(on: boolean): void {
 }
 
 void app.whenReady().then(() => {
-  const opened = openDatabase(dataDir);
+  const opened = openDatabaseOrRecover(dataDir);
+  if (!opened) return app.quit();
   db = opened.db;
   settings = new SettingsService(db);
   const s = settings;

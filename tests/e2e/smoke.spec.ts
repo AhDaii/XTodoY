@@ -567,3 +567,51 @@ test('更新：关闭自动下载后手动下载、跳过版本；检查失败�
   await expect(main.locator('.update-status')).toContainText('无网络连接');
   await expect(main.locator('.update-status').getByRole('button', { name: '前往下载页' })).toBeVisible();
 });
+
+test('标签视图显示已完成；标签树方向键导航（FR-TAG-04、FR-TGM-06）', async () => {
+  const main = await windowByPage('main');
+  await main.evaluate(async () => {
+    const x = window.xtodoy;
+    const p = await x.tags.create({ name: '工作', parentId: null });
+    if (!p.ok) return;
+    await x.tags.create({ name: '项目A', parentId: p.data.id });
+    await x.tags.create({ name: '生活', parentId: null });
+    for (const title of ['写周报', '交报销']) await x.todos.create({ title, tagIds: [p.data.id] });
+  });
+  await main.locator('.sidebar [role="treeitem"] .nav-item', { hasText: '工作' }).first().click();
+  await main.getByRole('checkbox', { name: '完成：写周报' }).click();
+  await expect(main.locator('.todo', { hasText: '写周报' })).toHaveCount(0);
+  const toggle = main.getByRole('button', { name: '显示已完成' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(main.locator('.group-title', { hasText: '已完成' })).toContainText('1');
+  await expect(main.locator('.todo.is-done', { hasText: '写周报' })).toBeVisible();
+
+  await main.getByRole('button', { name: '标签管理' }).click();
+  const row = (name: string) => main.locator('.tag-row', { hasText: name }).first();
+  await row('工作').focus();
+  await main.keyboard.press('ArrowDown');
+  await expect(row('项目A')).toBeFocused();
+  await main.keyboard.press('ArrowLeft');
+  await expect(row('工作')).toBeFocused();
+  await main.keyboard.press('End');
+  await expect(row('生活')).toBeFocused();
+  await main.keyboard.press('Home');
+  await expect(row('工作')).toBeFocused();
+  await main.keyboard.press('ArrowRight');
+  await expect(row('项目A')).toBeFocused();
+});
+
+test('系统通知被关闭时，主窗口与设置页提示并提供系统设置入口（FR-REM-09）', async () => {
+  await app.close();
+  app = await electron.launch({
+    args: ['.'],
+    env: { ...process.env, XTODOY_DATA_DIR: dataDir, XTODOY_NOTIFY_STATUS: 'denied' },
+  });
+  const main = await windowByPage('main');
+  await expect(main.locator('.banner', { hasText: '系统已关闭 XTodoY 的通知' })).toBeVisible();
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const row = main.locator('.setting', { has: main.locator('b', { hasText: /^系统通知$/ }) });
+  await expect(row).toContainText('已关闭');
+  await expect(row.getByRole('button', { name: '打开系统设置' })).toBeVisible();
+});

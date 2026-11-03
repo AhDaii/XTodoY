@@ -2419,3 +2419,13 @@ a {
 .todo.drop-after {
   box-shadow: inset 0 -2px 0 var(--primary);
 }
+
+/* 系统通知被关闭（FR-REM-09） */
+.status-err {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--destructive);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}

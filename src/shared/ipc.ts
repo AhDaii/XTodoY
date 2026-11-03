@@ -102,6 +102,8 @@ export const Invoke = {
   updateLater: 'update:later',
   updateDismissBanner: 'update:dismissBanner',
   openExternal: 'app:openExternal',
+  notificationStatus: 'system:notificationStatus',
+  openNotificationSettings: 'system:openNotificationSettings',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -162,6 +164,9 @@ export interface XtodoyApi {
     set<K extends keyof Settings>(key: K, value: Settings[K]): R<Settings>;
   };
   testNotify(): R<void>;
+  /** 通知是否被系统关闭（FR-REM-09）；Windows 以外返回 unknown */
+  notificationStatus(): R<'allowed' | 'denied' | 'unknown'>;
+  openNotificationSettings(): R<void>;
   /** 统计页数据（SRS F8） */
   stats(q: StatsQuery): R<Stats>;
   /** 数据备份（FR-SET-06/07）；导出 / 导入在用户取消文件对话框时返回 null */

@@ -9,7 +9,7 @@ export interface BusEvents {
   'settings.changed': [patch: Partial<Settings>];
   'today.count': [count: TodayCount];
   'theme.changed': [dark: boolean];
-  'time.jumped': [reason: 'resume' | 'drift' | 'midnight'];
+  'time.jumped': [reason: 'resume' | 'drift' | 'midnight' | 'timezone'];
   'reminders.resumed': [];
 }
 

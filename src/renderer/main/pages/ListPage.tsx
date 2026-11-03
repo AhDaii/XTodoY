@@ -7,7 +7,7 @@ import { TodoRow } from '../components/TodoRow';
 import { UpdatedBanner } from '../components/Update';
 import { useTodoActions } from '../lib/actions';
 import { api, call } from '../lib/api';
-import { useGroups, useReportError } from '../lib/data';
+import { useGroups, useNotificationStatus, useReportError } from '../lib/data';
 import { friendlyDate, parse, today, weekday } from '../lib/dates';
 import { dropNeighbors, stepNeighbors } from '@shared/reorder';
 import { useUi } from '../lib/store';
@@ -53,9 +53,10 @@ export function ListPage({
   /** 更新后首次启动：显示"已更新到"横幅（FR-UPD-11） */
   updatedTo: string | null;
 }) {
-  const { route, search, includeChildren, selectedId, collapsedGroups } = useUi();
+  const { route, search, includeChildren, showDoneInTag, selectedId, collapsedGroups } = useUi();
   const ui = useUi.getState;
-  const groups = useGroups(route, search, includeChildren);
+  const groups = useGroups(route, search, includeChildren, showDoneInTag);
+  const notify = useNotificationStatus();
   const actions = useTodoActions();
   const report = useReportError();
   const [draft, setDraft] = useState('');
@@ -152,6 +153,16 @@ export function ListPage({
             </button>
           </div>
         )}
+        {tag && !search && (
+          <button
+            className={`btn sm ${showDoneInTag ? '' : 'ghost'}`}
+            aria-pressed={showDoneInTag}
+            onClick={() => ui().setShowDoneInTag(!showDoneInTag)}
+          >
+            <Icon name="checkCircle" size={14} />
+            显示已完成
+          </button>
+        )}
         {scope && <Select<SortMode> ariaLabel="排序方式" value={sort} options={SORT_OPTIONS} onChange={setSort} />}
         {view === 'trash' && total > 0 && (
           <button className="btn sm ghost" onClick={() => void call(api.todos.purgeAll()).catch(report)}>
@@ -161,6 +172,17 @@ export function ListPage({
       </header>
 
       {updatedTo && !search && <UpdatedBanner version={updatedTo} />}
+
+      {notify === 'denied' && !search && (
+        <div className="banner warn" role="status">
+          <Icon name="bell" />
+          <span>系统已关闭 XTodoY 的通知，到点的提醒无法弹出。</span>
+          <span style={{ flex: 1 }} />
+          <button className="btn sm ghost" onClick={() => void call(api.openNotificationSettings()).catch(report)}>
+            打开系统设置
+          </button>
+        </div>
+      )}
 
       {view === 'today' && !search && counts.overdue > 0 && (
         <div className="banner warn" role="status">
