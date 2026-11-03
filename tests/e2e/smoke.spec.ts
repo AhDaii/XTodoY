@@ -649,3 +649,23 @@ test('rc.1 反馈：快速切换视图不会白屏；单选框没有多余描边
     .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.getPosition())))
     .toContainEqual([area.x - 8, area.y - 8]);
 });
+
+test('循环"工作日第一天"：按法定节假日与调休生成实例（holiday-cn 内置数据）', async () => {
+  const main = await windowByPage('main');
+  await main.evaluate(() => window.xtodoy.todos.create({ title: '周报', dueDate: '2026-09-14' } as never));
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  await main.locator('.todo', { hasText: '周报' }).click();
+  await main.locator('.prop', { hasText: '循环' }).click();
+  await main.getByRole('combobox', { name: '循环类型' }).click();
+  await main.getByRole('option', { name: /工作日第一天/ }).click();
+  const popover = main.locator('.popover');
+  await expect(popover.locator('.summary')).toHaveText('休息后的第一个工作日');
+  await expect(popover.locator('.preview-dates li')).toHaveText([
+    /^2026-09-14（周一）$/,
+    /^2026-09-20（周日 · 国庆节调休上班）$/,
+    /^2026-09-28（周一 · 中秋节后）$/,
+    /^2026-10-08（周四 · 国庆节后）$/,
+    /^2026-10-12（周一）$/,
+  ]);
+  await expect(popover).toContainText('按法定节假日与调休计算');
+});

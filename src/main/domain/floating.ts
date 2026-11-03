@@ -46,7 +46,12 @@ export function snapToEdges(
 }
 
 /** 记忆的位置是否仍然可见：卡片完整落在某个显示器的工作区内（拔掉副屏后返回 false） */
-export function cardVisible(pos: Point, size: { width: number; height: number }, areas: Rect[], inset: number): boolean {
+export function cardVisible(
+  pos: Point,
+  size: { width: number; height: number },
+  areas: Rect[],
+  inset: number,
+): boolean {
   return areas.some(
     (a) =>
       pos.x + inset >= a.x &&

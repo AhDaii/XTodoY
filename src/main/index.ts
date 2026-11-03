@@ -32,6 +32,7 @@ import { applyQuickAddShortcut } from './platform/shortcut';
 import { applyAutostart, startedAtLogin } from './platform/autostart';
 import { createUpdater } from './platform/updater';
 import { UpdateService } from './services/update';
+import { HolidayService } from './services/holidays';
 import { updateNeedsAttention } from '@shared/update';
 
 // 指定了独立数据目录（测试、试用）时，Chromium 配置与单实例锁也随之隔离，不影响正在运行的正式实例
@@ -191,6 +192,11 @@ void app.whenReady().then(() => {
   });
   app.on('before-quit', () => update.beforeQuit());
 
+  // 法定节假日（工作日循环）：内置数据 + 每周联网更新，更新后推送给主窗口
+  const holidays = new HolidayService(join(dataDir, 'holidays'), s, (data) =>
+    windows.main?.webContents.send(Events.holidaysChanged, data),
+  );
+
   registerIpc({
     todos,
     tags,
@@ -204,6 +210,7 @@ void app.whenReady().then(() => {
     hardwareAcceleration,
     applyShortcut: (acc) => applyQuickAddShortcut(acc, quickAdd),
     update,
+    holidays,
   });
 
   bus.on('today.count', updateTrayCount);
@@ -218,6 +225,7 @@ void app.whenReady().then(() => {
       applyFloatingPrefs({ opacity: s.get().floatingOpacity, locked: s.get().floatingLocked });
     }
     if (patch.autostart !== undefined) applyAutostart(patch.autostart);
+    if (patch.holidayAutoUpdate !== undefined) holidays.arm();
     refreshTrayMenu();
   });
   nativeTheme.on('updated', () => setTitleBarTheme(nativeTheme.shouldUseDarkColors));
@@ -225,6 +233,7 @@ void app.whenReady().then(() => {
   today.start();
   scheduler.start();
   update.start();
+  holidays.start();
   updateTrayCount(today.current);
   app.on('before-quit', () => scheduler.stop());
 

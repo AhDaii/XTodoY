@@ -6,6 +6,7 @@ import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/t
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
 import type { BackupService } from '../services/backup';
+import type { HolidayService } from '../services/holidays';
 import type { SettingsService } from '../services/settings';
 import type { StatsService } from '../services/stats';
 import type { UpdateService } from '../services/update';
@@ -26,6 +27,7 @@ interface Deps {
   stats: StatsService;
   backup: BackupService;
   update: UpdateService;
+  holidays: HolidayService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
@@ -238,6 +240,10 @@ export function registerIpc(d: Deps): void {
     }
     return d.settings.set(k, value);
   });
+
+  // ---- 法定节假日（工作日循环） ----
+  handle(Invoke.holidaysGet, () => d.holidays.all);
+  handle(Invoke.holidaysRefresh, () => d.holidays.refresh());
 
   // ---- 系统：通知权限（FR-REM-09） ----
   handle(Invoke.notificationStatus, () => notificationStatus());
