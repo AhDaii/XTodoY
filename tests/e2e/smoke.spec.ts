@@ -356,10 +356,16 @@ test('悬浮窗透明度设置生效（FR-FLT-05）', async () => {
 
 test('硬件加速为可选项：默认关闭，开启后提示重启，重启后生效', async () => {
   const main = await windowByPage('main');
-  // 关闭时 GPU 合成必然被禁用；开启时是否真正用上 GPU 取决于机器（CI 无显卡会回退软件渲染），
-  // 因此开启后只断言应用确实没有禁用硬件加速
-  const accel = (a: ElectronApplication) => a.evaluate(({ app }) => app.isHardwareAccelerationEnabled());
-  expect(await accel(app)).toBe(false);
+  // 关闭时 Electron 必然报告硬件加速不可用、GPU 合成被禁用（与机器无关）。
+  // 开启时能否真正用上 GPU 取决于机器：CI 虚拟机没有可用显卡，app.isHardwareAccelerationEnabled() 仍为 false，
+  // 所以开启后断言的是应用自身的决定（AppInfo.hardwareAcceleration，即启动时没有调用 disableHardwareAcceleration）
+  const decided = (p: Page) =>
+    p.evaluate(async () => {
+      const r = await window.xtodoy.appInfo();
+      return r.ok ? r.data.hardwareAcceleration : null;
+    });
+  expect(await decided(main)).toBe(false);
+  expect(await app.evaluate(({ app }) => app.isHardwareAccelerationEnabled())).toBe(false);
   expect(await app.evaluate(({ app }) => app.getGPUFeatureStatus().gpu_compositing)).not.toMatch(/^enabled/);
 
   await main.getByRole('button', { name: '设置' }).click();
@@ -381,5 +387,5 @@ test('硬件加速为可选项：默认关闭，开启后提示重启，重启�
   await again.getByRole('button', { name: '设置' }).click();
   await expect(again.getByRole('switch', { name: '硬件加速' })).toHaveAttribute('aria-checked', 'true');
   await expect(again.locator('.restart-hint')).toHaveCount(0);
-  expect(await accel(app)).toBe(true);
+  expect(await decided(again)).toBe(true);
 });
