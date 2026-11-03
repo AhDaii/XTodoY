@@ -270,6 +270,17 @@ function DatePicker({
 }) {
   const base = todo.dueDate ?? today();
   const [month, setMonth] = useState(base.slice(0, 7));
+  // 时间先在本地更新（勾选"全天"立即生效），再在后台保存；保存结果回来后与之同步
+  const [time, setTimeLocal] = useState(todo.dueTime);
+  const [savedTime, setSavedTime] = useState(todo.dueTime);
+  if (savedTime !== todo.dueTime) {
+    setSavedTime(todo.dueTime);
+    setTimeLocal(todo.dueTime);
+  }
+  const setTime = (t: string | null) => {
+    setTimeLocal(t);
+    onChange({ dueTime: t });
+  };
   const [y, m] = month.split('-').map(Number) as [number, number];
   const pad = (new Date(y, m - 1, 1).getDay() - weekStart + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, i) => ymd(new Date(y, m - 1, 1 - pad + i)));
@@ -333,9 +344,9 @@ function DatePicker({
       <label className="check-row">
         <input
           type="checkbox"
-          checked={!todo.dueTime}
+          checked={time === null}
           disabled={!todo.dueDate}
-          onChange={(e) => onChange({ dueTime: e.target.checked ? null : '09:00' })}
+          onChange={(e) => setTime(e.target.checked ? null : '09:00')}
         />
         全天
       </label>
@@ -347,9 +358,9 @@ function DatePicker({
           id="due-time"
           type="time"
           className="input"
-          value={todo.dueTime ?? '09:00'}
-          disabled={!todo.dueTime}
-          onChange={(e) => e.target.value && onChange({ dueTime: e.target.value })}
+          value={time ?? '09:00'}
+          disabled={time === null}
+          onChange={(e) => e.target.value && setTime(e.target.value)}
         />
       </div>
     </div>
