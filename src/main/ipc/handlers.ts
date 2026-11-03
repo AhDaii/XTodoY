@@ -17,7 +17,7 @@ import * as v from '../services/validate';
 import { localDate } from '../domain/time';
 import { showReminder } from '../platform/notifier';
 import { notificationStatus, openNotificationSettings } from '../platform/notify-status';
-import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
+import { destroyFloatingWindow, moveFloatingBy, showMainWindow, snapFloating, windows } from '../platform/windows';
 
 interface Deps {
   todos: TodoService;
@@ -270,7 +270,7 @@ export function registerIpc(d: Deps): void {
     }
   });
   ipcMain.on(Send.floatingDragEnd, () => {
-    const p = floatingPosition();
+    const p = snapFloating();
     if (p) d.settings.set('floatingPos', p);
   });
   // 悬浮窗右键菜单（FR-FLT-05）

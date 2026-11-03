@@ -123,7 +123,11 @@ export function ListPage({
   const sub = search ? '在标题与备注中匹配（不含回收站）' : tag ? tag.displayPath : view ? VIEW_META[view].sub() : '';
   const total = (groups ?? []).reduce((n, g) => n + g.items.length, 0);
   const todayAllDone =
-    view === 'today' && !search && groups && groups[0]!.items.length === 0 && groups[1]!.items.length > 0;
+    view === 'today' &&
+    !search &&
+    groups?.length === 2 &&
+    groups[0]!.items.length === 0 &&
+    groups[1]!.items.length > 0;
   const emptyKey = search ? 'search' : tag ? 'tag' : (view ?? 'today');
   const [ic, h, p] = EMPTY[emptyKey]!;
 

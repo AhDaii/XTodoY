@@ -3,6 +3,7 @@ import { app, BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConst
 const isMac = process.platform === 'darwin';
 import { Events } from '@shared/ipc';
 import { preloadPath, rendererEntry } from '../app/paths';
+import { cardVisible, clampToArea, snapToEdges } from '../domain/floating';
 
 // 64 × 78 日历页 + 四周 8 px 投影（设计系统 §7.5）
 const FLOATING_W = 80;
@@ -36,6 +37,10 @@ function pushTheme(win: BrowserWindow): void {
 
 function load(win: BrowserWindow, page: 'main' | 'floating'): void {
   pushTheme(win);
+  // 渲染进程的错误写入主进程日志（安装版为 logs/main.log），否则界面出错时无从排查（NFR-REL-04）
+  win.webContents.on('console-message', (e) => {
+    if (e.level === 'error') console.error(`[renderer:${page}] ${e.message} (${e.sourceId}:${e.lineNumber})`);
+  });
   const entry = rendererEntry(page);
   if (entry.url) void win.loadURL(entry.url);
   else void win.loadFile(entry.file!);
@@ -152,18 +157,30 @@ export function applyFloatingPrefs(p: { opacity: number; locked: boolean }): voi
   windows.floating?.setOpacity(p.opacity / 100);
 }
 
+const FLOATING_SIZE = { width: FLOATING_W, height: FLOATING_H };
+/** 窗口四周透明的投影留白；卡片 = 窗口向内缩 8 px */
+const CARD_INSET = 8;
+
+/** 鼠标所在显示器的工作区：拖到另一块屏幕时随之切换 */
+const areaUnderCursor = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+
+/** 拖动：卡片始终完整留在鼠标所在屏幕的工作区内（rc.1 反馈：拖到边缘时显示不全） */
 export function moveFloatingBy(dx: number, dy: number): void {
   const win = windows.floating;
   if (!win || floatingLocked) return;
   const [x = 0, y = 0] = win.getPosition();
-  win.setPosition(Math.round(x + dx), Math.round(y + dy));
+  const p = clampToArea({ x: x + dx, y: y + dy }, FLOATING_SIZE, areaUnderCursor(), CARD_INSET);
+  win.setPosition(p.x, p.y);
 }
 
-export function floatingPosition(): { x: number; y: number } | null {
+/** 松开：靠近屏幕边缘（20 px 内）时贴边吸附，返回最终位置 */
+export function snapFloating(): { x: number; y: number } | null {
   const win = windows.floating;
   if (!win) return null;
   const [x = 0, y = 0] = win.getPosition();
-  return { x, y };
+  const p = snapToEdges({ x, y }, FLOATING_SIZE, areaUnderCursor(), CARD_INSET);
+  win.setPosition(p.x, p.y);
+  return p;
 }
 
 function defaultPosition(): { x: number; y: number } {
@@ -177,8 +194,7 @@ function defaultPosition(): { x: number; y: number } {
 /** 记忆位置所在的显示器已不存在或超出屏幕时返回 null（FR-FLT-04） */
 function validPosition(p?: { x: number; y: number }): { x: number; y: number } | null {
   if (!p) return null;
-  const visible = screen.getAllDisplays().some(({ workArea: a }) => {
-    return p.x >= a.x && p.y >= a.y && p.x + FLOATING_W <= a.x + a.width && p.y + FLOATING_H <= a.y + a.height;
-  });
-  return visible ? p : null;
+  // 按卡片判断（贴边吸附时窗口的透明留白会超出屏幕）
+  const areas = screen.getAllDisplays().map((d) => d.workArea);
+  return cardVisible(p, FLOATING_SIZE, areas, CARD_INSET) ? p : null;
 }

@@ -1,4 +1,9 @@
-@import 'tailwindcss';
+/*
+ * 只引入 Tailwind 的基础样式重置（preflight），不生成工具类：界面样式全部在 app.css 中（来自设计系统）。
+ * 引入完整的 tailwindcss 时，它会扫描源码里的单词生成同名工具类，与我们的类名冲突——
+ * 例如单选框内的 .ring 被加上 Tailwind 的 ring（1px box-shadow），显示成"彩色圈外再套一圈灰边"（rc.1 反馈）。
+ */
+@import 'tailwindcss/preflight.css' layer(base);
 @import '../../../design/tokens.css';
 @import './app.css';
 
