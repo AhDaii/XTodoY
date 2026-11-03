@@ -65,6 +65,31 @@ const validators: Validators = {
       return { today: o['today'], plan: o['plan'], all: o['all'], tag: o['tag'] } as Settings['listSort'];
     throw invalid('排序方式取值不正确');
   },
+  autoCheckUpdate: (v) => bool(v, '自动检查更新'),
+  autoDownloadUpdate: (v) => bool(v, '自动下载更新'),
+  updateChannel: (v) => {
+    if (v === 'stable' || v === 'beta') return v;
+    throw invalid('更新通道取值不正确');
+  },
+  update: (v) => {
+    const o = v as Record<string, unknown>;
+    const ver = (x: unknown) => x === null || (typeof x === 'string' && x.length <= 64);
+    if (
+      typeof o === 'object' &&
+      o !== null &&
+      (o['lastCheckAt'] === null || Number.isFinite(o['lastCheckAt'])) &&
+      ['skipped', 'notifiedAvailable', 'notifiedReady', 'lastRunVersion', 'banner'].every((k) => ver(o[k]))
+    )
+      return {
+        lastCheckAt: o['lastCheckAt'] as number | null,
+        skipped: o['skipped'] as string | null,
+        notifiedAvailable: o['notifiedAvailable'] as string | null,
+        notifiedReady: o['notifiedReady'] as string | null,
+        lastRunVersion: o['lastRunVersion'] as string | null,
+        banner: o['banner'] as string | null,
+      };
+    throw invalid('更新状态取值不正确');
+  },
   quickAddShortcut: (v) => {
     if (v === null || (typeof v === 'string' && isValidAccelerator(v))) return v;
     throw invalid('快捷键需要包含 Ctrl、Alt 或 Win 之一，再加一个按键');

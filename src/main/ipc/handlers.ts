@@ -8,6 +8,7 @@ import { AppError, invalid } from '../services/errors';
 import type { BackupService } from '../services/backup';
 import type { SettingsService } from '../services/settings';
 import type { StatsService } from '../services/stats';
+import type { UpdateService } from '../services/update';
 import type { TagService } from '../services/tags';
 import type { TodayService } from '../services/today';
 import type { TodoService } from '../services/todos';
@@ -23,6 +24,7 @@ interface Deps {
   settings: SettingsService;
   stats: StatsService;
   backup: BackupService;
+  update: UpdateService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
@@ -114,6 +116,22 @@ export function registerIpc(d: Deps): void {
       throw new AppError('IMPORT_INVALID', '不是有效的 JSON 备份文件');
     }
     return d.backup.importData(raw);
+  });
+
+  // ---- 更新（SRS F10）----
+  handle(Invoke.updateGetStatus, () => d.update.status);
+  handle(Invoke.updateCheck, () => d.update.check(true));
+  handle(Invoke.updateDownload, () => void d.update.download());
+  handle(Invoke.updateCancel, () => d.update.cancel());
+  handle(Invoke.updateInstallNow, () => d.update.installNow());
+  handle(Invoke.updateSkip, () => d.update.skip());
+  handle(Invoke.updateLater, () => d.update.later());
+  handle(Invoke.updateDismissBanner, () => d.update.dismissBanner());
+  // 只允许打开项目自己的 GitHub 页面（发布页、主页）
+  handle(Invoke.openExternal, async (url) => {
+    const u = v.str(url, '链接', { max: 200 });
+    if (!/^https:\/\/github\.com\/AhDaii\/XTodoY(\/[\w./-]*)?$/.test(u)) throw invalid('不支持打开该链接');
+    await shell.openExternal(u);
   });
 
   // ---- 统计 ----

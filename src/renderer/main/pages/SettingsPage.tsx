@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import type { AppInfo, DataInfo } from '@shared/ipc';
 import { acceleratorFromEvent, displayAccelerator } from '@shared/shortcut';
 import type { Settings } from '@shared/types';
+import type { UpdateStatus } from '@shared/update';
 import { Icon, type IconName } from '../components/Icon';
 import { Dialog } from '../components/Overlay';
+import { UpdateSection } from '../components/Update';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
@@ -28,7 +30,7 @@ function Switch(p: { id: string; label: string; hint: string; checked: boolean; 
   );
 }
 
-export function SettingsPage({ settings }: { settings: Settings }) {
+export function SettingsPage({ settings, update }: { settings: Settings; update: UpdateStatus | null }) {
   const report = useReportError();
   const [info, setInfo] = useState<AppInfo | null>(null);
   useEffect(() => void call(api.appInfo()).then(setInfo).catch(report), [report]);
@@ -295,6 +297,8 @@ export function SettingsPage({ settings }: { settings: Settings }) {
         </section>
 
         <DataSection />
+
+        {update && <UpdateSection status={update} settings={settings} />}
 
         <section>
           <h2>关于</h2>

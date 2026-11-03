@@ -1,6 +1,7 @@
 // 主进程与渲染进程共用的 IPC 通道与 API 类型（完整说明见 docs/design/ipc.md）
 import type { RepeatRule } from './recurrence';
 import type { Stats, StatsQuery } from './stats';
+import type { UpdateStatus } from './update';
 import type {
   ListQuery,
   ReminderSpec,
@@ -52,8 +53,8 @@ export interface ImportSummary {
 export interface NavRequest {
   view?: 'today' | 'settings';
   todoId?: string;
-  /** 打开后聚焦的输入框（托盘 / 悬浮窗"新建待办"） */
-  focus?: 'quick-add';
+  /** 打开后聚焦的输入框（托盘 / 悬浮窗"新建待办"）或更新详情（更新通知） */
+  focus?: 'quick-add' | 'update';
 }
 
 /** 请求 / 响应通道（ipcRenderer.invoke），返回值统一为 Result<T> */
@@ -92,6 +93,15 @@ export const Invoke = {
   dataExport: 'data:export',
   dataImport: 'data:import',
   dataOpenFolder: 'data:openFolder',
+  updateGetStatus: 'update:getStatus',
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateCancel: 'update:cancel',
+  updateInstallNow: 'update:installNow',
+  updateSkip: 'update:skip',
+  updateLater: 'update:later',
+  updateDismissBanner: 'update:dismissBanner',
+  openExternal: 'app:openExternal',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -110,6 +120,7 @@ export const Events = {
   todayCount: 'today:count',
   themeChanged: 'theme:changed',
   navOpen: 'nav:open',
+  updateStatus: 'update:status',
 } as const;
 
 type R<T> = Promise<Result<T>>;
@@ -160,6 +171,19 @@ export interface XtodoyApi {
     importJson(): R<ImportSummary | null>;
     openFolder(): R<void>;
   };
+  /** 更新（SRS F10） */
+  update: {
+    status(): R<UpdateStatus>;
+    check(): R<UpdateStatus>;
+    download(): R<void>;
+    cancel(): R<void>;
+    installNow(): R<void>;
+    skip(): R<void>;
+    later(): R<void>;
+    dismissBanner(): R<void>;
+  };
+  /** 用系统浏览器打开发布页等白名单链接 */
+  openExternal(url: string): R<void>;
   /** 重启程序（例如切换硬件加速后） */
   relaunch(): R<void>;
   on: {
@@ -169,6 +193,7 @@ export interface XtodoyApi {
     todayCount(cb: (c: TodayCount) => void): () => void;
     themeChanged(cb: (p: { dark: boolean }) => void): () => void;
     navOpen(cb: (n: NavRequest) => void): () => void;
+    updateStatus(cb: (s: UpdateStatus) => void): () => void;
   };
 }
 

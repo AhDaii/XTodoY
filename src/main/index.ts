@@ -26,7 +26,11 @@ import { localDate } from './domain/time';
 import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
 import { readHardwareAcceleration } from './app/launch-prefs';
+import { installFileLog } from './app/log';
 import { applyQuickAddShortcut } from './platform/shortcut';
+import { createUpdater } from './platform/updater';
+import { UpdateService } from './services/update';
+import { updateNeedsAttention } from '@shared/update';
 
 // 指定了独立数据目录（测试、试用）时，Chromium 配置与单实例锁也随之隔离，不影响正在运行的正式实例
 const customDataDir = process.env['XTODOY_DATA_DIR'];
@@ -38,6 +42,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
+// 安装版没有控制台：主进程日志写入数据目录（FR-UPD-09）
+if (app.isPackaged) installFileLog(dataDir);
 
 // 硬件加速默认关闭：界面没有重度动画，软件渲染足够，常驻内存约少 20%（spike-report.md §1）。
 // 用户可在"设置 › 外观"中开启，重启后生效；XTODOY_ENABLE_GPU=1 可临时强制开启。
@@ -151,6 +157,25 @@ void app.whenReady().then(() => {
   if (!applyQuickAddShortcut(s.get().quickAddShortcut, quickAdd))
     console.warn(`[shortcut] ${s.get().quickAddShortcut} 已被其他程序占用`);
 
+  // 更新（SRS F10）：状态推送到主窗口与托盘；通知每个版本最多一次
+  const openUpdate = () => openMain({ view: 'settings', focus: 'update' });
+  const update = new UpdateService(app.getVersion(), createUpdater(), s, {
+    status: (st) => {
+      windows.main?.webContents.send(Events.updateStatus, st);
+      refreshTrayMenu();
+    },
+    notify: (kind, version) =>
+      kind === 'available'
+        ? showInfo(`XTodoY ${version} 可以更新了`, '单击查看更新内容', openUpdate)
+        : showInfo(
+            'XTodoY 更新已就绪',
+            `${version} 已下载并通过校验，重启后生效；不重启则在退出时自动安装`,
+            openUpdate,
+          ),
+    backup: () => backup.snapshot('pre-update'),
+  });
+  app.on('before-quit', () => update.beforeQuit());
+
   registerIpc({
     todos,
     tags,
@@ -163,6 +188,7 @@ void app.whenReady().then(() => {
     schemaVersion: opened.schemaVersion,
     hardwareAcceleration,
     applyShortcut: (acc) => applyQuickAddShortcut(acc, quickAdd),
+    update,
   });
 
   bus.on('today.count', updateTrayCount);
@@ -183,6 +209,7 @@ void app.whenReady().then(() => {
   watchPower();
   today.start();
   scheduler.start();
+  update.start();
   updateTrayCount(today.current);
   app.on('before-quit', () => scheduler.stop());
 
@@ -199,7 +226,17 @@ void app.whenReady().then(() => {
     },
     resumeReminders: () => s.set('pausedUntil', null),
     pausedUntil: () => s.get().pausedUntil,
-    checkUpdate: () => openMain({ view: 'settings' }),
+    checkUpdate: () => {
+      openUpdate();
+      void update.check(true);
+    },
+    update: () => {
+      const st = update.status;
+      if (!updateNeedsAttention(st)) return null;
+      return st.phase === 'ready'
+        ? { label: '重启以完成更新', ready: true, click: () => update.installNow() }
+        : { label: `新版本 ${st.latest} 可用`, ready: false, click: openUpdate };
+    },
     openSettings: () => openMain({ view: 'settings' }),
     quit: () => app.quit(),
   });

@@ -510,3 +510,59 @@ test('排序：按视图记忆排序方式；手动模式下拖拽与 Alt+↑↓
   await expect(main.getByRole('combobox', { name: '排序方式' })).toContainText('手动');
   await expect.poll(() => order(main)).toEqual(['丙', '乙', '甲']);
 });
+
+async function relaunch(env: Record<string, string>) {
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir, ...env } });
+  return windowByPage('main');
+}
+
+test('更新：手动检查 → 后台下载 → 就绪，侧边栏圆点与更新详情（FR-UPD-02/03/04/06）', async () => {
+  let main = await windowByPage('main');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  // 开发环境默认不检查更新
+  await expect(main.locator('.update-status')).toContainText('开发环境不检查更新');
+
+  main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const status = main.locator('.update-status');
+  await status.getByRole('button', { name: '检查更新' }).click();
+  await expect(status).toContainText('正在下载 9.9.0');
+  await expect(status.getByRole('progressbar', { name: '下载进度' })).toBeVisible();
+  await expect(status).toContainText('更新已就绪', { timeout: 10_000 });
+  await expect(main.locator('.nav-item .badge-dot')).toHaveAttribute('aria-label', '更新已就绪');
+
+  await status.getByRole('button', { name: '查看更新内容' }).click();
+  const dlg = main.getByRole('dialog', { name: 'XTodoY 9.9.0 更新内容' });
+  await expect(dlg.locator('.rn-new')).toHaveText('新增');
+  await expect(dlg.locator('.rn-fix')).toHaveText('修复');
+  await expect(dlg.getByRole('button', { name: '立即重启并更新' })).toBeVisible();
+  await dlg.getByRole('button', { name: '稍后' }).click();
+  await expect(dlg).toHaveCount(0);
+});
+
+test('更新：关闭自动下载后手动下载、跳过版本；检查失败显示原因（FR-UPD-03/08/09）', async () => {
+  let main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  // 关闭自动检查时"自动下载"置灰
+  await main.getByRole('switch', { name: '自动检查更新' }).click();
+  await expect(main.getByRole('switch', { name: '自动下载更新' })).toBeDisabled();
+  await main.getByRole('switch', { name: '自动检查更新' }).click();
+  await main.getByRole('switch', { name: '自动下载更新' }).click();
+
+  const status = main.locator('.update-status');
+  await status.getByRole('button', { name: '检查更新' }).click();
+  await expect(status).toContainText('发现新版本 9.9.0');
+  await expect(main.locator('.nav-item .badge-dot')).toHaveAttribute('aria-label', '新版本 9.9.0 可用');
+  await status.getByRole('button', { name: '查看更新内容' }).click();
+  await main.getByRole('button', { name: '跳过此版本' }).click();
+  await expect(main.locator('.toast')).toContainText('已跳过 9.9.0');
+  await expect(main.locator('.nav-item .badge-dot')).toHaveCount(0);
+  await expect(status).toContainText('已跳过此版本');
+
+  main = await relaunch({ XTODOY_FAKE_UPDATE: '9.9.0,fail-check' });
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await main.locator('.update-status').getByRole('button', { name: '检查更新' }).click();
+  await expect(main.locator('.update-status')).toContainText('无网络连接');
+  await expect(main.locator('.update-status').getByRole('button', { name: '前往下载页' })).toBeVisible();
+});

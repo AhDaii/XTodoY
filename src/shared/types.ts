@@ -152,6 +152,19 @@ export interface Settings {
   /** 全局快捷键：在任意程序中打开主窗口并聚焦快速新建（FR-SET-08），null 为关闭 */
   quickAddShortcut: string | null;
   listSort: Record<SortScope, SortMode>;
+  /** 更新（FR-UPD-08） */
+  autoCheckUpdate: boolean;
+  autoDownloadUpdate: boolean;
+  updateChannel: 'stable' | 'beta';
+  /** 更新状态（DR-07）：上次检查、跳过的版本、已通知的版本、上次运行的版本与更新后横幅 */
+  update: {
+    lastCheckAt: number | null;
+    skipped: string | null;
+    notifiedAvailable: string | null;
+    notifiedReady: string | null;
+    lastRunVersion: string | null;
+    banner: string | null;
+  };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -173,4 +186,15 @@ export const DEFAULT_SETTINGS: Settings = {
   hardwareAcceleration: false,
   quickAddShortcut: 'Ctrl+Alt+T',
   listSort: { today: 'due', plan: 'due', all: 'due', tag: 'due' },
+  autoCheckUpdate: true,
+  autoDownloadUpdate: true,
+  updateChannel: 'stable',
+  update: {
+    lastCheckAt: null,
+    skipped: null,
+    notifiedAvailable: null,
+    notifiedReady: null,
+    lastRunVersion: null,
+    banner: null,
+  },
 };

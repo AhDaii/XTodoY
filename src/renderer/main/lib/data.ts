@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Settings, TagNode, TodoGroup, ViewCounts } from '@shared/types';
 import type { Stats, StatsQuery } from '@shared/stats';
+import type { UpdateStatus } from '@shared/update';
 import { api, call } from './api';
 import { useUi, type Route } from './store';
 
@@ -73,4 +74,19 @@ export function useStats(q: StatsQuery): Stats | null {
     [api.on.todosChanged, api.on.tagsChanged, api.on.settingsChanged],
     JSON.stringify(q),
   );
+}
+
+/** 更新状态：初次拉取，之后由主进程推送 update:status */
+export function useUpdateStatus(): UpdateStatus | null {
+  const [s, setS] = useState<UpdateStatus | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void call(api.update.status()).then((x) => alive && setS(x), console.error);
+    const off = api.on.updateStatus(setS);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  return s;
 }

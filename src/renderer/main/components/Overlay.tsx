@@ -35,7 +35,17 @@ export function Toast() {
 }
 
 /** 模态对话框：Esc / 点击遮罩关闭，打开时焦点落在第一个按钮 */
-export function Dialog({ onClose, children, label }: { onClose: () => void; children: ReactNode; label: string }) {
+export function Dialog({
+  onClose,
+  children,
+  label,
+  className = '',
+}: {
+  onClose: () => void;
+  children: ReactNode;
+  label: string;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[data-autofocus], button')?.focus();
@@ -46,7 +56,7 @@ export function Dialog({ onClose, children, label }: { onClose: () => void; chil
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={label} ref={ref}>
+      <div className={`dialog ${className}`} role="dialog" aria-modal="true" aria-label={label} ref={ref}>
         {children}
       </div>
     </div>

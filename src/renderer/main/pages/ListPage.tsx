@@ -4,6 +4,7 @@ import { EmptyState } from '../components/Overlay';
 import { Icon, type IconName } from '../components/Icon';
 import { Select } from '../components/Select';
 import { TodoRow } from '../components/TodoRow';
+import { UpdatedBanner } from '../components/Update';
 import { useTodoActions } from '../lib/actions';
 import { api, call } from '../lib/api';
 import { useGroups, useReportError } from '../lib/data';
@@ -44,10 +45,13 @@ export function ListPage({
   tags,
   counts,
   settings,
+  updatedTo,
 }: {
   tags: TagNode[];
   counts: ViewCounts;
   settings: Settings | null;
+  /** 更新后首次启动：显示"已更新到"横幅（FR-UPD-11） */
+  updatedTo: string | null;
 }) {
   const { route, search, includeChildren, selectedId, collapsedGroups } = useUi();
   const ui = useUi.getState;
@@ -155,6 +159,8 @@ export function ListPage({
           </button>
         )}
       </header>
+
+      {updatedTo && !search && <UpdatedBanner version={updatedTo} />}
 
       {view === 'today' && !search && counts.overdue > 0 && (
         <div className="banner warn" role="status">
