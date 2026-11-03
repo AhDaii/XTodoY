@@ -1,5 +1,6 @@
 // 生成界面截图供人工比对原型（不参与 CI）：SCREENS=1 pnpm exec playwright test screens
 import { _electron as electron, expect, test } from '@playwright/test';
+import Database from 'better-sqlite3';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -73,6 +74,7 @@ test('界面截图', async () => {
     await x.todos.toggle(run);
   });
   await w.waitForTimeout(500);
+  seedHistory(join(dataDir, 'xtodoy.db'));
 
   for (const theme of ['light', 'dark'] as const) {
     await w.evaluate((t) => window.xtodoy.settings.set('theme', t), theme);
@@ -99,6 +101,20 @@ test('界面截图', async () => {
     await w.locator('.sidebar-footer .nav-item', { hasText: '标签管理' }).click();
     await w.waitForTimeout(300);
     await w.screenshot({ path: `${out}/${theme}-tags.png` });
+    await w.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+    for (const p of ['日', '周', '月'] as const) {
+      await w.getByRole('group', { name: '统计维度' }).getByRole('button', { name: p }).click();
+      await w.waitForTimeout(300);
+      await w.screenshot({ path: `${out}/${theme}-stats-${p === '日' ? 'day' : p === '周' ? 'week' : 'month'}.png` });
+    }
+    await w.locator('.main-scroll').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await w.waitForTimeout(200);
+    await w.screenshot({ path: `${out}/${theme}-stats-month-bottom.png` });
+    await w.locator('.legend-btn').first().click();
+    await w.waitForTimeout(300);
+    await w.locator('.main-scroll').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await w.screenshot({ path: `${out}/${theme}-stats-drill.png` });
+    await w.getByRole('button', { name: '全部标签' }).click();
     await w.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
     await w.waitForTimeout(300);
     await w.screenshot({ path: `${out}/${theme}-settings.png` });
@@ -120,3 +136,30 @@ test('界面截图', async () => {
   await app.close();
   rmSync(dataDir, { recursive: true, force: true });
 });
+
+/** 写入过去 40 天的完成记录（完成时间无法通过界面伪造），用于统计页截图 */
+function seedHistory(file: string): void {
+  const db = new Database(file);
+  db.pragma('busy_timeout = 3000');
+  const roots = db.prepare('SELECT id FROM tags WHERE parent_id IS NULL ORDER BY sort_key').pluck().all() as string[];
+  const insert = db.prepare(
+    `INSERT INTO completion_logs (id, todo_id, occurrence_date, completed_at, completed_local_date,
+       completed_local_hour, title_snapshot, root_tag_id) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?)`,
+  );
+  const titles = ['回复邮件', '整理会议纪要', '代码评审', '晨跑 5 公里', '背单词', '更新周报', '读书 30 分钟'];
+  let seq = 0;
+  db.transaction(() => {
+    for (let back = 40; back >= 1; back--) {
+      const n = back % 7 === 3 ? 0 : ((back * 7) % 5) + (back < 8 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const t = new Date();
+        t.setDate(t.getDate() - back);
+        t.setHours(8 + ((back + i * 3) % 12), (i * 17) % 60, 0, 0);
+        const date = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+        const tag = (back + i) % 4 === 3 ? null : (roots[(back + i) % roots.length] ?? null);
+        insert.run(`seed-${seq++}`, t.getTime(), date, t.getHours(), titles[(back + i) % titles.length], tag);
+      }
+    }
+  })();
+  db.close();
+}

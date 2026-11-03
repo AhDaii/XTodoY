@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Settings, TagNode, TodoGroup, ViewCounts } from '@shared/types';
+import type { Stats, StatsQuery } from '@shared/stats';
 import { api, call } from './api';
 import { useUi, type Route } from './store';
 
@@ -61,4 +62,14 @@ export function useSettings(): Settings | null {
 export function useReportError(): (e: unknown) => void {
   const showToast = useUi((s) => s.showToast);
   return useCallback((e: unknown) => showToast(e instanceof Error ? e.message : '操作失败，请重试'), [showToast]);
+}
+
+/** 统计页数据：事项、标签或设置（周起始日）变化后自动刷新 */
+export function useStats(q: StatsQuery): Stats | null {
+  return useLive<Stats | null>(
+    () => call(api.stats(q)),
+    null,
+    [api.on.todosChanged, api.on.tagsChanged, api.on.settingsChanged],
+    JSON.stringify(q),
+  );
 }

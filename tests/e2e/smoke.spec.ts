@@ -389,3 +389,36 @@ test('硬件加速为可选项：默认关闭，开启后提示重启，重启�
   await expect(again.locator('.restart-hint')).toHaveCount(0);
   expect(await decided(again)).toBe(true);
 });
+
+test('统计：完成后计入日 / 周 / 月统计，明细可跳回事项（FR-STA-02/05）', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '写周报');
+  await addTodo(main, '回复邮件');
+  await main.getByRole('checkbox', { name: '完成：写周报' }).click();
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  const dims = main.getByRole('group', { name: '统计维度' });
+  // 默认周视图：摘要卡片、到期完成率（今天到期 2 项完成 1 项）
+  await expect(main.getByLabel('完成数').locator('.hero-num .num')).toHaveText('1');
+  await expect(main.locator('.ring-txt')).toHaveText('50%');
+  await expect(main.getByLabel('连续完成天数').locator('.hero-num .num')).toHaveText('1');
+  await expect(main.getByRole('img', { name: /本周每天完成数折线图/ })).toBeVisible();
+
+  await dims.getByRole('button', { name: '日' }).click();
+  await expect(main.locator('.timeline li')).toHaveCount(1);
+  await expect(main.getByRole('button', { name: '下一天' })).toBeDisabled();
+  await main.getByRole('button', { name: '上一天' }).click();
+  await expect(main.locator('.period')).toHaveText('昨天');
+  await expect(main.getByText('这一天还没有完成记录')).toBeVisible();
+  await main.getByRole('button', { name: '回到本期' }).click();
+
+  await dims.getByRole('button', { name: '月' }).click();
+  await expect(main.locator('.hm-cell.is-today .nn')).toHaveText('1');
+
+  // 取消完成后统计同步减少
+  await main.locator('.log-list').getByRole('button', { name: '写周报' }).click();
+  await expect(main.locator('.detail')).toBeVisible();
+  await main.getByRole('checkbox', { name: '完成：写周报' }).click();
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  await expect(main.getByLabel('完成数').locator('.hero-num .num')).toHaveText('0');
+});

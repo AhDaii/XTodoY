@@ -2320,3 +2320,54 @@ a {
 .setting.restart-hint .txt span {
   color: var(--primary-soft-foreground);
 }
+
+/* 统计：标签分布下钻、明细标题跳转 */
+.donut-legend li:has(> .legend-btn) {
+  display: block;
+}
+.legend-btn {
+  display: grid;
+  grid-template-columns: 10px 1fr auto 40px;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin: -2px -6px;
+  padding: 2px 6px;
+  box-sizing: content-box;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.legend-btn:hover {
+  background: var(--surface-hover);
+}
+.legend-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 0;
+}
+.panel h2 .drill-back {
+  margin-left: auto;
+}
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.link-btn:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

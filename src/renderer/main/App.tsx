@@ -8,7 +8,8 @@ import { api, call } from './lib/api';
 import { useCounts, useReportError, useSettings, useTagTree } from './lib/data';
 import { useUi } from './lib/store';
 import { ListPage } from './pages/ListPage';
-import { SettingsPage, StatsPage } from './pages/SettingsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { StatsPage } from './pages/StatsPage';
 import { TagsPage } from './pages/TagsPage';
 
 const VIEW_KEYS: SmartView[] = ['today', 'plan', 'all', 'done', 'trash'];
@@ -77,7 +78,7 @@ export function App() {
   ) : route.page === 'settings' && settings ? (
     <SettingsPage settings={settings} />
   ) : (
-    <StatsPage />
+    <StatsPage weekStart={settings?.weekStart ?? 1} />
   );
 
   return (

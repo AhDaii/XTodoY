@@ -311,25 +311,3 @@ export function SettingsPage({ settings }: { settings: Settings }) {
     </main>
   );
 }
-
-export function StatsPage() {
-  return (
-    <main className="main" aria-label="统计">
-      <header className="main-header">
-        <div>
-          <h1>统计</h1>
-          <div className="sub">日 / 周 / 月完成统计</div>
-        </div>
-      </header>
-      <div className="main-scroll">
-        <div className="empty">
-          <div className="badge">
-            <Icon name="chart" size={28} />
-          </div>
-          <h2>统计将在下一个迭代提供</h2>
-          <p>完成记录已经在记录中，届时可直接查看历史数据。</p>
-        </div>
-      </div>
-    </main>
-  );
-}

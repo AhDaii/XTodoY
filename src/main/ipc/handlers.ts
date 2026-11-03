@@ -1,9 +1,11 @@
 import { app, ipcMain, Menu, nativeTheme, type IpcMainInvokeEvent } from 'electron';
 import { Events, Invoke, Send, type AppInfo, type NavRequest, type Result } from '@shared/ipc';
+import type { StatsPeriodKind } from '@shared/stats';
 import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/types';
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
 import type { SettingsService } from '../services/settings';
+import type { StatsService } from '../services/stats';
 import type { TagService } from '../services/tags';
 import type { TodayService } from '../services/today';
 import type { TodoService } from '../services/todos';
@@ -16,6 +18,7 @@ interface Deps {
   todos: TodoService;
   tags: TagService;
   settings: SettingsService;
+  stats: StatsService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
@@ -67,6 +70,19 @@ export function registerIpc(d: Deps): void {
     app.quit();
   });
   handle(Invoke.todayGet, () => d.today.current);
+
+  // ---- 统计 ----
+  handle(Invoke.statsGet, (q) => {
+    const o = v.obj(q, ['period', 'offset', 'tagId']);
+    if (!['day', 'week', 'month'].includes(o.period as string)) throw invalid('统计维度不正确');
+    if (!Number.isInteger(o.offset) || (o.offset as number) > 0 || (o.offset as number) < -1200)
+      throw invalid('统计周期不正确');
+    return d.stats.get({
+      period: o.period as StatsPeriodKind,
+      offset: o.offset as number,
+      tagId: o.tagId === undefined || o.tagId === null ? undefined : v.id(o.tagId, '标签'),
+    });
+  });
 
   // ---- 待办 ----
   handle(Invoke.todoList, (q) => d.todos.list(listQuery(q)));

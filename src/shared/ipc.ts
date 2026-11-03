@@ -1,5 +1,6 @@
 // 主进程与渲染进程共用的 IPC 通道与 API 类型（完整说明见 docs/design/ipc.md）
 import type { RepeatRule } from './recurrence';
+import type { Stats, StatsQuery } from './stats';
 import type {
   ListQuery,
   ReminderSpec,
@@ -73,6 +74,7 @@ export const Invoke = {
   settingsSet: 'settings:set',
   testNotify: 'system:testNotify',
   relaunch: 'app:relaunch',
+  statsGet: 'stats:get',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -132,6 +134,8 @@ export interface XtodoyApi {
     set<K extends keyof Settings>(key: K, value: Settings[K]): R<Settings>;
   };
   testNotify(): R<void>;
+  /** 统计页数据（SRS F8） */
+  stats(q: StatsQuery): R<Stats>;
   /** 重启程序（例如切换硬件加速后） */
   relaunch(): R<void>;
   on: {

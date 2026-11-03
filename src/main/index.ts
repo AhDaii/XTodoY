@@ -15,6 +15,7 @@ import {
   windows,
 } from './platform/windows';
 import { SettingsService } from './services/settings';
+import { StatsService } from './services/stats';
 import { TagService } from './services/tags';
 import { TodayService } from './services/today';
 import { TodoService } from './services/todos';
@@ -137,6 +138,7 @@ void app.whenReady().then(() => {
     todos,
     tags,
     settings: s,
+    stats: new StatsService(db, () => s.get()),
     today,
     scheduler,
     dataDir,
