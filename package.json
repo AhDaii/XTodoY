@@ -1,7 +1,7 @@
 {
   "name": "xtodoy",
   "productName": "XTodoY",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "description": "轻量、常驻后台的 PC 桌面待办软件",
   "author": "AhDaii",
   "license": "UNLICENSED",
@@ -34,6 +34,7 @@
     "fractional-indexing": "^4.0.0"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.64.1",
     "@radix-ui/react-select": "^2.4.1",

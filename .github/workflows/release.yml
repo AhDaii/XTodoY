@@ -10,18 +10,41 @@ permissions:
   contents: write
 
 jobs:
+  # 先建好 Release 草稿（说明取自 CHANGELOG.md 对应版本一节；带 - 的版本标为预发布），
+  # 避免三个平台同时上传时各自创建草稿
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != package.json v$v"; exit 1; }
+          awk -v ver="## v$v" '$0 ~ "^## v" { on = (index($0, ver) == 1) ; next } on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "CHANGELOG.md 中没有 v$v 一节"; exit 1; }
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then echo "release exists"; exit 0; fi
+          pre=""; case "$v" in *-*) pre="--prerelease";; esac
+          gh release create "${GITHUB_REF_NAME}" --draft $pre --title "XTodoY $v" --notes-file notes.md
+
   # Windows 为主平台；macOS / Linux 为次要平台（未签名），三个平台的安装包上传到同一个 Release 草稿
   release:
+    needs: draft
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             target: --win
+            resources: release/*/win-unpacked
           - os: macos-latest
             target: --mac
+            resources: release/*/mac*/XTodoY.app/Contents/Resources
           - os: ubuntu-latest
             target: --linux
+            resources: release/*/linux-unpacked
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
@@ -41,6 +64,14 @@ jobs:
           v=$(node -p "require('./package.json').version")
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != package.json v$v"; exit 1; }
       - run: pnpm build
+      # 先只打包不发布，检查包内容（防止平台级 files 写错时把源码、测试打进安装包）
+      - name: Check package contents
+        shell: bash
+        run: |
+          pnpm exec electron-builder ${{ matrix.target }} --dir --publish never
+          node scripts/check-package.mjs $(ls -d ${{ matrix.resources }} | head -1)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Build and publish installer
         run: pnpm exec electron-builder ${{ matrix.target }} --publish always
         env:

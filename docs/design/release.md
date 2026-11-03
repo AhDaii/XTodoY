@@ -20,7 +20,8 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
                                                          └─ 上传到 AhDaii/XTodoY Releases（草稿 → 人工检查后发布）
 ```
 
-- 稳定版：tag `vX.Y.Z` → 普通 Release；测试版：tag `vX.Y.Z-beta.N` → 标记为 pre-release。
+- 发布流水线先由 `draft` 任务创建 Release 草稿：校验标签与 `package.json` 版本一致，说明取自 `CHANGELOG.md` 中该版本一节；版本号带 `-`（rc / beta）时标记为 pre-release。之后三个平台的构建任务把产物上传到这个草稿。
+- 稳定版：tag `vX.Y.Z` → 普通 Release；候选 / 测试版：tag `vX.Y.Z-rc.N`、`vX.Y.Z-beta.N` → pre-release（只有"测试版"通道的用户、以及当前正在使用预发布版的用户会收到；正式版发布后预发布用户照常升级到正式版）。
 - Release 以 **草稿** 创建，人工补充发布说明（中文，按"新增 / 改进 / 修复"分组）后再发布；发布后客户端才能检查到。
 - 发布说明的格式与原型更新详情对话框一致，直接作为 `releaseNotes` 展示。
 
@@ -66,7 +67,8 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
 
 ## 5 发布检查清单
 
-- [ ] `package.json` 版本号已更新，CHANGELOG 已补充
+- [ ] `package.json` 版本号已更新，`CHANGELOG.md` 已有该版本一节（按"新增 / 改进 / 修复"分组）
+- [ ] develop 已合并到 main，在 main 上打标签：`git tag vX.Y.Z && git push origin vX.Y.Z`
 - [ ] CI 全绿（lint / typecheck / 单元测试 / E2E）
 - [ ] 本地用上一个版本安装，验证自动更新到新版本（下载、校验、退出时安装、数据完整、迁移成功）
 - [ ] Release 草稿中的 `latest.yml`、安装包、blockmap 三个文件齐全

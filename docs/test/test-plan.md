@@ -33,7 +33,7 @@
 
 | 项目 | 数量 | 结果 |
 |---|---|---|
-| 单元测试 | 124 | ✅ 全部通过 |
+| 单元测试 | 125 | ✅ 全部通过 |
 | 端到端（Windows） | 25 | ✅ 全部通过 |
 | 打包冒烟（macOS arm64 / Linux x64） | 2 | ✅ 启动并写出指标 |
 | 容量（服务层） | 13 项计时 | ✅ 全部在预算内（见 §5） |
@@ -71,6 +71,12 @@
 ### 5.3 常驻内存（NFR-PERF-01 / 02）
 
 安装版构建（`pnpm spike:metrics --packaged`，P6 复测）：仅托盘 24.0 MB（≤ 80）、托盘 + 悬浮窗 57.8 MB（≤ 130）、主窗口打开后关闭 67.2 MB。详见 [spike-report.md](../design/spike-report.md) §1.1。
+
+### 5.4 安装包（NFR-PERF-09）
+
+Windows 安装包 `XTodoY-Setup-1.0.0-rc.1.exe` 113.9 MB（≤ 300 MB），`app.asar` 2.1 MB。
+
+**本次发现并修复**：P7 多平台改造时在 win / mac / linux 下分别写了 `files`，而 electron-builder 的平台级 `files` 会**整体替换**顶层列表，只含排除规则时等于"打包整个仓库"——源码、测试、`.claude`、旧的 `release/` 产物都被打进了 `app.asar`（424 MB，安装包 340 MB）。修复为各平台写全列表，并新增 `scripts/check-package.mjs`：CI（三平台）与发布流水线在打包后检查包内容与大小，不合格即失败。
 
 ## 6 人工测试
 
