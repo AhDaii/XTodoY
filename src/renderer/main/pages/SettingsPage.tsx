@@ -117,6 +117,28 @@ export function SettingsPage({ settings }: { settings: Settings }) {
                 ))}
               </div>
             </div>
+            <Switch
+              id="gpu"
+              label="硬件加速"
+              hint="使用显卡渲染界面，滚动与动画更流畅；关闭可减少约 10–20 MB 常驻内存。修改后需重启"
+              checked={settings.hardwareAcceleration}
+              onChange={(v) => set('hardwareAcceleration', v)}
+            />
+            {info && info.hardwareAcceleration !== settings.hardwareAcceleration && (
+              <div className="setting restart-hint" role="status">
+                <div className="txt">
+                  <b>
+                    <Icon name="info" size={14} />
+                    重启后生效
+                  </b>
+                  <span>当前仍{info.hardwareAcceleration ? '使用' : '未使用'}硬件加速，重启 XTodoY 后切换</span>
+                </div>
+                <button className="btn primary" onClick={() => void call(api.relaunch()).catch(report)}>
+                  <Icon name="restore" size={14} />
+                  立即重启
+                </button>
+              </div>
+            )}
           </div>
         </section>
 

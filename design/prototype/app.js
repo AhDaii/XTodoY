@@ -17,7 +17,7 @@ const state = {
   calMonth: null,
   settings: {
     autostart: false, closeAction: 'tray', weekStart: 1, theme: localStorage.getItem('xtodoy-theme') || 'system',
-    defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, inAppPopup: false,
+    defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, inAppPopup: false, gpu: false,
     floating: true, floatingOpacity: 100, floatingLock: false,
     autoCheck: true, autoDownload: true, channel: 'stable',
   },
@@ -793,6 +793,8 @@ function renderSettings() {
             <div class="seg" role="group" aria-label="主题">
               ${[['light', 'sun', '浅色'], ['dark', 'moon', '深色'], ['system', 'laptop', '跟随系统']].map(([v, ic, l]) => `<button aria-pressed="${s.theme === v}" data-action="theme" data-val="${v}">${icon(ic, 14)}${l}</button>`).join('')}
             </div></div>
+          ${sw('gpu', '硬件加速', '使用显卡渲染界面，滚动与动画更流畅；关闭可减少约 10–20 MB 常驻内存。修改后需重启')}
+          ${s.gpu ? `<div class="setting restart-hint" role="status"><div class="txt"><b>${icon('info', 14)}重启后生效</b><span>当前仍未使用硬件加速，重启 XTodoY 后切换</span></div><button class="btn primary" data-action="toast" data-msg="（原型）XTodoY 将重启">${icon('restore', 14)}立即重启</button></div>` : ''}
         </div></section>
         <section><h2>提醒</h2><div class="setting-card">
           <div class="setting"><div class="txt"><b>系统通知权限</b><span>XTodoY 通过 Windows 通知中心推送提醒</span></div><span class="status-ok">${icon('checkCircle', 14)}已允许</span></div>

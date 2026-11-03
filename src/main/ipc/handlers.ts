@@ -20,6 +20,7 @@ interface Deps {
   scheduler: Scheduler;
   dataDir: string;
   schemaVersion: number;
+  hardwareAcceleration: boolean;
 }
 
 const VIEWS: readonly SmartView[] = ['today', 'plan', 'all', 'done', 'trash'];
@@ -59,7 +60,12 @@ export function registerIpc(d: Deps): void {
     platform: `${process.platform} ${process.arch}`,
     dataDir: d.dataDir,
     dbSchemaVersion: d.schemaVersion,
+    hardwareAcceleration: d.hardwareAcceleration,
   }));
+  handle(Invoke.relaunch, () => {
+    app.relaunch();
+    app.quit();
+  });
   handle(Invoke.todayGet, () => d.today.current);
 
   // ---- 待办 ----

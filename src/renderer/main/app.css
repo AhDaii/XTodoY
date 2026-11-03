@@ -2305,3 +2305,18 @@ a {
 .popover .row .input[type='number'] {
   flex: none;
 }
+
+/* 需要重启才生效的设置提示 */
+.setting.restart-hint {
+  background: var(--primary-soft);
+}
+/* 标题独占一行（与其他设置项相同的"标题 / 说明"两行结构），图标与标题文字居中对齐 */
+.setting.restart-hint .txt b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary-soft-foreground);
+}
+.setting.restart-hint .txt span {
+  color: var(--primary-soft-foreground);
+}

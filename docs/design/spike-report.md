@@ -36,7 +36,7 @@
 | 托盘 + 悬浮窗 | 72.5 MB（private 140.0） | 57.1 MB（private 84.0） | -21% |
 | 主窗口打开 | 95.5 MB（private 202.7） | 90.3 MB（private 129.3） | -5% |
 
-**决定**：默认关闭硬件加速（`app.disableHardwareAcceleration()`）。差异主要来自 GPU 进程——即使没有任何窗口，开启硬件加速时 GPU 进程也占 60 MB 以上的提交内存。界面没有重度动画，软件渲染足够；环境变量 `XTODOY_ENABLE_GPU=1` 可临时打开用于对比。
+**决定**：默认关闭硬件加速（`app.disableHardwareAcceleration()`），并作为用户可选项（设置 › 外观 › 硬件加速，重启后生效；启动前从数据库只读读取，见 `src/main/app/launch-prefs.ts`）。差异主要来自 GPU 进程——即使没有任何窗口，开启硬件加速时 GPU 进程也占 60 MB 以上的提交内存。界面没有重度动画，软件渲染足够；环境变量 `XTODOY_ENABLE_GPU=1` 可临时打开用于对比。
 
 ### 1.3 其他发现
 

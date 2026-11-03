@@ -141,6 +141,8 @@ export interface Settings {
   /** 暂停提醒到该时刻（毫秒），null 表示未暂停（FR-BG-06） */
   pausedUntil: number | null;
   closeTipShown: boolean;
+  /** 硬件加速（默认关闭以降低常驻内存），重启后生效 */
+  hardwareAcceleration: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -159,4 +161,5 @@ export const DEFAULT_SETTINGS: Settings = {
   reminderSound: true,
   pausedUntil: null,
   closeTipShown: false,
+  hardwareAcceleration: false,
 };

@@ -353,3 +353,39 @@ test('悬浮窗透明度设置生效（FR-FLT-05）', async () => {
     )
     .toBeCloseTo(0.6, 1);
 });
+
+test('硬件加速为可选项：默认关闭，开启后提示重启，重启后生效', async () => {
+  const main = await windowByPage('main');
+  // 关闭时 Electron 必然报告硬件加速不可用、GPU 合成被禁用（与机器无关）。
+  // 开启时能否真正用上 GPU 取决于机器：CI 虚拟机没有可用显卡，app.isHardwareAccelerationEnabled() 仍为 false，
+  // 所以开启后断言的是应用自身的决定（AppInfo.hardwareAcceleration，即启动时没有调用 disableHardwareAcceleration）
+  const decided = (p: Page) =>
+    p.evaluate(async () => {
+      const r = await window.xtodoy.appInfo();
+      return r.ok ? r.data.hardwareAcceleration : null;
+    });
+  expect(await decided(main)).toBe(false);
+  expect(await app.evaluate(({ app }) => app.isHardwareAccelerationEnabled())).toBe(false);
+  expect(await app.evaluate(({ app }) => app.getGPUFeatureStatus().gpu_compositing)).not.toMatch(/^enabled/);
+
+  await main.getByRole('button', { name: '设置' }).click();
+  const sw = main.getByRole('switch', { name: '硬件加速' });
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(main.locator('.restart-hint')).toContainText('重启后生效');
+  await expect(main.getByRole('button', { name: '立即重启' })).toBeVisible();
+  // 提示的标题与说明应为上下两行（与其他设置项一致），不能挤在同一行
+  const title = (await main.locator('.restart-hint .txt b').boundingBox())!;
+  const desc = (await main.locator('.restart-hint .txt span').boundingBox())!;
+  expect(desc.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
+
+  // "立即重启"会结束当前进程，测试中改为手动关闭再启动
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir } });
+  const again = await windowByPage('main');
+  await again.getByRole('button', { name: '设置' }).click();
+  await expect(again.getByRole('switch', { name: '硬件加速' })).toHaveAttribute('aria-checked', 'true');
+  await expect(again.locator('.restart-hint')).toHaveCount(0);
+  expect(await decided(again)).toBe(true);
+});
