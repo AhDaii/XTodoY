@@ -8,7 +8,7 @@ import { Dialog } from '../components/Overlay';
 import { UpdateSection } from '../components/Update';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
-import { useReportError } from '../lib/data';
+import { useNotificationStatus, useReportError } from '../lib/data';
 import { useUi } from '../lib/store';
 
 /** 设置页（UI-10，FR-SET-02） */
@@ -151,6 +151,7 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
         <section>
           <h2>提醒</h2>
           <div className="setting-card">
+            <NotificationStatusRow />
             <div className="setting">
               <div className="txt">
                 <b>暂停提醒</b>
@@ -456,6 +457,42 @@ function ShortcutSetting({ value }: { value: string | null }) {
         <button className="btn ghost" onClick={() => save(null)}>
           关闭
         </button>
+      )}
+    </div>
+  );
+}
+
+/** 系统通知权限（FR-REM-09） */
+function NotificationStatusRow() {
+  const status = useNotificationStatus();
+  const report = useReportError();
+  return (
+    <div className="setting">
+      <div className="txt">
+        <b>系统通知</b>
+        <span>
+          {status === 'denied'
+            ? '系统已关闭 XTodoY 的通知，提醒将无法弹出'
+            : 'XTodoY 通过系统通知推送提醒；开启勿扰 / 专注模式时通知会被收起'}
+        </span>
+      </div>
+      {status === 'allowed' && (
+        <span className="status-ok">
+          <Icon name="checkCircle" size={14} />
+          已允许
+        </span>
+      )}
+      {status === 'unknown' && <span className="help">无法检测</span>}
+      {status === 'denied' && (
+        <>
+          <span className="status-err">
+            <Icon name="alert" size={14} />
+            已关闭
+          </span>
+          <button className="btn" onClick={() => void call(api.openNotificationSettings()).catch(report)}>
+            打开系统设置
+          </button>
+        </>
       )}
     </div>
   );

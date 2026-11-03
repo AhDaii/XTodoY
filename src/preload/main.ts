@@ -44,6 +44,8 @@ const api: XtodoyApi = {
     set: (key, value) => call(Invoke.settingsSet, key, value),
   },
   testNotify: () => call(Invoke.testNotify),
+  notificationStatus: () => call(Invoke.notificationStatus),
+  openNotificationSettings: () => call(Invoke.openNotificationSettings),
   relaunch: () => call(Invoke.relaunch),
   stats: (q) => call(Invoke.statsGet, q),
   data: {

@@ -17,7 +17,7 @@
 
 | 通道 | 入参 | 返回 | 需求 |
 |---|---|---|---|
-| `todo:list` | `{ view: 'today'\|'plan'\|'all'\|'done'\|'trash', tagId?, includeChildren?, search? }` | `TodoGroup[]` | FR-TODO-05/08, FR-TAG-03 |
+| `todo:list` | `{ view: 'today'\|'plan'\|'all'\|'done'\|'trash', tagId?, includeChildren?, showDone?, search? }` | `TodoGroup[]` | FR-TODO-05/08, FR-TAG-03/04 |
 | `todo:get` | `{ id }` | `TodoDetail` | FR-TODO-02 |
 | `todo:create` | `{ title, dueDate?, tagIds?, … }` | `TodoDetail` | FR-TODO-01 |
 | `todo:update` | `{ id, patch }`（标题、备注、日期、时间、循环、优先级） | `TodoDetail` | FR-TODO-02 |
@@ -59,7 +59,8 @@ P6 实现时把原计划的 4 个通道合并为一个：统计页每次切换�
 | `data:export` | — | `{ path } \| null`（系统保存对话框，取消为 null） | FR-SET-06 |
 | `data:import` | — | `{ todos, tags, completionLogs } \| null`（确认在渲染进程完成；覆盖前自动备份） | FR-SET-06 |
 | `data:openFolder` | — | `void` | |
-| `system:notificationStatus` | — | `'allowed'\|'denied'\|'unknown'` | FR-REM-09 |
+| `system:notificationStatus` | — | `'allowed'\|'denied'\|'unknown'`（Windows 只读查询注册表中的系统通知开关与本软件开关；其他平台 unknown） | FR-REM-09 |
+| `system:openNotificationSettings` | — | `void`（打开系统通知设置页） | FR-REM-09 |
 | `window:minimize` / `window:close` | — | `void` | 自绘标题栏 |
 | `app:info` | — | `AppInfo`（版本、数据目录、库版本、本次运行是否启用硬件加速） | FR-SET-02 |
 | `app:relaunch` | — | `void`（重启程序，用于"硬件加速"等需重启的设置） | FR-SET-02 |

@@ -40,12 +40,17 @@ export function useTagTree(): TagNode[] {
   return useLive(() => call(api.tags.tree()), [], [api.on.tagsChanged, api.on.todosChanged]);
 }
 
-export function useGroups(route: Route, search: string, includeChildren: boolean): TodoGroup[] | null {
-  const key = JSON.stringify([route, search, includeChildren]);
+export function useGroups(
+  route: Route,
+  search: string,
+  includeChildren: boolean,
+  showDone = false,
+): TodoGroup[] | null {
+  const key = JSON.stringify([route, search, includeChildren, showDone]);
   return useLive<TodoGroup[] | null>(
     () => {
       if (search) return call(api.todos.list({ search }));
-      if (route.kind === 'tag') return call(api.todos.list({ tagId: route.tagId, includeChildren }));
+      if (route.kind === 'tag') return call(api.todos.list({ tagId: route.tagId, includeChildren, showDone }));
       if (route.kind === 'view') return call(api.todos.list({ view: route.view }));
       return Promise.resolve([]);
     },
@@ -86,6 +91,22 @@ export function useUpdateStatus(): UpdateStatus | null {
     return () => {
       alive = false;
       off();
+    };
+  }, []);
+  return s;
+}
+
+/** 系统通知是否被关闭（FR-REM-09）：打开时与窗口重新获得焦点时检查（用户可能刚去系统设置里改过） */
+export function useNotificationStatus(): 'allowed' | 'denied' | 'unknown' | null {
+  const [s, setS] = useState<'allowed' | 'denied' | 'unknown' | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => void call(api.notificationStatus()).then((x) => alive && setS(x), console.error);
+    load();
+    window.addEventListener('focus', load);
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', load);
     };
   }, []);
   return s;

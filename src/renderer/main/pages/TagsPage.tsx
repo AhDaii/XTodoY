@@ -89,6 +89,7 @@ export function TagsPage({ tags }: { tags: TagNode[] }) {
                 style={{ paddingLeft: 12 + t.depth * 24 }}
                 draggable={renaming !== t.id}
                 role="treeitem"
+                data-id={t.id}
                 aria-level={t.depth + 1}
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = 'move';
@@ -98,6 +99,26 @@ export function TagsPage({ tags }: { tags: TagNode[] }) {
                 onKeyDown={(e) => {
                   if (e.target !== e.currentTarget) return;
                   if (e.key === 'F2') setRenaming(t.id);
+                  // 方向键导航（FR-TGM-06）：↑↓ 上下一项，Home / End 首尾，← 父标签，→ 第一个子标签
+                  const i = tags.indexOf(t);
+                  const target =
+                    e.key === 'ArrowDown'
+                      ? tags[i + 1]
+                      : e.key === 'ArrowUp'
+                        ? tags[i - 1]
+                        : e.key === 'Home'
+                          ? tags[0]
+                          : e.key === 'End'
+                            ? tags.at(-1)
+                            : e.key === 'ArrowLeft'
+                              ? tags.find((x) => x.id === t.parentId)
+                              : e.key === 'ArrowRight'
+                                ? tags.find((x) => x.parentId === t.id)
+                                : undefined;
+                  if (target) {
+                    e.preventDefault();
+                    document.querySelector<HTMLElement>(`.tag-row[data-id="${target.id}"]`)?.focus();
+                  }
                   if (e.key === 'Delete') setDialog({ kind: 'delete', tag: t });
                 }}
                 tabIndex={0}

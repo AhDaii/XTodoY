@@ -16,6 +16,7 @@ import type { Scheduler } from '../services/scheduler';
 import * as v from '../services/validate';
 import { localDate } from '../domain/time';
 import { showReminder } from '../platform/notifier';
+import { notificationStatus, openNotificationSettings } from '../platform/notify-status';
 import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
 
 interface Deps {
@@ -50,14 +51,16 @@ function handle(channel: string, fn: (...args: unknown[]) => unknown): void {
 }
 
 function listQuery(q: unknown): ListQuery {
-  const o = v.obj(q ?? {}, ['view', 'tagId', 'includeChildren', 'search']);
+  const o = v.obj(q ?? {}, ['view', 'tagId', 'includeChildren', 'showDone', 'search']);
   if (o.view !== undefined && !VIEWS.includes(o.view as SmartView)) throw invalid('视图不正确');
   if (o.includeChildren !== undefined && typeof o.includeChildren !== 'boolean') throw invalid('参数格式不正确');
+  if (o.showDone !== undefined && typeof o.showDone !== 'boolean') throw invalid('参数格式不正确');
   const search = o.search === undefined ? undefined : v.str(o.search, '搜索词', { max: 100 });
   return {
     view: o.view as SmartView | undefined,
     tagId: o.tagId === undefined ? undefined : v.id(o.tagId, '标签'),
     includeChildren: o.includeChildren as boolean | undefined,
+    showDone: o.showDone as boolean | undefined,
     search: search || undefined,
   };
 }
@@ -235,6 +238,10 @@ export function registerIpc(d: Deps): void {
     }
     return d.settings.set(k, value);
   });
+
+  // ---- 系统：通知权限（FR-REM-09） ----
+  handle(Invoke.notificationStatus, () => notificationStatus());
+  handle(Invoke.openNotificationSettings, () => openNotificationSettings());
 
   // ---- 系统：测试通知（FR-REM-04 人工验证用） ----
   handle(Invoke.testNotify, () => {

@@ -151,11 +151,19 @@ export class TodoService {
           `SELECT DISTINCT t.* FROM todos t
            JOIN todo_tags tt ON tt.todo_id = t.id
            JOIN tags g ON g.id = tt.tag_id
-           WHERE t.deleted_at IS NULL AND t.status = 'open'
+           WHERE t.deleted_at IS NULL ${q.showDone ? '' : "AND t.status = 'open'"}
              AND ${q.includeChildren === false ? 'g.id = ?' : "g.path LIKE ? || '%'"}`,
         )
         .all(q.includeChildren === false ? q.tagId : tag) as TodoRow[];
-      return [{ id: 'tag', title: null, items: this.hydrate(rows).sort(comparator(this.settings().listSort?.tag)) }];
+      const items = this.hydrate(rows);
+      const open = items.filter((t) => t.status === 'open').sort(comparator(this.settings().listSort?.tag));
+      if (!q.showDone) return [{ id: 'tag', title: null, items: open }];
+      // 显示已完成（FR-TAG-04）：放在可折叠的分组里，按完成时间倒序
+      const done = items.filter((t) => t.status === 'done').sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
+      return [
+        { id: 'tag', title: null, items: open },
+        { id: 'tag-done', title: '已完成', collapsible: true, items: done },
+      ];
     }
     const view = q.view ?? 'today';
     const where = {
