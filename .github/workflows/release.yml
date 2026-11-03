@@ -23,7 +23,8 @@ jobs:
         run: |
           v=$(node -p "require('./package.json').version")
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} != package.json v$v"; exit 1; }
-          awk -v ver="## v$v" '$0 ~ "^## v" { on = (index($0, ver) == 1) ; next } on' CHANGELOG.md > notes.md
+          # 只取标题恰好是该版本的一节（"## v1.0.0" 不能匹配到 "## v1.0.0-rc.2"）
+          awk -v ver="## v$v" '/^## v/ { rest = substr($0, length(ver) + 1); on = (index($0, ver) == 1 && rest !~ /^[-.0-9A-Za-z]/); next } on' CHANGELOG.md > notes.md
           [ -s notes.md ] || { echo "CHANGELOG.md 中没有 v$v 一节"; exit 1; }
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then echo "release exists"; exit 0; fi
           pre=""; case "$v" in *-*) pre="--prerelease";; esac

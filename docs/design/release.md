@@ -69,6 +69,7 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
 
 - [ ] `package.json` 版本号已更新，`CHANGELOG.md` 已有该版本一节（按"新增 / 改进 / 修复"分组）
 - [ ] develop 已合并到 main，在 main 上打标签：`git tag vX.Y.Z && git push origin vX.Y.Z`
+- [ ] 发布时编辑流水线建好的**草稿**（Releases 列表中标为 Draft 的那条 → ✏️ Edit → Publish release），不要用"Draft a new release"新建——新建的 Release 没有安装包与版本清单（rc.1 时出现过）；发布后确认标签仍为 `vX.Y.Z`（不是 `untagged-…`），否则自动更新找不到该版本
 - [ ] CI 全绿（lint / typecheck / 单元测试 / E2E）
 - [ ] 本地用上一个版本安装，验证自动更新到新版本（下载、校验、退出时安装、数据完整、迁移成功）
 - [ ] Release 草稿中的 `latest.yml`、安装包、blockmap 三个文件齐全
