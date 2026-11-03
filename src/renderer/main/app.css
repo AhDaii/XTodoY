@@ -2310,8 +2310,9 @@ a {
 .setting.restart-hint {
   background: var(--primary-soft);
 }
+/* 标题独占一行（与其他设置项相同的"标题 / 说明"两行结构），图标与标题文字居中对齐 */
 .setting.restart-hint .txt b {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   color: var(--primary-soft-foreground);

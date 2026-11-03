@@ -369,6 +369,10 @@ test('硬件加速为可选项：默认关闭，开启后提示重启，重启�
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   await expect(main.locator('.restart-hint')).toContainText('重启后生效');
   await expect(main.getByRole('button', { name: '立即重启' })).toBeVisible();
+  // 提示的标题与说明应为上下两行（与其他设置项一致），不能挤在同一行
+  const title = (await main.locator('.restart-hint .txt b').boundingBox())!;
+  const desc = (await main.locator('.restart-hint .txt span').boundingBox())!;
+  expect(desc.y).toBeGreaterThanOrEqual(title.y + title.height - 1);
 
   // "立即重启"会结束当前进程，测试中改为手动关闭再启动
   await app.close();
