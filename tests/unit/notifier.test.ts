@@ -11,6 +11,12 @@ describe('toastXml', () => {
     expect(xml).toContain('稍后提醒（10 分钟）');
     expect(xml.match(/<action /g)).toHaveLength(2);
   });
+
+  it('提醒声音关闭时静音，开启时使用系统默认声音（FR-REM-11）', () => {
+    const n = { todoId: 't', title: '周会', body: '' };
+    expect(toastXml(n, 10, false)).toContain('<audio silent="true"/>');
+    expect(toastXml(n, 10, true)).not.toContain('<audio');
+  });
 });
 
 describe('parseProtocolUrl', () => {

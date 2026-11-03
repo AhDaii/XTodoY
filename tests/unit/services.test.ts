@@ -33,6 +33,18 @@ describe('TodoService', () => {
     expect(todos.counts()).toMatchObject({ today: 1, all: 2, plan: 1, done: 0 });
   });
 
+  it('跳过本次：循环事项移到下一次实例，不写完成记录，可撤销（FR-REC-06）', () => {
+    const t = todos.create({ title: '晨跑', dueDate: '2026-11-02' });
+    todos.setRepeat(t.id, { freq: 'daily', interval: 1, end: { type: 'never' } });
+    const { todo, undoToken } = todos.skip(t.id);
+    expect(todo).toMatchObject({ dueDate: '2026-11-03', status: 'open' });
+    expect(db.prepare('SELECT COUNT(*) FROM completion_logs').pluck().get()).toBe(0);
+    todos.undo(undoToken);
+    expect(todos.get(t.id).dueDate).toBe('2026-11-02');
+    const once = todos.create({ title: '一次性' });
+    expect(() => todos.skip(once.id)).toThrow('只有循环事项可以跳过本次');
+  });
+
   it('清除日期时一并清除时间', () => {
     const t = todos.create({ title: 'a', dueDate: '2026-11-02', dueTime: '09:00' });
     const u = todos.update(t.id, { dueDate: null });

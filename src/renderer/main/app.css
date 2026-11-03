@@ -2437,3 +2437,12 @@ a {
 [data-platform='darwin'] .titlebar .brand {
   padding-left: 76px;
 }
+
+/*
+ * 长列表：屏幕外的行跳过布局与绘制（NFR-PERF-03）。1000 条事项时主窗口专用工作集由 260 MB 降到约 175 MB
+ * （tests/e2e/perf.spec.ts）。content-visibility 会裁剪行外的子元素，手动排序时拖拽手柄在行外，因此不启用。
+ */
+.todo-list > .todo:not([draggable='true']) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
+}
