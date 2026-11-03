@@ -47,6 +47,10 @@ const api: XtodoyApi = {
   testNotify: () => call(Invoke.testNotify),
   notificationStatus: () => call(Invoke.notificationStatus),
   openNotificationSettings: () => call(Invoke.openNotificationSettings),
+  holidays: {
+    get: () => call(Invoke.holidaysGet),
+    refresh: () => call(Invoke.holidaysRefresh),
+  },
   relaunch: () => call(Invoke.relaunch),
   stats: (q) => call(Invoke.statsGet, q),
   data: {
@@ -74,6 +78,7 @@ const api: XtodoyApi = {
     themeChanged: (cb) => subscribe(Events.themeChanged, cb),
     navOpen: (cb) => subscribe(Events.navOpen, cb),
     updateStatus: (cb) => subscribe(Events.updateStatus, cb),
+    holidaysChanged: (cb) => subscribe(Events.holidaysChanged, cb),
   },
 };
 

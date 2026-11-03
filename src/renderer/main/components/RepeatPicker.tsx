@@ -11,18 +11,28 @@ import type { Todo } from '@shared/types';
 import { api, call } from '../lib/api';
 import { useReportError } from '../lib/data';
 import { addDays, today, weekday } from '../lib/dates';
+import { holidayName, holidayYears } from '@shared/workdays';
 import { Select } from './Select';
 
 type FreqOption = RepeatFreq | 'none';
-const FREQS: { value: FreqOption; label: string }[] = [
+const FREQS: { value: FreqOption; label: string; hint?: string }[] = [
   { value: 'none', label: '不重复' },
   { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '每个工作日' },
+  { value: 'weekdays', label: '每个工作日', hint: '按法定节假日与调休' },
+  { value: 'firstWorkday', label: '工作日第一天', hint: '周末或节假日之后的第一个工作日' },
   { value: 'weekly', label: '每周' },
   { value: 'monthly', label: '每月' },
   { value: 'yearly', label: '每年' },
 ];
 const UNIT: Record<string, string> = { daily: '天', weekly: '周', monthly: '月', yearly: '年' };
+
+/** 预览日期旁的说明：调休上班日、节假日后的第一天 */
+function dayNote(d: string): string {
+  const h = holidayName(d);
+  if (h && !h.offDay) return ` · ${h.name}调休上班`;
+  const prev = holidayName(addDays(d, -1));
+  return prev?.offDay ? ` · ${prev.name}后` : '';
+}
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const WD = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -66,6 +76,7 @@ export function RepeatPicker({ todo, onChange }: { todo: Todo; onChange(t: Todo)
             : { type, count: countDraft },
     });
 
+  const years = holidayYears();
   const preview = rule ? previewOccurrences(rule, todo.repeatAnchor ?? base, base, 5, todo.repeatCountDone) : [];
 
   return (
@@ -78,7 +89,7 @@ export function RepeatPicker({ todo, onChange }: { todo: Todo; onChange(t: Todo)
         options={FREQS}
         onChange={setFreq}
       />
-      {rule && rule.freq !== 'weekdays' && (
+      {rule && rule.freq !== 'weekdays' && rule.freq !== 'firstWorkday' && (
         <div className="row">
           <span className="help">每</span>
           <input
@@ -179,10 +190,17 @@ export function RepeatPicker({ todo, onChange }: { todo: Todo; onChange(t: Todo)
             <ol className="preview-dates">
               {preview.map((d) => (
                 <li key={d}>
-                  {d}（{weekday(d)}）
+                  {d}（{weekday(d)}
+                  {dayNote(d)}）
                 </li>
               ))}
             </ol>
+            {(rule.freq === 'weekdays' || rule.freq === 'firstWorkday') && (
+              <p className="help" style={{ margin: '6px 0 0' }}>
+                按法定节假日与调休计算{years.length ? `（已有 ${years[0]}–${years.at(-1)} 年的安排）` : ''}
+                ，没有安排的年份按周一至周五。
+              </p>
+            )}
           </div>
         </>
       )}

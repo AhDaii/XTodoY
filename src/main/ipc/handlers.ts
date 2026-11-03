@@ -6,6 +6,7 @@ import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/t
 import { bus } from '../events/bus';
 import { AppError, invalid } from '../services/errors';
 import type { BackupService } from '../services/backup';
+import type { HolidayService } from '../services/holidays';
 import type { SettingsService } from '../services/settings';
 import type { StatsService } from '../services/stats';
 import type { UpdateService } from '../services/update';
@@ -17,7 +18,7 @@ import * as v from '../services/validate';
 import { localDate } from '../domain/time';
 import { showReminder } from '../platform/notifier';
 import { notificationStatus, openNotificationSettings } from '../platform/notify-status';
-import { destroyFloatingWindow, floatingPosition, moveFloatingBy, showMainWindow, windows } from '../platform/windows';
+import { destroyFloatingWindow, moveFloatingBy, showMainWindow, snapFloating, windows } from '../platform/windows';
 
 interface Deps {
   todos: TodoService;
@@ -26,6 +27,7 @@ interface Deps {
   stats: StatsService;
   backup: BackupService;
   update: UpdateService;
+  holidays: HolidayService;
   today: TodayService;
   scheduler: Scheduler;
   dataDir: string;
@@ -239,6 +241,10 @@ export function registerIpc(d: Deps): void {
     return d.settings.set(k, value);
   });
 
+  // ---- 法定节假日（工作日循环） ----
+  handle(Invoke.holidaysGet, () => d.holidays.all);
+  handle(Invoke.holidaysRefresh, () => d.holidays.refresh());
+
   // ---- 系统：通知权限（FR-REM-09） ----
   handle(Invoke.notificationStatus, () => notificationStatus());
   handle(Invoke.openNotificationSettings, () => openNotificationSettings());
@@ -270,7 +276,7 @@ export function registerIpc(d: Deps): void {
     }
   });
   ipcMain.on(Send.floatingDragEnd, () => {
-    const p = floatingPosition();
+    const p = snapFloating();
     if (p) d.settings.set('floatingPos', p);
   });
   // 悬浮窗右键菜单（FR-FLT-05）

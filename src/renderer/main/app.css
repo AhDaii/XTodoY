@@ -2446,3 +2446,26 @@ a {
   content-visibility: auto;
   contain-intrinsic-size: auto 52px;
 }
+
+/* 界面渲染出错时的兜底页（ErrorBoundary） */
+.crash {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  text-align: center;
+  background: var(--background);
+  color: var(--foreground);
+}
+.crash h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+.crash p {
+  margin: 0;
+  max-width: 420px;
+  color: var(--foreground-muted);
+}
