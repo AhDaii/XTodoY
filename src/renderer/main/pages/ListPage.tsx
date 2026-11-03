@@ -1,12 +1,14 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import type { TagNode, Todo, TodoGroup, ViewCounts } from '@shared/types';
+import type { Settings, SortMode, SortScope, TagNode, Todo, TodoGroup, ViewCounts } from '@shared/types';
 import { EmptyState } from '../components/Overlay';
 import { Icon, type IconName } from '../components/Icon';
+import { Select } from '../components/Select';
 import { TodoRow } from '../components/TodoRow';
 import { useTodoActions } from '../lib/actions';
 import { api, call } from '../lib/api';
 import { useGroups, useReportError } from '../lib/data';
 import { friendlyDate, parse, today, weekday } from '../lib/dates';
+import { dropNeighbors, stepNeighbors } from '@shared/reorder';
 import { useUi } from '../lib/store';
 
 const VIEW_META = {
@@ -30,7 +32,23 @@ const EMPTY: Record<string, [IconName, string, string]> = {
   search: ['search', '没有匹配的事项', '换个关键词试试。'],
 };
 
-export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts }) {
+const SORT_OPTIONS: { value: SortMode; label: string; hint?: string }[] = [
+  { value: 'due', label: '按截止时间', hint: '日期 → 时间 → 优先级' },
+  { value: 'manual', label: '手动排序', hint: '拖动或 Alt+↑↓ 调整顺序' },
+  { value: 'priority', label: '按优先级' },
+  { value: 'created', label: '按创建时间', hint: '最新的在前' },
+  { value: 'title', label: '按标题' },
+];
+
+export function ListPage({
+  tags,
+  counts,
+  settings,
+}: {
+  tags: TagNode[];
+  counts: ViewCounts;
+  settings: Settings | null;
+}) {
   const { route, search, includeChildren, selectedId, collapsedGroups } = useUi();
   const ui = useUi.getState;
   const groups = useGroups(route, search, includeChildren);
@@ -57,7 +75,25 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
     }
   };
 
+  // 排序（FR-TODO-06）：每个视图独立记忆；手动模式下可拖拽
+  const scope: SortScope | null = search
+    ? null
+    : route.kind === 'tag'
+      ? 'tag'
+      : view === 'today' || view === 'plan' || view === 'all'
+        ? view
+        : null;
+  const sort = scope && settings ? settings.listSort[scope] : 'due';
+  const manual = sort === 'manual';
+  const setSort = (mode: SortMode) =>
+    scope && settings && void call(api.settings.set('listSort', { ...settings.listSort, [scope]: mode })).catch(report);
+  const [drag, setDrag] = useState<{ id: string; group: string } | null>(null);
+  const [over, setOver] = useState<{ id: string; after: boolean } | null>(null);
+  const reorder = (n: { afterId: string | null; beforeId: string | null } | null, id: string) =>
+    n && void call(api.todos.reorder(id, n.afterId, n.beforeId)).catch(report);
+
   const flat = (groups ?? []).flatMap((g) => (collapsedGroups.has(g.id) ? [] : g.items));
+  const groupOf = (id: string) => (groups ?? []).find((g) => g.items.some((t) => t.id === id));
   const onRowKey = (t: Todo) => (e: KeyboardEvent<HTMLLIElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === ' ' && view !== 'trash') {
@@ -65,7 +101,11 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
       void actions.toggle(t);
     } else if (e.key === 'Enter') ui().select(t.id);
     else if (e.key === 'Delete' && view !== 'trash') void actions.remove(t);
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    else if (manual && e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const g = groupOf(t.id);
+      if (g) reorder(stepNeighbors(g.items, t.id, e.key === 'ArrowDown' ? 1 : -1), t.id);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const i = flat.findIndex((x) => x.id === t.id) + (e.key === 'ArrowDown' ? 1 : -1);
       const next = flat[i];
@@ -108,6 +148,7 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
             </button>
           </div>
         )}
+        {scope && <Select<SortMode> ariaLabel="排序方式" value={sort} options={SORT_OPTIONS} onChange={setSort} />}
         {view === 'trash' && total > 0 && (
           <button className="btn sm ghost" onClick={() => void call(api.todos.purgeAll()).catch(report)}>
             清空回收站
@@ -165,6 +206,43 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
     </main>
   );
 
+  /** 手动排序：只能在同一分组内拖动（跨分组的位置由日期等字段决定） */
+  function dragFor(g: TodoGroup, t: Todo) {
+    const same = drag?.group === g.id;
+    const className = [
+      drag?.id === t.id ? 'dragging' : '',
+      same && over?.id === t.id && drag?.id !== t.id ? (over.after ? 'drop-after' : 'drop-before') : '',
+    ].join(' ');
+    return {
+      className,
+      props: {
+        onDragStart: (e: React.DragEvent<HTMLLIElement>) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', t.title);
+          setDrag({ id: t.id, group: g.id });
+        },
+        onDragEnd: () => {
+          setDrag(null);
+          setOver(null);
+        },
+        onDragOver: (e: React.DragEvent<HTMLLIElement>) => {
+          if (!same) return; // 不调用 preventDefault：显示禁止光标
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const r = e.currentTarget.getBoundingClientRect();
+          const after = e.clientY > r.top + r.height / 2;
+          if (over?.id !== t.id || over.after !== after) setOver({ id: t.id, after });
+        },
+        onDrop: (e: React.DragEvent<HTMLLIElement>) => {
+          e.preventDefault();
+          if (drag && same && over) reorder(dropNeighbors(g.items, drag.id, t.id, over.after), drag.id);
+          setDrag(null);
+          setOver(null);
+        },
+      },
+    };
+  }
+
   function renderGroups(groups: TodoGroup[]) {
     return (
       <>
@@ -202,6 +280,7 @@ export function ListPage({ tags, counts }: { tags: TagNode[]; counts: ViewCounts
                         onRestore={() => void actions.restore(t)}
                         onPurge={() => void actions.purge(t)}
                         onKeyDown={onRowKey(t)}
+                        drag={manual ? dragFor(g, t) : undefined}
                       />
                     ))}
                   </ul>

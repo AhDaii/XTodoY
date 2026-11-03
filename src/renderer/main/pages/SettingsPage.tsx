@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AppInfo, DataInfo } from '@shared/ipc';
+import { acceleratorFromEvent, displayAccelerator } from '@shared/shortcut';
 import type { Settings } from '@shared/types';
 import { Icon, type IconName } from '../components/Icon';
 import { Dialog } from '../components/Overlay';
@@ -99,6 +100,7 @@ export function SettingsPage({ settings }: { settings: Settings }) {
                 ]}
               />
             </div>
+            <ShortcutSetting value={settings.quickAddShortcut} />
           </div>
         </section>
 
@@ -398,5 +400,59 @@ function DataSection() {
         </Dialog>
       )}
     </section>
+  );
+}
+
+/** 全局快捷键录制（FR-SET-08）：单击后按下组合键；Esc 取消 */
+function ShortcutSetting({ value }: { value: string | null }) {
+  const [recording, setRecording] = useState(false);
+  const [hint, setHint] = useState('');
+  const save = (v: string | null) =>
+    void call(api.settings.set('quickAddShortcut', v))
+      .then(() => setHint(''))
+      // 失败原因（如被其他程序占用）直接显示在说明行
+      .catch((e: unknown) => setHint(e instanceof Error ? e.message : String(e)));
+
+  return (
+    <div className="setting">
+      <div className="txt">
+        <b id="l-shortcut">快速新建快捷键</b>
+        <span className={hint ? 'error-text' : undefined} role={hint ? 'alert' : undefined}>
+          {hint || '在任意程序中按下即可打开 XTodoY 并新建待办'}
+        </span>
+      </div>
+      <button
+        className={`btn shortcut-rec ${recording ? 'recording' : ''}`}
+        aria-labelledby="l-shortcut"
+        aria-describedby="shortcut-state"
+        onClick={() => {
+          setHint('');
+          setRecording(true);
+        }}
+        onBlur={() => setRecording(false)}
+        onKeyDown={(e) => {
+          if (!recording) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === 'Escape') return setRecording(false);
+          const acc = acceleratorFromEvent(e);
+          if (acc) {
+            setRecording(false);
+            save(acc);
+          } else if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+            setHint('需要包含 Ctrl、Alt 或 Win 之一，再加一个字母、数字或功能键');
+          }
+        }}
+      >
+        <span id="shortcut-state">
+          {recording ? '请按下组合键…' : value ? <kbd>{displayAccelerator(value)}</kbd> : '未设置'}
+        </span>
+      </button>
+      {value && !recording && (
+        <button className="btn ghost" onClick={() => save(null)}>
+          关闭
+        </button>
+      )}
+    </div>
   );
 }

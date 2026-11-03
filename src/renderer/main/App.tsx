@@ -72,7 +72,7 @@ export function App() {
 
   const showList = route.kind !== 'page' || search !== '';
   const page = showList ? (
-    <ListPage tags={tags} counts={counts} />
+    <ListPage tags={tags} counts={counts} settings={settings} />
   ) : route.page === 'tags' ? (
     <TagsPage tags={tags} />
   ) : route.page === 'settings' && settings ? (

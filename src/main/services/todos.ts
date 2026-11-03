@@ -15,7 +15,7 @@ import {
 import type { DB } from '../db/client';
 import { uuidv7 } from '../domain/ids';
 import { localDate } from '../domain/time';
-import { byDue, groupForView } from '../domain/views';
+import { byDue, comparator, groupForView } from '../domain/views';
 import { bus } from '../events/bus';
 import { AppError, invalid, notFound } from './errors';
 import type { TagService } from './tags';
@@ -48,7 +48,7 @@ interface ReminderRow {
   next_fire_at: number | null;
 }
 
-type TodoSettings = Pick<Settings, 'weekStart' | 'defaultReminder'>;
+type TodoSettings = Pick<Settings, 'weekStart' | 'defaultReminder'> & Partial<Pick<Settings, 'listSort'>>;
 
 const DAY_MS = 86_400_000;
 
@@ -155,7 +155,7 @@ export class TodoService {
              AND ${q.includeChildren === false ? 'g.id = ?' : "g.path LIKE ? || '%'"}`,
         )
         .all(q.includeChildren === false ? q.tagId : tag) as TodoRow[];
-      return [{ id: 'tag', title: null, items: this.hydrate(rows).sort(byDue) }];
+      return [{ id: 'tag', title: null, items: this.hydrate(rows).sort(comparator(this.settings().listSort?.tag)) }];
     }
     const view = q.view ?? 'today';
     const where = {
@@ -166,7 +166,8 @@ export class TodoService {
       trash: 'deleted_at IS NOT NULL',
     }[view];
     const rows = this.db.prepare(`SELECT * FROM todos WHERE ${where}`).all({ today: this.today() }) as TodoRow[];
-    return groupForView(view, this.hydrate(rows), this.today(), this.settings().weekStart);
+    const sort = view === 'done' || view === 'trash' ? 'due' : this.settings().listSort?.[view];
+    return groupForView(view, this.hydrate(rows), this.today(), this.settings().weekStart, sort);
   }
 
   counts(): ViewCounts {

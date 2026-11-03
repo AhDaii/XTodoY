@@ -26,6 +26,7 @@ import { localDate } from './domain/time';
 import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
 import { readHardwareAcceleration } from './app/launch-prefs';
+import { applyQuickAddShortcut } from './platform/shortcut';
 
 // 指定了独立数据目录（测试、试用）时，Chromium 配置与单实例锁也随之隔离，不影响正在运行的正式实例
 const customDataDir = process.env['XTODOY_DATA_DIR'];
@@ -145,6 +146,11 @@ void app.whenReady().then(() => {
     }
   }, 5_000).unref();
 
+  // 全局快捷键：打开主窗口并聚焦快速新建（FR-SET-08）
+  const quickAdd = () => openMain({ view: 'today', focus: 'quick-add' });
+  if (!applyQuickAddShortcut(s.get().quickAddShortcut, quickAdd))
+    console.warn(`[shortcut] ${s.get().quickAddShortcut} 已被其他程序占用`);
+
   registerIpc({
     todos,
     tags,
@@ -156,6 +162,7 @@ void app.whenReady().then(() => {
     dataDir,
     schemaVersion: opened.schemaVersion,
     hardwareAcceleration,
+    applyShortcut: (acc) => applyQuickAddShortcut(acc, quickAdd),
   });
 
   bus.on('today.count', updateTrayCount);
@@ -181,7 +188,7 @@ void app.whenReady().then(() => {
 
   createTray({
     openMain: () => openMain(),
-    newTodo: () => openMain({ view: 'today', focus: 'quick-add' }),
+    newTodo: quickAdd,
     toggleFloating: () => s.set('floatingEnabled', windows.floating === null),
     isFloatingVisible: () => windows.floating !== null,
     pauseReminders: (kind) => {

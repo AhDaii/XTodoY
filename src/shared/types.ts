@@ -70,6 +70,12 @@ export interface Todo {
   reminders: Reminder[];
 }
 
+/** 列表排序方式（FR-TODO-06）；截止时间 = 日期 → 时间 → 优先级 → 手动顺序 */
+export type SortMode = 'due' | 'manual' | 'priority' | 'created' | 'title';
+/** 各自记忆排序方式的列表：三个智能视图与标签列表（已完成 / 回收站 / 搜索结果顺序固定） */
+export type SortScope = 'today' | 'plan' | 'all' | 'tag';
+export const SORT_MODES: readonly SortMode[] = ['due', 'manual', 'priority', 'created', 'title'];
+
 export interface TodoGroup {
   id: string;
   title: string | null;
@@ -143,6 +149,9 @@ export interface Settings {
   closeTipShown: boolean;
   /** 硬件加速（默认关闭以降低常驻内存），重启后生效 */
   hardwareAcceleration: boolean;
+  /** 全局快捷键：在任意程序中打开主窗口并聚焦快速新建（FR-SET-08），null 为关闭 */
+  quickAddShortcut: string | null;
+  listSort: Record<SortScope, SortMode>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -162,4 +171,6 @@ export const DEFAULT_SETTINGS: Settings = {
   pausedUntil: null,
   closeTipShown: false,
   hardwareAcceleration: false,
+  quickAddShortcut: 'Ctrl+Alt+T',
+  listSort: { today: 'due', plan: 'due', all: 'due', tag: 'due' },
 };

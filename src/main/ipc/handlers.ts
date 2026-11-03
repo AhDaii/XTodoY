@@ -28,6 +28,8 @@ interface Deps {
   dataDir: string;
   schemaVersion: number;
   hardwareAcceleration: boolean;
+  /** 注册快速新建全局快捷键，被占用时返回 false */
+  applyShortcut(accelerator: string | null): boolean;
 }
 
 const VIEWS: readonly SmartView[] = ['today', 'plan', 'all', 'done', 'trash'];
@@ -201,9 +203,20 @@ export function registerIpc(d: Deps): void {
 
   // ---- 设置 ----
   handle(Invoke.settingsGet, () => d.settings.get());
-  handle(Invoke.settingsSet, (key, value) =>
-    d.settings.set(v.str(key, '设置项', { min: 1, max: 40 }) as keyof Settings, value),
-  );
+  handle(Invoke.settingsSet, (key, value) => {
+    const k = v.str(key, '设置项', { min: 1, max: 40 }) as keyof Settings;
+    // 快捷键先向系统注册，成功后才保存（FR-SET-08）
+    if (k === 'quickAddShortcut') {
+      const before = d.settings.get().quickAddShortcut;
+      const next = d.settings.set(k, value);
+      if (!d.applyShortcut(next.quickAddShortcut)) {
+        d.settings.set(k, before);
+        throw new AppError('SHORTCUT_TAKEN', '这个快捷键已被其他程序占用，请换一个组合');
+      }
+      return next;
+    }
+    return d.settings.set(k, value);
+  });
 
   // ---- 系统：测试通知（FR-REM-04 人工验证用） ----
   handle(Invoke.testNotify, () => {

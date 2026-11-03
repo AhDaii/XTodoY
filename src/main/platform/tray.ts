@@ -1,6 +1,7 @@
 import { app, Menu, nativeImage, nativeTheme, Tray } from 'electron';
 import type { TodayCount } from '@shared/ipc';
 import { resourcePath } from '../app/paths';
+import { quickAddShortcut } from './shortcut';
 
 export interface TrayActions {
   openMain(): void;
@@ -37,7 +38,7 @@ export function createTray(actions: TrayActions): Tray {
     tray?.setContextMenu(
       Menu.buildFromTemplate([
         { label: '打开主窗口', click: actions.openMain },
-        { label: '新建待办', accelerator: 'Ctrl+Alt+T', click: actions.newTodo },
+        { label: '新建待办', accelerator: quickAddShortcut() ?? undefined, click: actions.newTodo },
         { label: '显示悬浮窗', type: 'checkbox', checked: actions.isFloatingVisible(), click: actions.toggleFloating },
         pausedItem(actions),
         { label: '检查更新', click: actions.checkUpdate },

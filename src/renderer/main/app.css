@@ -2371,3 +2371,51 @@ a {
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* 设置：快捷键录制（FR-SET-08） */
+.shortcut-rec {
+  min-width: 140px;
+  justify-content: center;
+}
+.shortcut-rec.recording {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.shortcut-rec kbd {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+.setting .txt span.error-text {
+  color: var(--destructive);
+}
+
+/* 列表：手动排序拖拽（FR-TODO-06） */
+.todo .drag-handle {
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 24px;
+  color: var(--foreground-subtle);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--duration-fast);
+}
+.todo:hover .drag-handle,
+.todo:focus-visible .drag-handle {
+  opacity: 1;
+}
+.todo.dragging {
+  opacity: 0.4;
+}
+.todo.drop-before {
+  box-shadow: inset 0 2px 0 var(--primary);
+}
+.todo.drop-after {
+  box-shadow: inset 0 -2px 0 var(--primary);
+}

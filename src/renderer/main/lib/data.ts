@@ -49,7 +49,8 @@ export function useGroups(route: Route, search: string, includeChildren: boolean
       return Promise.resolve([]);
     },
     null,
-    [api.on.todosChanged, api.on.tagsChanged],
+    // 设置变化时也刷新：排序方式与周起始日影响列表
+    [api.on.todosChanged, api.on.tagsChanged, api.on.settingsChanged],
     key,
   );
 }

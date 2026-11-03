@@ -1,4 +1,5 @@
-import { DEFAULT_SETTINGS, type Settings } from '@shared/types';
+import { isValidAccelerator } from '@shared/shortcut';
+import { DEFAULT_SETTINGS, SORT_MODES, type Settings, type SortMode } from '@shared/types';
 import type { DB } from '../db/client';
 import { bus } from '../events/bus';
 import { invalid } from './errors';
@@ -52,6 +53,22 @@ const validators: Validators = {
   },
   closeTipShown: (v) => bool(v, '关闭提示'),
   hardwareAcceleration: (v) => bool(v, '硬件加速'),
+  listSort: (v) => {
+    const o = v as Record<string, unknown>;
+    const scopes = ['today', 'plan', 'all', 'tag'] as const;
+    if (
+      typeof o === 'object' &&
+      o !== null &&
+      Object.keys(o).length === scopes.length &&
+      scopes.every((k) => SORT_MODES.includes(o[k] as SortMode))
+    )
+      return { today: o['today'], plan: o['plan'], all: o['all'], tag: o['tag'] } as Settings['listSort'];
+    throw invalid('排序方式取值不正确');
+  },
+  quickAddShortcut: (v) => {
+    if (v === null || (typeof v === 'string' && isValidAccelerator(v))) return v;
+    throw invalid('快捷键需要包含 Ctrl、Alt 或 Win 之一，再加一个按键');
+  },
   sidebarCollapsed: (v) => {
     if (typeof v === 'boolean') return v;
     throw invalid('侧边栏折叠状态取值不正确');

@@ -452,3 +452,61 @@ test('数据：导出备份后导入，覆盖前确认并自动备份（FR-SET-0
   await expect(main.locator('.todo', { hasText: '导出后的待办' })).toHaveCount(0);
   expect(readdirSync(join(dataDir, 'backups')).some((f) => f.startsWith('pre-import-'))).toBe(true);
 });
+
+test('全局快捷键：默认 Ctrl+Alt+T，可录制新组合或关闭（FR-SET-08）', async () => {
+  const main = await windowByPage('main');
+  const registered = (acc: string) => app.evaluate(({ globalShortcut }, a) => globalShortcut.isRegistered(a), acc);
+  expect(await registered('Ctrl+Alt+T')).toBe(true);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const rec = main.getByRole('button', { name: '快速新建快捷键' });
+  await expect(rec).toContainText('Ctrl+Alt+T');
+  await rec.click();
+  await expect(rec).toContainText('请按下组合键');
+  await main.keyboard.press('Shift+K'); // 只有 Shift 不合法
+  await expect(main.getByRole('alert')).toContainText('需要包含 Ctrl、Alt 或 Win');
+  await main.keyboard.press('Control+Alt+K');
+  await expect(rec).toContainText('Ctrl+Alt+K');
+  expect(await registered('Ctrl+Alt+K')).toBe(true);
+  expect(await registered('Ctrl+Alt+T')).toBe(false);
+
+  await main.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(rec).toContainText('未设置');
+  expect(await registered('Ctrl+Alt+K')).toBe(false);
+});
+
+test('排序：按视图记忆排序方式；手动模式下拖拽与 Alt+↑↓ 调整顺序，重启后保持（FR-TODO-06）', async () => {
+  let main = await windowByPage('main');
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  for (const t of ['乙', '甲', '丙']) await addTodo(main, t);
+  const order = (p: Page) => p.locator('.todo .text').allTextContents();
+  // 新建的在最上面（截止时间相同时按手动顺序）
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙']);
+
+  const sortSel = main.getByRole('combobox', { name: '排序方式' });
+  await sortSel.click();
+  await main.getByRole('option', { name: /标题/ }).click();
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙'].sort(new Intl.Collator('zh-CN').compare));
+
+  await sortSel.click();
+  await main.getByRole('option', { name: /手动/ }).click();
+  await expect.poll(() => order(main)).toEqual(['丙', '甲', '乙']);
+  await main.locator('.todo', { hasText: '乙' }).dragTo(main.locator('.todo', { hasText: '丙' }), {
+    targetPosition: { x: 40, y: 4 },
+  });
+  await expect.poll(() => order(main)).toEqual(['乙', '丙', '甲']);
+  await main.locator('.todo', { hasText: '乙' }).focus();
+  await main.keyboard.press('Alt+ArrowDown');
+  await expect.poll(() => order(main)).toEqual(['丙', '乙', '甲']);
+
+  // "今天"视图独立记忆，仍是默认的截止时间
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  await expect(main.getByRole('combobox', { name: '排序方式' })).toContainText('截止时间');
+
+  await app.close();
+  app = await electron.launch({ args: ['.'], env: { ...process.env, XTODOY_DATA_DIR: dataDir } });
+  main = await windowByPage('main');
+  await main.locator('.nav-item', { hasText: '全部' }).first().click();
+  await expect(main.getByRole('combobox', { name: '排序方式' })).toContainText('手动');
+  await expect.poll(() => order(main)).toEqual(['丙', '乙', '甲']);
+});
