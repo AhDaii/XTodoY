@@ -73,7 +73,11 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Build and publish installer
-        run: pnpm exec electron-builder ${{ matrix.target }} --publish always
+        shell: bash
+        # 未配置签名证书时 Secrets 为空字符串：electron-builder 会把空的 CSC_LINK 当成当前目录而失败（macOS），因此去掉空值
+        run: |
+          [ -n "$CSC_LINK" ] || unset CSC_LINK CSC_KEY_PASSWORD
+          pnpm exec electron-builder ${{ matrix.target }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS 未签名：不自动查找钥匙串中的证书（使用 ad-hoc 签名）
