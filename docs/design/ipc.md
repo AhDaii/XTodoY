@@ -61,6 +61,8 @@
 | `data:openFolder` | — | `void` | |
 | `system:notificationStatus` | — | `'allowed'\|'denied'\|'unknown'` | FR-REM-09 |
 | `window:minimize` / `window:close` | — | `void` | 自绘标题栏 |
+| `app:info` | — | `AppInfo`（版本、数据目录、库版本、本次运行是否启用硬件加速） | FR-SET-02 |
+| `app:relaunch` | — | `void`（重启程序，用于"硬件加速"等需重启的设置） | FR-SET-02 |
 
 ### 2.5 更新
 

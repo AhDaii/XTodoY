@@ -104,6 +104,8 @@ WHERE g.path LIKE :tagPath || '%' AND t.deleted_at IS NULL AND t.status = 'open'
 
 键值表：`key TEXT PK, value TEXT NOT NULL`（JSON 编码）。包含主题、提醒默认值、悬浮窗位置、更新状态（DR-07：上次检查时间、跳过的版本、通道）等。
 
+`hardwareAcceleration` 是唯一在 app ready **之前**读取的键：此时设置服务尚未创建，由 `src/main/app/launch-prefs.ts` 以只读方式直接打开数据库读取；库不存在或读取失败时视为关闭。
+
 ### 2.7 `meta`
 
 `schema_version`、`created_with_app_version`、`last_backup_date`。

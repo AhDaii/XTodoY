@@ -14,7 +14,7 @@
 ## 文档
 
 - [项目规划](docs/PROJECT_PLAN.md)
-- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（v1.1 已定稿）
+- [软件需求规格说明书（SRS）](docs/srs/SRS.md)（v1.1.2）
 - [设计系统](design/design-system.md) 与 [设计令牌](design/tokens.css)（P2，使用 ui-ux-pro-max 设计）
 - 交互原型：运行 `python design/scripts/serve.py` 后打开 http://127.0.0.1:5178/prototype/index.html
 

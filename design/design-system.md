@@ -1,4 +1,4 @@
-# XTodoY 设计系统 v1.4
+# XTodoY 设计系统 v1.5
 
 > 阶段：P2 界面原型 · 依据：[SRS v1.1](../docs/srs/SRS.md) · 工具：ui-ux-pro-max
 > 令牌源文件：[`tokens.css`](tokens.css)（前端直接引用）· 原型：[`prototype/index.html`](prototype/index.html)、[`prototype/system.html`](prototype/system.html)
@@ -201,6 +201,14 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 | 选项列表 | `--surface-raised` 底、`--border` 边框、`--radius-md`、`--shadow-lg`，内边距 4 px，至少与触发按钮同宽，最高 320 px 超出滚动；进入动画 200 ms（位移 4 px + 缩放 0.98） |
 | 选项 | 高 32 px，左侧 30 px 留给对勾；悬停 / 键盘高亮为 `--surface-hover`；当前值为 `--primary-soft` 底 + 主色对勾 + 中等字重；可带一行 12 px 辅助说明 |
 | 键盘 | Enter / Space / ↓ 打开，打开后焦点在当前值；↑↓ 移动，Home / End，首字母跳转，Enter 选择，Esc 关闭并回到触发按钮 |
+
+### 7.10 需重启生效的设置
+
+> v1.5：配合 SRS v1.1.2「硬件加速」开关新增。
+
+- 设置 › 外观 新增「硬件加速」开关（默认关闭），说明文字写明收益与代价："滚动与动画更流畅 / 关闭可减少约 10–20 MB 常驻内存"，并注明"修改后需重启"。
+- 开关状态与本次运行的实际状态不一致时，在该开关下方插入一行**重启提示**：`--primary-soft` 底、`--primary-soft-foreground` 文字，标题"重启后生效"前置 info 图标，说明当前实际状态；右侧主按钮「立即重启」。改回原值后提示自动消失。提示行带 `role="status"`，读屏可感知。
+- 不弹对话框、不自动重启——用户可继续修改其他设置，稍后再重启。
 
 ## 8 页面清单与原型对应
 
