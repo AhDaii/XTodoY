@@ -31,6 +31,8 @@ export interface AppInfo {
   platform: string;
   dataDir: string;
   dbSchemaVersion: number;
+  /** 本次运行实际是否启用了硬件加速（设置修改后需重启才会变化） */
+  hardwareAcceleration: boolean;
 }
 
 export interface NavRequest {
@@ -70,6 +72,7 @@ export const Invoke = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   testNotify: 'system:testNotify',
+  relaunch: 'app:relaunch',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -129,6 +132,8 @@ export interface XtodoyApi {
     set<K extends keyof Settings>(key: K, value: Settings[K]): R<Settings>;
   };
   testNotify(): R<void>;
+  /** 重启程序（例如切换硬件加速后） */
+  relaunch(): R<void>;
   on: {
     todosChanged(cb: () => void): () => void;
     tagsChanged(cb: () => void): () => void;

@@ -51,6 +51,7 @@ const validators: Validators = {
     throw invalid('暂停时间取值不正确');
   },
   closeTipShown: (v) => bool(v, '关闭提示'),
+  hardwareAcceleration: (v) => bool(v, '硬件加速'),
   sidebarCollapsed: (v) => {
     if (typeof v === 'boolean') return v;
     throw invalid('侧边栏折叠状态取值不正确');

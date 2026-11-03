@@ -23,6 +23,7 @@ import { notificationBody } from './domain/describe';
 import { localDate } from './domain/time';
 import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
+import { readHardwareAcceleration } from './app/launch-prefs';
 
 // 指定了独立数据目录（测试、试用）时，Chromium 配置与单实例锁也随之隔离，不影响正在运行的正式实例
 const customDataDir = process.env['XTODOY_DATA_DIR'];
@@ -33,9 +34,12 @@ if (!app.requestSingleInstanceLock()) {
   app.exit(0);
 }
 
-// 关闭硬件加速：界面没有重度动画，软件渲染足够；仅托盘时内存约减少 20%（spike-report.md §1）。
-// XTODOY_ENABLE_GPU=1 可临时打开，用于对比或排查渲染问题。
-if (!process.env['XTODOY_ENABLE_GPU']) app.disableHardwareAcceleration();
+const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
+
+// 硬件加速默认关闭：界面没有重度动画，软件渲染足够，常驻内存约少 20%（spike-report.md §1）。
+// 用户可在"设置 › 外观"中开启，重启后生效；XTODOY_ENABLE_GPU=1 可临时强制开启。
+const hardwareAcceleration = process.env['XTODOY_ENABLE_GPU'] === '1' || readHardwareAcceleration(dataDir);
+if (!hardwareAcceleration) app.disableHardwareAcceleration();
 
 app.setAppUserModelId('com.xtodoy.app');
 // 自定义协议只在安装版中注册，开发环境不改动系统注册表
@@ -92,7 +96,6 @@ function applyAutostart(on: boolean): void {
 }
 
 void app.whenReady().then(() => {
-  const dataDir = customDataDir ?? join(app.getPath('userData'), 'data');
   const opened = openDatabase(dataDir);
   db = opened.db;
   settings = new SettingsService(db);
@@ -130,7 +133,16 @@ void app.whenReady().then(() => {
     remindMissed: (ids) => showMissed(ids.length, () => openMain({ view: 'today' }), s.get().reminderSound),
   });
 
-  registerIpc({ todos, tags, settings: s, today, scheduler, dataDir, schemaVersion: opened.schemaVersion });
+  registerIpc({
+    todos,
+    tags,
+    settings: s,
+    today,
+    scheduler,
+    dataDir,
+    schemaVersion: opened.schemaVersion,
+    hardwareAcceleration,
+  });
 
   bus.on('today.count', updateTrayCount);
   bus.on('time.jumped', () => today?.resync());

@@ -2305,3 +2305,17 @@ a {
 .popover .row .input[type='number'] {
   flex: none;
 }
+
+/* 需要重启才生效的设置提示 */
+.setting.restart-hint {
+  background: var(--primary-soft);
+}
+.setting.restart-hint .txt b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary-soft-foreground);
+}
+.setting.restart-hint .txt span {
+  color: var(--primary-soft-foreground);
+}

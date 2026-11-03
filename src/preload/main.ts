@@ -44,6 +44,7 @@ const api: XtodoyApi = {
     set: (key, value) => call(Invoke.settingsSet, key, value),
   },
   testNotify: () => call(Invoke.testNotify),
+  relaunch: () => call(Invoke.relaunch),
   on: {
     todosChanged: (cb) => subscribe(Events.todosChanged, cb),
     tagsChanged: (cb) => subscribe(Events.tagsChanged, cb),
