@@ -2429,3 +2429,11 @@ a {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
 }
+
+/* macOS：窗口按钮（红绿灯）在左侧，右侧不需要为系统按钮留位置 */
+[data-platform='darwin'] .titlebar {
+  padding-right: var(--space-4);
+}
+[data-platform='darwin'] .titlebar .brand {
+  padding-left: 76px;
+}

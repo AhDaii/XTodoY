@@ -13,6 +13,11 @@ export interface UpdateStatus {
   current: string;
   /** 开发环境等无法更新时为 false，界面只显示说明 */
   supported: boolean;
+  /**
+   * 能否在程序内下载并安装：Windows、Linux AppImage 可以；未签名的 macOS 与 deb 安装只做检查，
+   * 发现新版本后引导到下载页手动安装
+   */
+  canInstall: boolean;
   latest?: string;
   releaseDate?: string;
   notes?: ReleaseNote[];

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppInfo, DataInfo } from '@shared/ipc';
-import { acceleratorFromEvent, displayAccelerator } from '@shared/shortcut';
+import { acceleratorLabel, isMac } from '@shared/platform';
+import { acceleratorFromEvent } from '@shared/shortcut';
 import type { Settings } from '@shared/types';
 import type { UpdateStatus } from '@shared/update';
 import { Icon, type IconName } from '../components/Icon';
@@ -9,6 +10,7 @@ import { UpdateSection } from '../components/Update';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useNotificationStatus, useReportError } from '../lib/data';
+import { platform } from '../lib/platform';
 import { useUi } from '../lib/store';
 
 /** 设置页（UI-10，FR-SET-02） */
@@ -445,12 +447,16 @@ function ShortcutSetting({ value }: { value: string | null }) {
             setRecording(false);
             save(acc);
           } else if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-            setHint('需要包含 Ctrl、Alt 或 Win 之一，再加一个字母、数字或功能键');
+            setHint(
+              isMac(platform)
+                ? '需要包含 ⌘、⌃ 或 ⌥ 之一，再加一个字母、数字或功能键'
+                : '需要包含 Ctrl、Alt 或 Win 之一，再加一个字母、数字或功能键',
+            );
           }
         }}
       >
         <span id="shortcut-state">
-          {recording ? '请按下组合键…' : value ? <kbd>{displayAccelerator(value)}</kbd> : '未设置'}
+          {recording ? '请按下组合键…' : value ? <kbd>{acceleratorLabel(platform, value)}</kbd> : '未设置'}
         </span>
       </button>
       {value && !recording && (

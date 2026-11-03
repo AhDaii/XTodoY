@@ -63,7 +63,16 @@ body {
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+  font-family:
+    'Segoe UI Variable Display',
+    'Segoe UI',
+    'Microsoft YaHei UI',
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang SC',
+    'Noto Sans CJK SC',
+    system-ui,
+    sans-serif;
   transition:
     transform 160ms ease-out,
     box-shadow 160ms ease-out;

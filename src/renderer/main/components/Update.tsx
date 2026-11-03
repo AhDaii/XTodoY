@@ -74,16 +74,22 @@ export function UpdateSection({ status: u, settings }: { status: UpdateStatus; s
       ic = 'download';
       tone = 'info';
       title = `发现新版本 ${u.latest}`;
-      sub = `${day(u.releaseDate)} 发布 · ${mb(u.size)} MB${u.skipped ? ' · 已跳过此版本' : ''}`;
+      sub = `${day(u.releaseDate)} 发布 · ${mb(u.size)} MB${u.skipped ? ' · 已跳过此版本' : ''}${
+        u.canInstall ? '' : ' · 此平台需要到发布页下载安装'
+      }`;
       acts = (
         <>
           <button className="btn" onClick={() => openDialog(true)}>
             查看更新内容
           </button>
-          <button className="btn primary" onClick={() => run(call(api.update.download()))}>
-            <Icon name="download" size={14} />
-            立即更新
-          </button>
+          {u.canInstall ? (
+            <button className="btn primary" onClick={() => run(call(api.update.download()))}>
+              <Icon name="download" size={14} />
+              立即更新
+            </button>
+          ) : (
+            <DownloadPageButton version={u.latest} />
+          )}
         </>
       );
       break;
@@ -175,9 +181,13 @@ export function UpdateSection({ status: u, settings }: { status: UpdateStatus; s
         <Switch
           id="autoDownload"
           label="自动下载更新"
-          hint="在后台下载，完成后提示重启；不重启则在退出程序时安装"
-          checked={settings.autoCheckUpdate && settings.autoDownloadUpdate}
-          disabled={!settings.autoCheckUpdate}
+          hint={
+            u.canInstall || !u.supported
+              ? '在后台下载，完成后提示重启；不重启则在退出程序时安装'
+              : '此平台的安装包需要到发布页手动下载安装'
+          }
+          checked={u.canInstall && settings.autoCheckUpdate && settings.autoDownloadUpdate}
+          disabled={!settings.autoCheckUpdate || (u.supported && !u.canInstall)}
           onChange={(v) => set('autoDownloadUpdate', v)}
         />
         <div className="setting">
@@ -298,6 +308,8 @@ export function UpdateDialog({ status: u }: { status: UpdateStatus }) {
               </button>
               {ready ? (
                 <InstallButton />
+              ) : !u.canInstall ? (
+                <DownloadPageButton version={u.latest} onDone={() => close(false)} />
               ) : (
                 <button
                   className="btn primary"
@@ -312,6 +324,23 @@ export function UpdateDialog({ status: u }: { status: UpdateStatus }) {
         </div>
       </>
     </Dialog>
+  );
+}
+
+/** 只能手动安装的平台：打开该版本的发布页 */
+function DownloadPageButton({ version, onDone }: { version?: string; onDone?: () => void }) {
+  const report = useReportError();
+  return (
+    <button
+      className="btn primary"
+      onClick={() => {
+        onDone?.();
+        void call(api.openExternal(version ? `${RELEASES}/tag/v${version}` : RELEASES)).catch(report);
+      }}
+    >
+      <Icon name="download" size={14} />
+      前往下载页
+    </button>
   );
 }
 

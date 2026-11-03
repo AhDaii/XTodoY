@@ -51,6 +51,3 @@ export function acceleratorFromEvent(e: {
   const acc = [...mods, key].join('+');
   return isValidAccelerator(acc) ? acc : null;
 }
-
-/** 界面显示：Super 在 Windows 上显示为 Win */
-export const displayAccelerator = (s: string): string => s.replace('Super', 'Win');

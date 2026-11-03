@@ -13,6 +13,8 @@ export interface RemoteVersion {
 
 /** 更新器：安装版为 electron-updater，开发 / 测试环境为模拟实现（platform/updater.ts） */
 export interface Updater {
+  /** 能否在程序内下载安装（见 UpdateStatus.canInstall） */
+  readonly canInstall: boolean;
   configure(o: { allowPrerelease: boolean }): void;
   /** 返回发布源上的最新版本；没有更高版本时返回 null */
   check(): Promise<RemoteVersion | null>;
@@ -62,6 +64,7 @@ export class UpdateService {
       phase: 'idle',
       current,
       supported: updater !== null,
+      canInstall: updater?.canInstall ?? false,
       lastCheckAt: p.lastCheckAt,
       skipped: false,
       justUpdated,
@@ -157,14 +160,14 @@ export class UpdateService {
     });
     if (skipped) return this.status;
     const { autoCheckUpdate, autoDownloadUpdate } = this.settings.get();
-    if (autoCheckUpdate && autoDownloadUpdate) void this.download();
+    if (this.updater.canInstall && autoCheckUpdate && autoDownloadUpdate) void this.download();
     else this.notifyOnce('available');
     return this.status;
   }
 
   /** 下载（FR-UPD-04）；完成并校验后进入"就绪" */
   async download(): Promise<void> {
-    if (!this.updater || this.s.phase !== 'available') return;
+    if (!this.updater?.canInstall || this.s.phase !== 'available') return;
     this.set({ phase: 'downloading', progress: 0, transferred: 0, error: undefined });
     try {
       await this.updater.download((p) =>

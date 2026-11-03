@@ -27,6 +27,12 @@ export function refreshTrayMenu(): void {
 }
 
 function icon(): Electron.NativeImage {
+  // macOS 菜单栏用模板图标，由系统按明暗自动着色（trayTemplate@2x.png 会被自动选用）
+  if (process.platform === 'darwin') {
+    const img = nativeImage.createFromPath(resourcePath('trayTemplate.png'));
+    img.setTemplateImage(true);
+    return img;
+  }
   // 浅色任务栏用深色剪影，深色任务栏用浅色剪影（IR-04）
   const file = nativeTheme.shouldUseDarkColors ? 'tray-dark.png' : 'tray-light.png';
   return nativeImage.createFromPath(resourcePath(file));
@@ -86,4 +92,6 @@ function pausedItem(actions: TrayActions): Electron.MenuItemConstructorOptions {
 
 export function updateTrayCount(c: TodayCount): void {
   tray?.setToolTip(`XTodoY · 今日待办 ${c.open} 项`);
+  // macOS 菜单栏图标旁直接显示今日未完成数
+  if (process.platform === 'darwin') tray?.setTitle(c.open ? String(c.open) : '');
 }

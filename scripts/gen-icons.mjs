@@ -1,6 +1,7 @@
 // 生成应用图标与托盘图标（纯 Node，无第三方依赖）：圆角方块 + 对勾。
 // 输出：build/icon.png（512，electron-builder 据此生成 .ico）、resources/icon.png（256）、
-//      resources/tray-light.png / tray-dark.png（32，分别用于浅色 / 深色任务栏）
+//      resources/tray-light.png / tray-dark.png（32，分别用于浅色 / 深色任务栏）、
+//      resources/trayTemplate.png / trayTemplate@2x.png（16 / 32，macOS 菜单栏模板图标：纯黑 + 透明度，由系统着色）
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
@@ -8,6 +9,7 @@ const BLUE = [37, 99, 235]; // --primary #2563eb
 const WHITE = [255, 255, 255];
 const SLATE = [15, 23, 42]; // --foreground #0f172a
 const LIGHT = [226, 232, 240]; // 深色 --foreground #e2e8f0
+const BLACK = [0, 0, 0];
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -111,4 +113,6 @@ writeFileSync('build/icon.png', draw(512, 'app'));
 writeFileSync('resources/icon.png', draw(256, 'app'));
 writeFileSync('resources/tray-light.png', draw(32, 'tray', SLATE));
 writeFileSync('resources/tray-dark.png', draw(32, 'tray', LIGHT));
-console.log('icons: build/icon.png, resources/icon.png, resources/tray-light.png, resources/tray-dark.png');
+writeFileSync('resources/trayTemplate.png', draw(16, 'tray', BLACK));
+writeFileSync('resources/trayTemplate@2x.png', draw(32, 'tray', BLACK));
+console.log('icons: build/icon.png, resources/icon.png, resources/tray-*.png, resources/trayTemplate*.png');
