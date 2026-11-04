@@ -2,7 +2,7 @@ import { app, BrowserWindow, nativeTheme, screen, shell, type BrowserWindowConst
 
 const isMac = process.platform === 'darwin';
 import { Events } from '@shared/ipc';
-import { preloadPath, rendererEntry } from '../app/paths';
+import { preloadPath, rendererEntry, resourcePath } from '../app/paths';
 import { cardVisible, clampToArea, snapToEdges } from '../domain/floating';
 
 // 64 × 78 日历页 + 四周 8 px 投影（设计系统 §7.5）
@@ -83,6 +83,8 @@ export function showMainWindow(): BrowserWindow {
     minHeight: 560,
     show: false,
     title: 'XTodoY',
+    // 显式设置窗口图标：否则开发模式与 Linux 下任务栏、Alt+Tab 显示 Electron 默认图标（#23）
+    icon: resourcePath('icon.png'),
     backgroundColor: dark ? '#0a1020' : '#f4f7ff',
     // 自绘标题栏：Windows / Linux 用系统绘制的右侧按钮（titleBarOverlay），macOS 用左侧红绿灯
     ...(isMac
@@ -131,6 +133,7 @@ export function createFloatingWindow(saved?: { x: number; y: number }): BrowserW
     minimizable: false,
     fullscreenable: false,
     skipTaskbar: true,
+    icon: resourcePath('icon.png'),
     focusable: false,
     hasShadow: false,
     show: false,

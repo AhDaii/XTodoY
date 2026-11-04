@@ -10,6 +10,7 @@ const KINDS: Record<string, ReleaseNote['kind']> = { 新增: 'new', 改进: 'imp
 export function parseReleaseNotes(raw: string | null | undefined): ReleaseNote[] {
   if (!raw) return [];
   const text = raw
+    .replace(/<hr\s*\/?>/gi, '\n---\n')
     .replace(/<\/(p|li|h\d|div)>|<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&')
@@ -22,6 +23,8 @@ export function parseReleaseNotes(raw: string | null | undefined): ReleaseNote[]
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
+    // 分隔线之后是只给 GitHub 页面看的下载表格与安装提示，不显示在程序里
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) break;
     const heading = /^#{1,6}\s*(.+?)\s*$/.exec(line);
     if (heading) {
       section = KINDS[heading[1]!.replace(/[:：]$/, '')] ?? null;
@@ -37,6 +40,28 @@ export function parseReleaseNotes(raw: string | null | undefined): ReleaseNote[]
     else notes.push({ kind: section, text: item });
   }
   return notes.slice(0, 50);
+}
+
+/**
+ * 从 GitHub 的 releases.atom 中取出某个版本的说明（HTML）与发布时间（#25）。
+ * 用 Atom 而不是 REST API：匿名 REST API 每个 IP 每小时只有 60 次，共用出口 IP 时经常被限流（403）。
+ */
+export function notesFromFeed(xml: string, version: string): { notes: string; releaseDate: string } | null {
+  const tag = `/releases/tag/v${version}"`;
+  for (const entry of xml.split('<entry>').slice(1)) {
+    if (!entry.includes(tag)) continue;
+    const content = /<content type="html">([\s\S]*?)<\/content>/.exec(entry)?.[1] ?? '';
+    const updated = /<updated>([^<]+)<\/updated>/.exec(entry)?.[1] ?? '';
+    // Atom 中的 HTML 经过一次实体转义，先还原成 HTML 再交给 parseReleaseNotes
+    const html = content
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+    return { notes: html, releaseDate: updated };
+  }
+  return null;
 }
 
 /** 语义化版本比较；预发布版本低于同号正式版（1.1.0-beta.2 < 1.1.0） */

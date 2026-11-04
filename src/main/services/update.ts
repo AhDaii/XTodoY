@@ -23,6 +23,8 @@ export interface Updater {
   cancel(): void;
   /** 立即退出、安装并重新启动 */
   install(): void;
+  /** 读取某个已发布版本的更新说明（更新后查看本版本内容；本地没有保存时使用） */
+  notesFor(version: string): Promise<{ notes: string | null; releaseDate: string } | null>;
 }
 
 export interface UpdateOutput {
@@ -69,6 +71,31 @@ export class UpdateService {
       skipped: false,
       justUpdated,
     };
+    // 更新后：用发现新版本时保存的说明（#25）
+    const saved = settings.get().updateNotes;
+    if (justUpdated && saved?.version === current) {
+      this.s.notes = saved.notes;
+      this.s.releaseDate = saved.releaseDate;
+    }
+  }
+
+  /**
+   * 更新后的"查看更新内容"：本地没有保存说明时（例如从更早的版本升级）向发布源读取当前版本的说明。
+   * 失败时保持为空，界面显示前往发布页的链接。
+   */
+  async loadCurrentNotes(): Promise<UpdateStatus> {
+    if (this.s.notes?.length || !this.updater) return this.status;
+    try {
+      const r = await this.updater.notesFor(this.current);
+      if (r) {
+        const notes = parseReleaseNotes(r.notes);
+        this.settings.set('updateNotes', { version: this.current, releaseDate: r.releaseDate, notes });
+        this.set({ notes, releaseDate: r.releaseDate });
+      }
+    } catch (e) {
+      console.warn('[update] load notes failed', e);
+    }
+    return this.status;
   }
 
   /** 异步操作之后读取最新阶段（可能已被 cancel 等改变） */
@@ -165,6 +192,12 @@ export class UpdateService {
       notes: parseReleaseNotes(remote.notes),
       size: remote.size,
       skipped,
+    });
+    // 保存说明，安装后首次启动时"查看更新内容"可以直接显示（#25）
+    this.settings.set('updateNotes', {
+      version: remote.version,
+      releaseDate: remote.releaseDate,
+      notes: this.s.notes ?? [],
     });
     if (skipped) return this.status;
     const { autoCheckUpdate, autoDownloadUpdate } = this.settings.get();
