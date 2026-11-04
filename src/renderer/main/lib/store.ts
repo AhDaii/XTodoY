@@ -22,6 +22,9 @@ interface UiState {
   collapsedGroups: Set<string>;
   collapsedTags: Set<string>;
   toast: ToastState | null;
+  /** 正在播放"完成"动画、尚未提交的事项（#24：动画结束后再保存，否则今天视图中该行会立即移走） */
+  completing: Set<string>;
+  setCompleting(id: string, on: boolean): void;
   /** 更新详情对话框、正在安装遮罩（SRS F10） */
   updateDialog: boolean;
   installing: boolean;
@@ -57,6 +60,14 @@ export const useUi = create<UiState>((set) => ({
   collapsedGroups: new Set(['today-done']),
   collapsedTags: new Set(),
   toast: null,
+  completing: new Set(),
+  setCompleting: (id, on) =>
+    set((s) => {
+      const next = new Set(s.completing);
+      if (on) next.add(id);
+      else next.delete(id);
+      return { completing: next };
+    }),
   updateDialog: false,
   installing: false,
   setUpdateDialog: (updateDialog) => set({ updateDialog }),

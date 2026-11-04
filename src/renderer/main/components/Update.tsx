@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { Settings } from '@shared/types';
 import type { UpdateStatus } from '@shared/update';
 import { api, call } from '../lib/api';
@@ -240,6 +241,16 @@ export function UpdateDialog({ status: u }: { status: UpdateStatus }) {
   const after = !u.latest && u.justUpdated !== null;
   const version = after ? u.current : u.latest;
   const ready = u.phase === 'ready';
+  // 更新后查看本版本内容：本地没有保存说明时向发布源读取（#25）
+  const [loading, setLoading] = useState(after && !u.notes?.length);
+  useEffect(() => {
+    if (!after || u.notes?.length) return;
+    void call(api.update.loadNotes())
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+    // 只在打开时读取一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const act = (p: Promise<unknown>, msg?: string) => {
     close(false);
     void p.then(() => msg && showToast(msg)).catch(report);
@@ -257,7 +268,9 @@ export function UpdateDialog({ status: u }: { status: UpdateStatus }) {
           </div>
         </div>
         <h3>更新内容</h3>
-        {u.notes?.length ? (
+        {loading ? (
+          <p className="help">正在获取更新内容…</p>
+        ) : u.notes?.length ? (
           <ul className="release-notes">
             {u.notes.map((n, i) => (
               <li key={i}>

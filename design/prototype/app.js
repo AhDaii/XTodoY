@@ -261,7 +261,7 @@ function todoRow(t) {
   return `
     <li class="todo ${t.done ? 'is-done' : ''}" data-id="${t.id}" role="option" aria-selected="${state.selected === t.id}" tabindex="0" data-action="select">
       ${trash ? '<span style="width:32px"></span>' : `
-      <button class="check prio-${t.priority}" role="checkbox" aria-checked="${t.done}" aria-label="完成：${esc(t.title)}" data-action="toggle" data-id="${t.id}">
+      <button class="check prio-${t.priority} ${completing.has(t.id) ? 'is-completing' : ''}" role="checkbox" aria-checked="${t.done || completing.has(t.id)}" aria-label="完成：${esc(t.title)}" data-action="toggle" data-id="${t.id}">
         <span class="ring">${icon('check', 12)}</span>
       </button>`}
       <div class="todo-body">
@@ -377,7 +377,7 @@ function renderDetail() {
   return `
     <aside class="detail" aria-label="待办详情">
       <div class="detail-head">
-        <button class="check prio-${t.priority}" role="checkbox" aria-checked="${t.done}" aria-label="完成：${esc(t.title)}" data-action="toggle" data-id="${t.id}"><span class="ring">${icon('check', 12)}</span></button>
+        <button class="check prio-${t.priority} ${completing.has(t.id) ? 'is-completing' : ''}" role="checkbox" aria-checked="${t.done || completing.has(t.id)}" aria-label="完成：${esc(t.title)}" data-action="toggle" data-id="${t.id}"><span class="ring">${icon('check', 12)}</span></button>
         <textarea class="detail-title" rows="2" maxlength="200" data-field="title" aria-label="标题">${esc(t.title)}</textarea>
         <button class="icon-btn" data-action="close-detail" aria-label="关闭详情（Esc）" title="关闭（Esc）">${icon('x')}</button>
       </div>
@@ -998,7 +998,20 @@ function toast(msg, undo) {
 }
 
 /* ---------- 操作 ---------- */
+// §7.1：完成时先播放勾选动画（260 ms）再改状态，否则今天视图中该行会立即移走
+const completing = new Set();
 function toggleTodo(id) {
+  const t0 = state.todos.find((x) => x.id === id);
+  if (!t0.done && !completing.has(id) && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    completing.add(id);
+    render();
+    setTimeout(() => { completing.delete(id); applyToggle(id); }, 260);
+    return;
+  }
+  if (completing.has(id)) return;
+  applyToggle(id);
+}
+function applyToggle(id) {
   const t = state.todos.find((x) => x.id === id);
   const snapshot = structuredClone(t);
   const now = `${TODAY} ${new Date().toTimeString().slice(0, 5)}`;

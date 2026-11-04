@@ -68,6 +68,7 @@ const api: XtodoyApi = {
     skip: () => call(Invoke.updateSkip),
     later: () => call(Invoke.updateLater),
     dismissBanner: () => call(Invoke.updateDismissBanner),
+    loadNotes: () => call(Invoke.updateLoadNotes),
   },
   openExternal: (url) => call(Invoke.openExternal, url),
   on: {

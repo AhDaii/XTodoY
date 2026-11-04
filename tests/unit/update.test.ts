@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { compareVersions, describeUpdateError, parseReleaseNotes } from '../../src/main/domain/release';
+import { compareVersions, describeUpdateError, notesFromFeed, parseReleaseNotes } from '../../src/main/domain/release';
 import { UpdateService, type RemoteVersion, type Updater, type UpdateOutput } from '../../src/main/services/update';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/shared/types';
 
@@ -72,6 +72,7 @@ describe('UpdateService', () => {
       download: async (p) => p({ percent: 100, transferred: 100, total: 100 }),
       cancel: vi.fn(),
       install: () => void updater.installed++,
+      notesFor: async () => ({ notes: '### 修复\n- 修好了', releaseDate: '2026-11-03' }),
     };
     out = {
       status: vi.fn<UpdateOutput['status']>(),
@@ -187,6 +188,24 @@ describe('UpdateService', () => {
     expect(updater.installed).toBe(1);
   });
 
+  it('发现新版本时保存更新说明，更新后首次启动的"查看更新内容"直接显示（#25）', async () => {
+    settings.autoDownloadUpdate = false;
+    await make('1.0.0').check(false);
+    expect(settings.updateNotes).toMatchObject({ version: '1.1.0', notes: [{ kind: 'new', text: '统计' }] });
+    settings.update = { ...settings.update, lastRunVersion: '1.0.0' };
+    const after = make('1.1.0');
+    expect(after.status).toMatchObject({ justUpdated: '1.1.0', notes: [{ kind: 'new', text: '统计' }] });
+  });
+
+  it('本地没有保存说明时（从更早版本升级）向发布源读取当前版本的说明（#25）', async () => {
+    settings.update = { ...settings.update, lastRunVersion: '1.0.0' };
+    const after = make('1.1.0');
+    expect(after.status.notes).toBeUndefined();
+    const st = await after.loadCurrentNotes();
+    expect(st.notes).toEqual([{ kind: 'fix', text: '修好了' }]);
+    expect(settings.updateNotes?.version).toBe('1.1.0');
+  });
+
   it('更新后首次启动显示横幅，关闭后不再显示（FR-UPD-11）', () => {
     settings.update = { ...settings.update, lastRunVersion: '1.0.0' };
     const svc = make('1.1.0');
@@ -195,5 +214,29 @@ describe('UpdateService', () => {
     svc.dismissBanner();
     expect(make('1.1.0').status.justUpdated).toBeNull();
     expect(make('1.0.0').status.justUpdated).toBeNull();
+  });
+});
+
+describe('Atom 订阅中的发布说明（#25）', () => {
+  // 与 GitHub releases.atom 相同的结构：content 中是经过实体转义的 HTML
+  const feed = `<feed><entry><updated>2026-11-03T16:34:50Z</updated>
+<link rel="alternate" type="text/html" href="https://github.com/AhDaii/XTodoY/releases/tag/v1.0.0-rc.2"/>
+<content type="html">&lt;h3&gt;新增&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;工作日第一天&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;修复&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;白屏 &amp;amp; 描边&lt;/li&gt;&lt;/ul&gt;&lt;hr&gt;&lt;p&gt;下载表格&lt;/p&gt;</content>
+</entry><entry><link href="https://github.com/AhDaii/XTodoY/releases/tag/v1.0.0-rc.1"/><content type="html">x</content></entry></feed>`;
+
+  it('按版本取出说明与发布时间，分隔线之后的内容不显示', () => {
+    const r = notesFromFeed(feed, '1.0.0-rc.2');
+    expect(r?.releaseDate).toBe('2026-11-03T16:34:50Z');
+    expect(parseReleaseNotes(r?.notes)).toEqual([
+      { kind: 'new', text: '工作日第一天' },
+      { kind: 'fix', text: '白屏 & 描边' },
+    ]);
+    expect(notesFromFeed(feed, '1.0.0-rc.3')).toBeNull();
+    // 不能把 rc.1 误当成 rc.10 之类的前缀匹配
+    expect(notesFromFeed(feed, '1.0.0-rc')).toBeNull();
+  });
+
+  it('Markdown 说明中的分隔线同样截止', () => {
+    expect(parseReleaseNotes('### 改进\n- 更快\n\n---\n\n| 平台 | 文件 |')).toEqual([{ kind: 'imp', text: '更快' }]);
   });
 });

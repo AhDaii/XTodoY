@@ -1,6 +1,7 @@
 import { defaultQuickAddShortcut } from '@shared/platform';
 import { isValidAccelerator } from '@shared/shortcut';
 import { DEFAULT_SETTINGS, SORT_MODES, type Settings, type SortMode } from '@shared/types';
+import type { ReleaseNote } from '@shared/update';
 import type { DB } from '../db/client';
 import { bus } from '../events/bus';
 import { invalid } from './errors';
@@ -67,6 +68,30 @@ const validators: Validators = {
     throw invalid('排序方式取值不正确');
   },
   autoCheckUpdate: (v) => bool(v, '自动检查更新'),
+  updateNotes: (v) => {
+    if (v === null) return null;
+    const o = v as { version?: unknown; releaseDate?: unknown; notes?: unknown };
+    const okNote = (n: unknown) => {
+      const x = n as { kind?: unknown; text?: unknown };
+      return (
+        [null, 'new', 'imp', 'fix'].includes(x?.kind as string | null) &&
+        typeof x.text === 'string' &&
+        x.text.length <= 500
+      );
+    };
+    if (
+      typeof o === 'object' &&
+      typeof o.version === 'string' &&
+      o.version.length <= 64 &&
+      typeof o.releaseDate === 'string' &&
+      o.releaseDate.length <= 40 &&
+      Array.isArray(o.notes) &&
+      o.notes.length <= 50 &&
+      o.notes.every(okNote)
+    )
+      return { version: o.version, releaseDate: o.releaseDate, notes: o.notes as ReleaseNote[] };
+    throw invalid('更新说明取值不正确');
+  },
   holidayAutoUpdate: (v) => bool(v, '自动更新节假日'),
   holidayCheckedAt: (v) => {
     if (v === null || (typeof v === 'number' && Number.isFinite(v))) return v;

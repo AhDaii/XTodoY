@@ -102,6 +102,7 @@ export const Invoke = {
   updateSkip: 'update:skip',
   updateLater: 'update:later',
   updateDismissBanner: 'update:dismissBanner',
+  updateLoadNotes: 'update:loadNotes',
   openExternal: 'app:openExternal',
   notificationStatus: 'system:notificationStatus',
   openNotificationSettings: 'system:openNotificationSettings',
@@ -197,6 +198,8 @@ export interface XtodoyApi {
     skip(): R<void>;
     later(): R<void>;
     dismissBanner(): R<void>;
+    /** 读取当前版本的更新说明（更新后查看本版本内容） */
+    loadNotes(): R<UpdateStatus>;
   };
   /** 用系统浏览器打开发布页等白名单链接 */
   openExternal(url: string): R<void>;

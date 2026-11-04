@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { notesFromFeed } from '../domain/release';
 import type { RemoteVersion, Updater } from '../services/update';
 
 type AppUpdater = import('electron-updater').AppUpdater;
@@ -69,6 +70,16 @@ class ElectronUpdater implements Updater {
     // isSilent：不显示安装界面；isForceRunAfter：安装后重新启动
     this.au?.quitAndInstall(true, true);
   }
+
+  /** 读取已发布版本的说明：GitHub Releases 的 Atom 订阅（匿名只读，与检查更新同源，IR-11） */
+  async notesFor(version: string): Promise<{ notes: string | null; releaseDate: string } | null> {
+    const res = await fetch('https://github.com/AhDaii/XTodoY/releases.atom', {
+      headers: { 'User-Agent': 'XTodoY' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    return notesFromFeed(await res.text(), version);
+  }
 }
 
 /**
@@ -111,6 +122,10 @@ class FakeUpdater implements Updater {
   }
   install(): void {
     app.quit();
+  }
+  async notesFor(version: string): Promise<{ notes: string | null; releaseDate: string } | null> {
+    await delay(100);
+    return { notes: `### 改进\n- 版本 ${version} 的说明`, releaseDate: new Date().toISOString() };
   }
 }
 

@@ -27,39 +27,41 @@ export function StatsPage({ weekStart }: { weekStart: 0 | 1 }) {
           <div className="sub">{s ? (s.from === s.to ? `${s.from} ${wd(s.from)}` : `${s.from} ~ ${s.to}`) : ' '}</div>
         </div>
         <span className="spacer" />
-        <div className="seg" role="group" aria-label="统计维度">
-          {(
-            [
-              ['day', '日'],
-              ['week', '周'],
-              ['month', '月'],
-            ] as const
-          ).map(([v, l]) => (
-            <button key={v} aria-pressed={period === v} onClick={() => switchPeriod(v)}>
-              {l}
+        <div className="header-ctl">
+          <div className="seg" role="group" aria-label="统计维度">
+            {(
+              [
+                ['day', '日'],
+                ['week', '周'],
+                ['month', '月'],
+              ] as const
+            ).map(([v, l]) => (
+              <button key={v} aria-pressed={period === v} onClick={() => switchPeriod(v)}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="period-nav">
+            <button className="icon-btn" aria-label={`上一${unit}`} onClick={() => setOffset(offset - 1)}>
+              <Icon name="chevronLeft" />
             </button>
-          ))}
-        </div>
-        <div className="period-nav">
-          <button className="icon-btn" aria-label={`上一${unit}`} onClick={() => setOffset(offset - 1)}>
-            <Icon name="chevronLeft" />
-          </button>
-          <span className="period" aria-live="polite">
-            {label}
-          </span>
-          <button
-            className="icon-btn"
-            aria-label={`下一${unit}`}
-            disabled={offset >= 0}
-            onClick={() => setOffset(Math.min(0, offset + 1))}
-          >
-            <Icon name="chevronRight" />
-          </button>
-          {offset !== 0 && (
-            <button className="btn sm ghost" onClick={() => setOffset(0)}>
-              回到本期
+            <span className="period" aria-live="polite">
+              {label}
+            </span>
+            <button
+              className="icon-btn"
+              aria-label={`下一${unit}`}
+              disabled={offset >= 0}
+              onClick={() => setOffset(Math.min(0, offset + 1))}
+            >
+              <Icon name="chevronRight" />
             </button>
-          )}
+            {offset !== 0 && (
+              <button className="btn sm ghost" onClick={() => setOffset(0)}>
+                回到本期
+              </button>
+            )}
+          </div>
         </div>
       </header>
       <div className="main-scroll">
