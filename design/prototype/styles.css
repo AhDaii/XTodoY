@@ -178,15 +178,32 @@ a { color: var(--primary); }
 .check {
   flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-full);
 }
+/* §7.1 v1.8：A"弹性填充"——优先级色边框；悬停淡底 + 预览对勾；按下缩小；完成填色回弹、对勾一笔画出 */
 .check .ring {
+  --c: var(--prio, var(--control-border));
   width: var(--size-checkbox); height: var(--size-checkbox); border-radius: var(--radius-full);
-  border: 1.5px solid var(--prio, var(--control-border)); display: grid; place-items: center;
-  transition: background var(--duration-slow) var(--ease-out), border-color var(--duration-fast);
+  border: 1.75px solid var(--c); display: grid; place-items: center;
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 320ms cubic-bezier(.34,1.56,.64,1);
 }
-.check .ring .icon { opacity: 0; color: var(--prio, var(--foreground-subtle)); transition: opacity var(--duration-fast); }
-.check:hover .ring .icon { opacity: 0.6; }
-.check[aria-checked="true"] .ring { background: var(--primary); border-color: var(--primary); }
-.check[aria-checked="true"] .ring .icon { opacity: 1; color: var(--primary-foreground); }
+.check .ring .icon { color: var(--primary-foreground); stroke-width: 3; }
+.check .ring .icon path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.check:hover .ring { background: color-mix(in srgb, var(--c) 12%, transparent); }
+.check:not([aria-checked="true"]):hover .ring .icon { color: var(--c); }
+.check:not([aria-checked="true"]):hover .ring .icon path { stroke-dashoffset: 0; opacity: .45; }
+.check:active .ring { transform: scale(.82); }
+.check[aria-checked="true"] .ring { background: var(--c); border-color: var(--c); }
+.check[aria-checked="true"] .ring .icon path { stroke-dashoffset: 0; }
+.check.is-completing .ring { animation: check-pop 360ms cubic-bezier(.34,1.56,.64,1); }
+.check.is-completing .ring .icon path { transition: stroke-dashoffset 220ms 90ms ease-out; }
+@keyframes check-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .check .ring, .check .ring .icon path { transition: background 120ms, border-color 120ms; animation: none !important; } }
+/* §7.2 v1.8：中间列不足 640 px 时标题独占一行、控件换到第二行，文字不换行 */
+.main { container: main / inline-size; }
+.main-header { flex-wrap: wrap; row-gap: var(--space-2); }
+.main-header > div:first-child { flex: 1 1 auto; min-width: 0; }
+.main-header .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.main-header .seg button, .main-header .btn, .main-header .select-btn { white-space: nowrap; }
+@container main (max-width: 640px) { .main-header .spacer { display: none; } }
 .prio-high { --prio: var(--priority-high); }
 .prio-medium { --prio: var(--priority-medium); }
 .prio-low { --prio: var(--priority-low); }

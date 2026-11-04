@@ -144,32 +144,34 @@ export function ListPage({
           <div className="sub">{sub}</div>
         </div>
         <span className="spacer" />
-        {tag && !search && (
-          <div className="seg" role="group" aria-label="范围">
-            <button aria-pressed={includeChildren} onClick={() => ui().setIncludeChildren(true)}>
-              包含子标签
+        <div className="header-ctl">
+          {tag && !search && (
+            <div className="seg" role="group" aria-label="范围">
+              <button aria-pressed={includeChildren} onClick={() => ui().setIncludeChildren(true)}>
+                包含子标签
+              </button>
+              <button aria-pressed={!includeChildren} onClick={() => ui().setIncludeChildren(false)}>
+                仅本标签
+              </button>
+            </div>
+          )}
+          {tag && !search && (
+            <button
+              className={`btn sm ${showDoneInTag ? '' : 'ghost'}`}
+              aria-pressed={showDoneInTag}
+              onClick={() => ui().setShowDoneInTag(!showDoneInTag)}
+            >
+              <Icon name="checkCircle" size={14} />
+              显示已完成
             </button>
-            <button aria-pressed={!includeChildren} onClick={() => ui().setIncludeChildren(false)}>
-              仅本标签
+          )}
+          {scope && <Select<SortMode> ariaLabel="排序方式" value={sort} options={SORT_OPTIONS} onChange={setSort} />}
+          {view === 'trash' && total > 0 && (
+            <button className="btn sm ghost" onClick={() => void call(api.todos.purgeAll()).catch(report)}>
+              清空回收站
             </button>
-          </div>
-        )}
-        {tag && !search && (
-          <button
-            className={`btn sm ${showDoneInTag ? '' : 'ghost'}`}
-            aria-pressed={showDoneInTag}
-            onClick={() => ui().setShowDoneInTag(!showDoneInTag)}
-          >
-            <Icon name="checkCircle" size={14} />
-            显示已完成
-          </button>
-        )}
-        {scope && <Select<SortMode> ariaLabel="排序方式" value={sort} options={SORT_OPTIONS} onChange={setSort} />}
-        {view === 'trash' && total > 0 && (
-          <button className="btn sm ghost" onClick={() => void call(api.todos.purgeAll()).catch(report)}>
-            清空回收站
-          </button>
-        )}
+          )}
+        </div>
       </header>
 
       {updatedTo && !search && <UpdatedBanner version={updatedTo} />}
@@ -304,7 +306,6 @@ export function ListPage({
                         inTrash={view === 'trash'}
                         showCompletedTime={view !== 'today'}
                         onSelect={() => ui().select(t.id)}
-                        onToggle={() => void actions.toggle(t)}
                         onDelete={() => void actions.remove(t)}
                         onRestore={() => void actions.restore(t)}
                         onPurge={() => void actions.purge(t)}

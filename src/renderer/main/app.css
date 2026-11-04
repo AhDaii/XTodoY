@@ -485,9 +485,33 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.todo-title .strike {
+  position: relative;
+}
+/* 完成：删除线从左到右划过，文字变弱（#24） */
+.todo-title .strike::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  height: 1.5px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 .todo.is-done .todo-title .text {
   color: var(--foreground-subtle);
-  text-decoration: line-through;
+  transition: color 240ms;
+}
+.todo.is-done .todo-title .strike::after {
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .todo-title .strike::after {
+    transition: none;
+  }
 }
 .todo-note {
   font-size: var(--text-sm);
@@ -542,32 +566,81 @@ a {
   place-items: center;
   border-radius: var(--radius-full);
 }
+/*
+ * 勾选框（设计系统 §7.1，#24 方案 A"弹性填充"）：圆圈颜色表示优先级；悬停时淡色底 + 预览对勾；
+ * 按下时缩小；完成时用优先级颜色填满并回弹，对勾一笔画出（只有刚勾选的那一项播放，见 .is-completing）
+ */
 .check .ring {
+  --c: var(--prio, var(--control-border));
   width: var(--size-checkbox);
   height: var(--size-checkbox);
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--prio, var(--control-border));
+  border: 1.75px solid var(--c);
   display: grid;
   place-items: center;
   transition:
-    background var(--duration-slow) var(--ease-out),
-    border-color var(--duration-fast);
+    background 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.check .ring .icon {
-  opacity: 0;
-  color: var(--prio, var(--foreground-subtle));
-  transition: opacity var(--duration-fast);
+.check .tick {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--primary-foreground);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.check:hover .ring .icon {
-  opacity: 0.6;
+.check .tick path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+}
+.check:hover .ring {
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+}
+.check:not([aria-checked='true']):hover .tick {
+  stroke: var(--c);
+}
+.check:not([aria-checked='true']):hover .tick path {
+  stroke-dashoffset: 0;
+  opacity: 0.45;
+}
+.check:active .ring {
+  transform: scale(0.82);
 }
 .check[aria-checked='true'] .ring {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--c);
+  border-color: var(--c);
 }
-.check[aria-checked='true'] .ring .icon {
-  opacity: 1;
-  color: var(--primary-foreground);
+.check[aria-checked='true'] .tick path {
+  stroke-dashoffset: 0;
+}
+.check.is-completing .ring {
+  animation: check-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.check.is-completing .tick path {
+  transition: stroke-dashoffset 220ms 90ms ease-out;
+}
+@keyframes check-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check .ring,
+  .check .tick path {
+    transition:
+      background 120ms,
+      border-color 120ms;
+    animation: none !important;
+  }
 }
 .prio-high {
   --prio: var(--priority-high);
@@ -2468,4 +2541,47 @@ a {
   margin: 0;
   max-width: 420px;
   color: var(--foreground-muted);
+}
+
+/*
+ * 标题栏在窄宽度下（#22 方案 1"两行工具条"）：中间列不足 640 px 时，标题独占第一行，
+ * 控件整体换到第二行；控件文字不再换行，标签路径过长时省略
+ */
+.main {
+  container: main / inline-size;
+}
+.main-header {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+.main-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.main-header .sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.header-ctl .seg button,
+.header-ctl .btn,
+.header-ctl .select-trigger {
+  white-space: nowrap;
+}
+@container main (max-width: 640px) {
+  .main-header .spacer {
+    display: none;
+  }
+  .header-ctl {
+    flex-basis: 100%;
+  }
+}
+.header-ctl:empty {
+  display: none;
 }
