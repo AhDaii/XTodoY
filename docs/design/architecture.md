@@ -80,7 +80,7 @@
 ### 3.3 通知（FR-REM-03/04，IR-03）
 
 - 统一由 `platform/notifier` 发出。Windows 上使用 `toastXml` 模板，带「完成」「稍后提醒」按钮；具体的按钮回调机制由 P3 技术验证确定（见 [spike-report.md](spike-report.md) §2）。
-- 启动时设置 `app.setAppUserModelId('com.xtodoy.app')`，保证通知归属与操作中心保留。
+- 启动时设置 `app.setAppUserModelId('com.xtodoy.app')`（开发版为 `com.xtodoy.app.dev`，避免开发时生成的 electron.exe 快捷方式占用同一 ID、使安装版任务栏显示 Electron 图标，#23），保证通知归属与操作中心保留。
 - 通知被点击 / 按钮被点击时，经 `second-instance` 或通知事件回到主进程，调用服务完成事项或稍后提醒，**不必创建主窗口**。
 
 ### 3.4 主题（FR-SET-01）

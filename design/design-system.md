@@ -1,4 +1,4 @@
-# XTodoY 设计系统 v1.8
+# XTodoY 设计系统 v1.9
 
 > 阶段：P2 界面原型 · 依据：[SRS v1.1](../docs/srs/SRS.md) · 工具：ui-ux-pro-max
 > 令牌源文件：[`tokens.css`](tokens.css)（前端直接引用）· 原型：[`prototype/index.html`](prototype/index.html)、[`prototype/system.html`](prototype/system.html)
@@ -90,7 +90,7 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 | `--text-xl` | 28 px | 统计大数字 |
 | `--text-2xl` | 36 px | 悬浮窗数字 |
 
-行高：正文 1.5，标题 1.25。数字统一使用 `font-variant-numeric: tabular-nums`，避免计数变化时抖动。
+行高：正文 1.5，标题 1.25；正文行高在实现中取整到整像素（如 13 px 文字为 20 px），避免半像素累积使下方的细线条发虚（#30）。数字统一使用 `font-variant-numeric: tabular-nums`，避免计数变化时抖动。
 
 > 与 ui-ux-pro-max "正文 16px" 规则的差异：该规则针对网页 / 移动端；桌面工具在 100% 缩放下以 14px 为正文标准，并通过系统缩放（100%–200%）放大，最小字号仍保持 ≥ 12px。
 
@@ -124,13 +124,12 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 
 ### 7.1 圆形单选框（待办完成）
 
-| 状态 | 外观 |
-|---|---|
 > v1.8（#24）：从 5 个方案（`prototype/issue-variants.html`）中选定 **A 弹性填充**。
+> v1.9（#30）：边框由 1.75 px 改为 2 px；正文行高取整到整像素。Chromium 会把边框取整到设备像素，1.75 px 在 100% 缩放下只剩 1 px，且元素落在半像素上时圆圈粗细不均、发虚。
 
 | 状态 | 外观 |
 |---|---|
-| 未完成 | 18 px 圆，1.75 px 边框，颜色为优先级色（无优先级为 `--control-border`），透明填充 |
+| 未完成 | 18 px 圆，2 px 边框（整像素，避免在 100% / 125% 缩放下发虚，#30），颜色为优先级色（无优先级为 `--control-border`），透明填充 |
 | 悬停 | 圆内 12% 优先级色淡底，对勾以 45% 不透明度预览（提示可点） |
 | 按下 | 缩小到 82% |
 | 已完成 | 优先级色填满 + 白色对勾；标题删除线从左到右划过（260 ms），文字变为 `--foreground-subtle` |
