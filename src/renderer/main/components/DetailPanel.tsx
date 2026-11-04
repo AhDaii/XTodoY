@@ -7,6 +7,7 @@ import { useTodoActions } from '../lib/actions';
 import { useReportError } from '../lib/data';
 import { addDays, friendlyDate, nextMonday, parse, today, WEEKDAY_LABELS, ymd } from '../lib/dates';
 import { useUi } from '../lib/store';
+import { CheckButton } from './CheckButton';
 import { Icon } from './Icon';
 import { Popover } from './Overlay';
 import { ReminderPicker } from './ReminderPicker';
@@ -50,22 +51,11 @@ export function DetailPanel({
   const patch = (p: Parameters<typeof api.todos.update>[1]) =>
     call(api.todos.update(todo.id, p)).then(setTodo).catch(report);
   const overdue = todo.status === 'open' && todo.dueDate !== null && todo.dueDate < today();
-  const prio = ['none', 'low', 'medium', 'high'][todo.priority];
 
   return (
     <aside className="detail" aria-label="待办详情" key={todo.id}>
       <div className="detail-head">
-        <button
-          className={`check prio-${prio}`}
-          role="checkbox"
-          aria-checked={todo.status === 'done'}
-          aria-label={`完成：${todo.title}`}
-          onClick={() => void actions.toggle(todo)}
-        >
-          <span className="ring">
-            <Icon name="check" size={12} />
-          </span>
-        </button>
+        <CheckButton todo={todo} />
         <EditableText
           className="detail-title"
           label="标题"

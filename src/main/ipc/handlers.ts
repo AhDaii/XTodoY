@@ -132,6 +132,7 @@ export function registerIpc(d: Deps): void {
   handle(Invoke.updateSkip, () => d.update.skip());
   handle(Invoke.updateLater, () => d.update.later());
   handle(Invoke.updateDismissBanner, () => d.update.dismissBanner());
+  handle(Invoke.updateLoadNotes, () => d.update.loadCurrentNotes());
   // 只允许打开项目自己的 GitHub 页面（发布页、主页）
   handle(Invoke.openExternal, async (url) => {
     const u = v.str(url, '链接', { max: 200 });

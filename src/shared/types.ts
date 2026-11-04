@@ -1,3 +1,4 @@
+import type { ReleaseNote } from './update';
 // 主进程与渲染进程共用的领域类型
 
 export type Priority = 0 | 1 | 2 | 3; // 无 / 低 / 中 / 高
@@ -159,6 +160,8 @@ export interface Settings {
   listSort: Record<SortScope, SortMode>;
   /** 更新（FR-UPD-08） */
   autoCheckUpdate: boolean;
+  /** 发现新版本时保存的更新说明：更新后首次启动的"查看更新内容"使用（#25） */
+  updateNotes: { version: string; releaseDate: string; notes: ReleaseNote[] } | null;
   autoDownloadUpdate: boolean;
   updateChannel: 'stable' | 'beta';
   /** 更新状态（DR-07）：上次检查、跳过的版本、已通知的版本、上次运行的版本与更新后横幅 */
@@ -194,6 +197,7 @@ export const DEFAULT_SETTINGS: Settings = {
   holidayCheckedAt: null,
   listSort: { today: 'due', plan: 'due', all: 'due', tag: 'due' },
   autoCheckUpdate: true,
+  updateNotes: null,
   autoDownloadUpdate: true,
   updateChannel: 'stable',
   update: {

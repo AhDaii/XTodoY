@@ -3,9 +3,10 @@ import { fromRRule, repeatSummary } from '@shared/recurrence';
 import type { Todo } from '@shared/types';
 import { LIMITS } from '@shared/types';
 import { diffDays, friendlyDate, today, ymd } from '../lib/dates';
+import { useUi } from '../lib/store';
+import { CheckButton } from './CheckButton';
 import { Icon } from './Icon';
 
-const PRIO = ['none', 'low', 'medium', 'high'] as const;
 const PRIO_LABEL = ['', '低', '中', '高'];
 
 interface Props {
@@ -14,7 +15,6 @@ interface Props {
   inTrash: boolean;
   showCompletedTime: boolean;
   onSelect(): void;
-  onToggle(): void;
   onDelete(): void;
   onRestore(): void;
   onPurge(): void;
@@ -27,7 +27,8 @@ export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, .
   const now = today();
   const overdue = t.status === 'open' && t.dueDate !== null && t.dueDate < now;
   const shown = t.tags.slice(0, 2);
-  const done = t.status === 'done';
+  const completing = useUi((u) => u.completing.has(t.id));
+  const done = t.status === 'done' || completing;
   return (
     <li
       className={`todo ${done ? 'is-done' : ''} ${drag?.className ?? ''}`}
@@ -45,27 +46,12 @@ export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, .
           <Icon name="grip" size={14} />
         </span>
       )}
-      {inTrash ? (
-        <span style={{ width: 32 }} />
-      ) : (
-        <button
-          className={`check prio-${PRIO[t.priority]}`}
-          role="checkbox"
-          aria-checked={done}
-          aria-label={`完成：${t.title}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            h.onToggle();
-          }}
-        >
-          <span className="ring">
-            <Icon name="check" size={12} />
-          </span>
-        </button>
-      )}
+      {inTrash ? <span style={{ width: 32 }} /> : <CheckButton todo={t} />}
       <div className="todo-body">
         <div className="todo-title">
-          <span className="text">{t.title}</span>
+          <span className="text">
+            <span className="strike">{t.title}</span>
+          </span>
         </div>
         {t.note && <div className="todo-note">{t.note.split('\n')[0]}</div>}
         <div className="todo-meta">

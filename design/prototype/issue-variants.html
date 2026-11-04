@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 方案对比：单选框（#24）与窄宽度标题栏（#22）</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: var(--background); color: var(--foreground); }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); }
+    .bar h1 { margin: 0 auto 0 0; font-size: var(--text-lg); }
+    .bar label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--foreground-muted); }
+    section.block { border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    .block > header { padding: var(--space-5) var(--space-6) var(--space-3); }
+    .block > header h2 { margin: 0 0 4px; font-size: var(--text-lg); }
+    .block > header p { margin: 0; color: var(--foreground-muted); font-size: var(--text-sm); line-height: 1.7; }
+    .variant { display: grid; grid-template-columns: 260px 1fr; gap: var(--space-5); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--border); }
+    .variant h3 { margin: 0 0 6px; font-size: var(--text-base); display: flex; align-items: center; gap: 8px; }
+    .variant h3 .tag { padding: 1px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); }
+    .variant .desc { margin: 0 0 8px; font-size: var(--text-sm); color: var(--foreground-muted); line-height: 1.7; }
+    .variant ul.pc { margin: 0; padding-left: 16px; font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.8; }
+    .variant ul.pc li.p::marker { content: '＋ '; color: var(--success); }
+    .variant ul.pc li.c::marker { content: '－ '; color: var(--accent); }
+    .demo { min-width: 0; }
+
+    /* ---------- 单选框演示行 ---------- */
+    .rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+    .row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 12px 6px 6px; border-bottom: 1px solid var(--border); }
+    .row:last-child { border-bottom: 0; }
+    .row .title { position: relative; font-size: var(--text-base); color: var(--foreground); transition: color 240ms; }
+    .row .meta { margin-left: auto; font-size: var(--text-xs); color: var(--foreground-subtle); }
+    /* 完成：删除线从左到右划过，文字变弱 */
+    .row .title::after { content: ''; position: absolute; left: 0; top: 52%; height: 1.5px; width: 100%; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 260ms cubic-bezier(.2,.8,.2,1); }
+    .row.done .title { color: var(--foreground-subtle); }
+    .row.done .title::after { transform: scaleX(1); }
+    .states { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; font-size: var(--text-xs); color: var(--foreground-muted); }
+    .states > span { display: inline-flex; align-items: center; gap: 4px; }
+
+    .cb { --c: var(--control-border); position: relative; flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; }
+    .cb.p1 { --c: var(--priority-low); } .cb.p2 { --c: var(--priority-medium); } .cb.p3 { --c: var(--priority-high); }
+    .cb:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
+    .cb svg.tick { position: relative; width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .cb svg.tick path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+
+    /* A 弹性填充 */
+    .va .box { position: absolute; inset: 7px; border-radius: 50%; border: 1.75px solid var(--c); transition: background 200ms, border-color 200ms, transform 320ms cubic-bezier(.34,1.56,.64,1); }
+    .va:hover .box { background: color-mix(in srgb, var(--c) 12%, transparent); }
+    .va:active .box { transform: scale(.82); }
+    .va[aria-checked="true"] .box { background: var(--c); border-color: var(--c); animation: pop 360ms cubic-bezier(.34,1.56,.64,1); }
+    .va[aria-checked="true"] .tick path { stroke-dashoffset: 0; transition: stroke-dashoffset 220ms 90ms ease-out; }
+    .va:not([aria-checked="true"]):hover .tick { stroke: var(--c); } .va:not([aria-checked="true"]):hover .tick path { stroke-dashoffset: 0; opacity: .45; }
+    @keyframes pop { 0% { transform: scale(.7); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+    /* B 环形描绘 */
+    .vb svg.ring { position: absolute; inset: 7px; width: 18px; height: 18px; transform: rotate(-90deg); overflow: visible; }
+    .vb svg.ring circle { fill: none; stroke-width: 1.75; }
+    .vb .track { stroke: color-mix(in srgb, var(--c) 45%, transparent); }
+    .vb .draw { stroke: var(--c); stroke-dasharray: 52; stroke-dashoffset: 52; transition: stroke-dashoffset 300ms cubic-bezier(.4,0,.2,1); }
+    .vb .fill { fill: var(--c) !important; stroke: none; transform-origin: center; transform: scale(0); transition: transform 220ms 260ms cubic-bezier(.34,1.56,.64,1); }
+    .vb:hover .draw { stroke-dashoffset: 34; }
+    .vb[aria-checked="true"] .draw { stroke-dashoffset: 0; }
+    .vb[aria-checked="true"] .fill { transform: scale(1); }
+    .vb[aria-checked="true"] .tick path { stroke-dashoffset: 0; transition: stroke-dashoffset 200ms 380ms ease-out; }
+
+    /* C 涟漪 */
+    .vc .box { position: absolute; inset: 7px; border-radius: 50%; border: 1.75px solid var(--c); transition: background 160ms, transform 160ms; }
+    .vc:hover .box { transform: scale(1.08); }
+    .vc[aria-checked="true"] .box { background: var(--c); }
+    .vc .wave { position: absolute; inset: 7px; border-radius: 50%; border: 2px solid var(--c); opacity: 0; pointer-events: none; }
+    .vc.go .wave { animation: wave 520ms ease-out; }
+    .vc[aria-checked="true"] .tick path { stroke-dashoffset: 0; transition: stroke-dashoffset 200ms 60ms ease-out; }
+    @keyframes wave { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.3); opacity: 0; } }
+
+    /* D 圆角方形 */
+    .vd .box { position: absolute; inset: 7px; border-radius: 5px; border: 1.75px solid var(--c); overflow: hidden; transition: border-color 200ms, transform 280ms cubic-bezier(.34,1.56,.64,1); }
+    .vd .box::before { content: ''; position: absolute; inset: 0; background: var(--c); transform: translateY(100%); transition: transform 240ms cubic-bezier(.2,.8,.2,1); }
+    .vd:hover .box { transform: rotate(-6deg); }
+    .vd[aria-checked="true"] .box { transform: rotate(0) scale(1); }
+    .vd[aria-checked="true"] .box::before { transform: translateY(0); }
+    .vd[aria-checked="true"] .tick path { stroke-dashoffset: 0; transition: stroke-dashoffset 200ms 160ms ease-out; }
+
+    /* E 柔光 + 迸点 */
+    .ve .box { position: absolute; inset: 7px; border-radius: 50%; border: 1.75px solid var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); transition: background 220ms, box-shadow 220ms; }
+    .ve:hover .box { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 16%, transparent); }
+    .ve[aria-checked="true"] .box { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 70%, #fff), var(--c)); box-shadow: 0 2px 6px color-mix(in srgb, var(--c) 40%, transparent); }
+    .ve[aria-checked="true"] .tick path { stroke-dashoffset: 0; transition: stroke-dashoffset 220ms 80ms ease-out; }
+    .ve .burst { position: absolute; inset: 0; pointer-events: none; }
+    .ve .burst i { position: absolute; left: 15px; top: 15px; width: 3px; height: 3px; border-radius: 50%; background: var(--c); opacity: 0; }
+    .ve.go .burst i { animation: dot 520ms ease-out forwards; }
+    @keyframes dot { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-15px); } }
+
+    /* 减少动画：只保留颜色变化 */
+    .reduce .cb *, .reduce .cb *::before, .reduce .row .title, .reduce .row .title::after { transition: none !important; animation: none !important; }
+
+    /* ---------- 标题栏演示 ---------- */
+    .frames { display: flex; flex-direction: column; gap: 14px; }
+    .frame { container-type: inline-size; resize: horizontal; overflow: hidden; min-width: 320px; max-width: 100%; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); background: var(--background); }
+    .frame-label { font-size: var(--text-xs); color: var(--foreground-subtle); margin-bottom: 4px; }
+    .hd { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px 10px; }
+    .hd .titles { min-width: 0; flex: 1 1 auto; }
+    .hd .titles .chip { height: 24px; font-size: var(--text-sm); }
+    .hd .sub { color: var(--foreground-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hd .ctl { display: flex; align-items: center; gap: 8px; flex: none; }
+    .hd .seg button, .hd .btn, .hd .sel { white-space: nowrap; }
+    .sel { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--control-border); border-radius: var(--radius-sm); font-size: var(--text-sm); background: var(--surface); }
+    .qa { margin: 0 16px 12px; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--foreground-subtle); font-size: var(--text-sm); }
+
+    /* 方案 1：宽时一行；不够时控件整体换到第二行（工具条） */
+    .h1 .hd { flex-wrap: wrap; }
+    @container (max-width: 640px) { .h1 .hd .ctl { flex-basis: 100%; flex-wrap: wrap; } }
+
+    /* 方案 2：不够时把范围 / 已完成 / 排序收进"视图选项"按钮 */
+    .h2 .ctl .more-btn { display: none; }
+    @container (max-width: 640px) {
+      .h2 .ctl > :not(.more-btn) { display: none; }
+      .h2 .ctl .more-btn { display: inline-flex; }
+    }
+    .menu-mock { position: absolute; right: 16px; top: 52px; width: 220px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-lg); font-size: var(--text-sm); display: none; z-index: 2; }
+    .menu-mock h4 { margin: 4px 6px 6px; font-size: var(--text-xs); color: var(--foreground-subtle); font-weight: 600; }
+    .menu-mock .opt { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; }
+    .menu-mock .opt.on { color: var(--primary); }
+    .menu-mock hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
+    /* 演示菜单需要显示在外框之外：这一组不提供拖动改宽度 */
+    .h2 .frame { position: relative; overflow: visible; resize: none; }
+    .h2 .frames > div { margin-bottom: 0; }
+    .h2 .frames > div:not(:first-child) { padding-bottom: 210px; }
+    @container (max-width: 640px) { .h2 .menu-mock.open { display: block; } }
+
+    /* 方案 3：不够时控件变为图标按钮（悬停提示），标签路径省略 */
+    .ib { display: none; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--foreground-muted); background: var(--surface); }
+    .ib.on { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); background: var(--primary-soft); }
+    @container (max-width: 640px) {
+      .h3 .ctl > .full { display: none; }
+      .h3 .ctl > .ib { display: inline-grid; }
+    }
+    @media (max-width: 900px) { .variant { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="proto-bar" role="note"><strong>XTodoY 方案对比</strong><span>#24 单选框 · #22 窄宽度标题栏 · 单选框可点击 · 标题栏外框右下角可拖动改变宽度</span><span class="spacer"></span><a href="index.html">← 主界面原型</a></div>
+  <div class="wrap" id="root">
+    <div class="bar">
+      <h1>方案对比（#24 / #22）</h1>
+      <label><input type="checkbox" id="dark"> 深色</label>
+      <label><input type="checkbox" id="reduce"> 模拟"减少动画"</label>
+    </div>
+
+    <section class="block" id="cb">
+      <header>
+        <h2>#24 待办前的勾选框</h2>
+        <p>都保持 18 px 可视、32 px 点击区域，圆圈颜色表示优先级（灰 / 青 / 橙 / 红）。共同的改进：悬停时预览对勾；完成时标题删除线从左到右划过；取消完成时反向。开启"减少动画"后只保留颜色变化。<b>单击圆圈试试。</b></p>
+      </header>
+      <div id="cb-variants"></div>
+    </section>
+
+    <section class="block" id="hd">
+      <header>
+        <h2>#22 窄宽度时的列表标题栏</h2>
+        <p>问题：中间列较窄时（如窗口不大又打开了详情面板），标签视图的标题、"包含子标签 / 仅本标签"、"显示已完成"、排序挤在一行，文字被逐字换行。下面每个方案给出中间列 760 / 560 / 420 px 三种宽度，也可以拖动外框右下角自由调整。</p>
+      </header>
+      <div id="hd-variants"></div>
+    </section>
+  </div>
+
+  <script src="icons.js"></script>
+  <script>
+    const TICK = '<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    const ROWS = [['p3', '评审 XTodoY 界面原型', '今天 10:00'], ['p2', '项目A 周会', '今天 14:30'], ['p1', '背 30 个单词', '今天'], ['p0', '研究托盘内存占用', '']];
+    const CB = [
+      { id: 'A', cls: 'va', name: '弹性填充', inner: '<span class="box"></span>' + TICK,
+        desc: '在现在的圆圈上加动效：按下时轻微缩小，完成时颜色填满并带一点回弹，对勾一笔画出。',
+        pro: ['改动最小，与现有界面一致', '动效短（约 0.35 秒），常用也不烦'], con: ['形态与现在相同，新鲜感有限'] },
+      { id: 'B', cls: 'vb', name: '环形描绘', inner: '<svg class="ring" viewBox="0 0 18 18"><circle class="track" cx="9" cy="9" r="8.1"/><circle class="draw" cx="9" cy="9" r="8.1"/><circle class="fill" cx="9" cy="9" r="8.1"/></svg>' + TICK,
+        desc: '平时是淡色细圈；悬停时圆圈画出三分之一；完成时顺时针画满一圈，再填色、出对勾。',
+        pro: ['"完成"的过程感最强', '与悬浮窗的进度概念呼应'], con: ['动画稍长（约 0.6 秒）', '未完成时圈较淡，优先级颜色不如 A 醒目'] },
+      { id: 'C', cls: 'vc', name: '涟漪', inner: '<span class="box"></span><span class="wave"></span>' + TICK,
+        desc: '完成时圆圈填色，同时向外扩散一圈涟漪后消失；悬停时轻微放大。',
+        pro: ['反馈明确又克制，不改变尺寸与布局', '实现简单、性能好'], con: ['涟漪在密集列表中可能略显跳动'] },
+      { id: 'D', cls: 'vd', name: '圆角方形', inner: '<span class="box"></span>' + TICK,
+        desc: '改为圆角方形（类似 Things / 滴答清单）；悬停轻轻倾斜，完成时颜色从下往上涨满。',
+        pro: ['一眼就是"勾选框"', '方形在小尺寸下边缘更清晰'], con: ['与圆形的悬浮窗、头像等风格不一致', '需同步修改设计系统 §7.1'] },
+      { id: 'E', cls: 've', name: '柔光 + 迸点', inner: '<span class="box"></span>' + TICK + '<span class="burst">' + [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<i style="--a:${a}deg"></i>`).join('') + '</span>',
+        desc: '未完成时圆圈内有一层优先级色的淡底；完成时渐变填色并迸出一圈小点，带一点"完成的喜悦"。',
+        pro: ['最有情绪价值，完成感强', '淡底让优先级一眼可辨'], con: ['最"热闹"，长时间使用可能分心', '需要更多 CSS 与测试'] },
+    ];
+
+    document.getElementById('cb-variants').innerHTML = CB.map((v) => `
+      <div class="variant">
+        <div>
+          <h3><span class="tag">${v.id}</span>${v.name}</h3>
+          <p class="desc">${v.desc}</p>
+          <ul class="pc">${v.pro.map((x) => `<li class="p">${x}</li>`).join('')}${v.con.map((x) => `<li class="c">${x}</li>`).join('')}</ul>
+        </div>
+        <div class="demo">
+          <ul class="rows">${ROWS.map(([p, t, m], i) => `
+            <li class="row ${i === 3 ? 'done' : ''}">
+              <button class="cb ${v.cls} ${p}" role="checkbox" aria-checked="${i === 3}" aria-label="完成：${t}">${v.inner}</button>
+              <span class="title">${t}</span><span class="meta">${m}</span>
+            </li>`).join('')}
+          </ul>
+          <div class="states"><span>优先级：高 / 中 / 低 / 无</span><span>· 最后一行为已完成</span><span>· 悬停可预览</span><span>· Tab 聚焦后按空格也可勾选</span></div>
+        </div>
+      </div>`).join('');
+
+    document.addEventListener('click', (e) => {
+      const cb = e.target.closest('.cb');
+      if (!cb) return;
+      const on = cb.getAttribute('aria-checked') !== 'true';
+      cb.setAttribute('aria-checked', String(on));
+      cb.closest('.row').classList.toggle('done', on);
+      cb.classList.remove('go'); void cb.offsetWidth; if (on) cb.classList.add('go');
+    });
+
+    // ---------- 标题栏方案 ----------
+    const I = (d, s = 16) => `<svg class="icon" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const SLIDERS = '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>';
+    const TREE = '<path d="M5 4v12a2 2 0 0 0 2 2h4"/><path d="M5 9h6"/><rect x="13" y="6" width="7" height="6" rx="1.5"/><rect x="13" y="15" width="7" height="6" rx="1.5"/>';
+    const SORT = '<path d="M7 4v16M4 17l3 3 3-3M14 6h6M14 12h4M14 18h2"/>';
+    const titles = `<div class="titles"><h1 style="margin:0"><span class="chip tc-teal"><span class="dot"></span><span>日常</span></span></h1><div class="sub">工作 / 日常 / 每日例行</div></div>`;
+    const fullCtl = `<div class="seg full" role="group"><button aria-pressed="true">包含子标签</button><button aria-pressed="false">仅本标签</button></div>
+      <button class="btn sm ghost full">${icon('checkCircle', 14)}显示已完成</button>
+      <span class="sel full">按截止时间${icon('chevronDown', 14)}</span>`;
+    const HD = [
+      { id: '1', cls: 'h1', name: '两行工具条', desc: '宽度足够时一行；不够时标题独占第一行，控件整体换到第二行，像一条工具条。',
+        pro: ['所有选项一直可见，无需额外点击', '实现最简单（容器查询 + 换行）'], con: ['窄时标题栏变高，占用约 40 px'],
+        ctl: fullCtl },
+      { id: '2', cls: 'h2', name: '收进"视图选项"', desc: '宽度足够时与现在相同；不够时范围、显示已完成、排序收进右侧一个"视图选项"按钮，单击弹出菜单（右侧演示菜单内容）。',
+        pro: ['窄时最整洁，标题有足够空间', '高度不变'], con: ['窄时改选项多一次点击', '当前状态不直接可见（按钮上加圆点提示非默认设置）'],
+        ctl: fullCtl + `<button class="btn sm more-btn">${I(SLIDERS, 14)}视图选项<span class="badge-dot" style="margin-left:2px"></span></button>`,
+        extra: `<div class="menu-mock open"><h4>范围</h4><div class="opt on">${icon('check', 14)}包含子标签</div><div class="opt"><span style="width:14px"></span>仅本标签</div><hr><div class="opt on">${icon('check', 14)}显示已完成</div><hr><h4>排序</h4><div class="opt on">${icon('check', 14)}按截止时间</div><div class="opt"><span style="width:14px"></span>手动排序</div><div class="opt"><span style="width:14px"></span>按优先级</div></div>` },
+      { id: '3', cls: 'h3', name: '紧凑图标', desc: '宽度足够时与现在相同；不够时控件变成三个图标按钮（悬停显示文字），选中状态用主色表示；标签路径过长时省略。',
+        pro: ['一行放得下，高度不变', '状态一眼可见（高亮）'], con: ['图标需要记忆，新用户要悬停才知道含义'],
+        ctl: fullCtl + `<button class="ib on" title="包含子标签（单击切换为仅本标签）">${I(TREE)}</button><button class="ib on" title="显示已完成">${icon('checkCircle', 16)}</button><button class="ib" title="排序：按截止时间">${I(SORT)}</button>` },
+    ];
+    document.getElementById('hd-variants').innerHTML = HD.map((v) => `
+      <div class="variant ${v.cls}">
+        <div>
+          <h3><span class="tag">${v.id}</span>${v.name}</h3>
+          <p class="desc">${v.desc}</p>
+          <ul class="pc">${v.pro.map((x) => `<li class="p">${x}</li>`).join('')}${v.con.map((x) => `<li class="c">${x}</li>`).join('')}</ul>
+        </div>
+        <div class="demo frames">
+          ${[760, 560, 420].map((w) => `<div><div class="frame-label">中间列 ${w} px</div><div class="frame" style="width:${w}px">
+            <div class="hd">${titles}<div class="ctl">${v.ctl}</div></div>${v.extra || ''}
+            <div class="qa">${icon('plus', 14)}添加待办，回车保存</div></div></div>`).join('')}
+        </div>
+      </div>`).join('');
+
+    document.getElementById('dark').addEventListener('change', (e) => document.documentElement.classList.toggle('dark', e.target.checked));
+    document.getElementById('reduce').addEventListener('change', (e) => document.body.classList.toggle('reduce', e.target.checked));
+    if (new URLSearchParams(location.search).has('dark')) { document.documentElement.classList.add('dark'); document.getElementById('dark').checked = true; }
+  </script>
+</body>
+</html>
