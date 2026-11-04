@@ -18,3 +18,10 @@ export function rendererEntry(page: 'main' | 'floating'): { url?: string; file?:
 export function preloadPath(page: 'main' | 'floating'): string {
   return join(import.meta.dirname, `../preload/${page}.cjs`);
 }
+
+/**
+ * Windows 的 AppUserModelID：任务栏按钮按它匹配"开始"菜单中的快捷方式并使用快捷方式的图标（#23）。
+ * 开发版使用不同的 ID，避免开发时系统自动生成的、指向 electron.exe 的快捷方式与安装版冲突，
+ * 导致安装版的任务栏图标显示成 Electron 的图标。
+ */
+export const APP_USER_MODEL_ID = isDev ? 'com.xtodoy.app.dev' : 'com.xtodoy.app';

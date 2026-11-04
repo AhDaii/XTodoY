@@ -80,12 +80,17 @@ linux:
     - '!**/node_modules/better-sqlite3/prebuilds/linuxmusl-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/{win32,darwin}-*.node'
     - '!**/node_modules/better-sqlite3/prebuilds/linux-arm64.node'
+# 标准安装向导（#29）：安装范围（仅为我 / 所有用户）→ 安装位置 → 附加选项（build/installer.nsh）→ 完成
 nsis:
-  oneClick: true
+  oneClick: false
   perMachine: false
-  allowElevation: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  createStartMenuShortcut: true
   shortcutName: XTodoY
+  installerLanguages: [zh_CN]
+  include: build/installer.nsh
   deleteAppDataOnUninstall: false
 publish:
   provider: github

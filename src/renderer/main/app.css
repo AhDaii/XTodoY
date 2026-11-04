@@ -19,6 +19,13 @@ body {
   background: var(--background);
   -webkit-font-smoothing: antialiased;
 }
+/*
+ * 默认行高取整到整像素（#30）：13px × 1.5 = 19.5px 这样的半像素会累积到下方所有元素，
+ * 使勾选框等细线条落在半像素上而发虚。:where 不增加优先级，显式设置了行高的规则照常生效。
+ */
+:where(body *) {
+  line-height: round(nearest, calc(var(--leading-normal) * 1em), 1px);
+}
 button,
 input,
 select,
@@ -575,7 +582,7 @@ a {
   width: var(--size-checkbox);
   height: var(--size-checkbox);
   border-radius: var(--radius-full);
-  border: 1.75px solid var(--c);
+  border: 2px solid var(--c); /* 整像素：1.75px 在 100% 缩放下被取成 1px 且粗细不均（#30） */
   display: grid;
   place-items: center;
   transition:
