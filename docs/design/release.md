@@ -42,7 +42,8 @@ feature/* ──PR──▶ develop ──PR──▶ main ──tag vX.Y.Z─�
 - 自动检查失败静默、保持原状态；手动检查显示失败原因（无网络 / 服务器不可用 / 安全连接 / 校验失败 / 发布页无安装包）。
 - 开发环境（未打包）不检查更新；设置环境变量 `XTODOY_FAKE_UPDATE=<版本>[,fail-check|fail-download]` 使用模拟更新器，用于演示与 E2E 测试。
 - electron-updater 内置校验 `latest.yml` 中的 SHA-512；Windows 安装包已签名时额外校验发布者（`publisherName`）。
-- 用户级 NSIS（`perMachine: false`、`oneClick: true`），安装与更新都不需要管理员权限（IR-10）。
+- NSIS 标准安装向导（`oneClick: false`，#29）：安装范围（默认"仅为我"，无需管理员权限；"所有用户"时请求提升）→ 安装位置（`allowToChangeInstallationDirectory`）→ 附加选项（`build/installer.nsh`：桌面快捷方式可选；开始菜单快捷方式固定创建，因为通知依赖带 AppUserModelID 的开始菜单快捷方式）→ 完成（可勾选"运行 XTodoY"）。程序内更新以 `--updated` 静默安装，跳过向导各页并保留用户已有的快捷方式（IR-10）。
+- AppUserModelID：安装版 `com.xtodoy.app`，开发版 `com.xtodoy.app.dev`（#23：开发时系统生成的 electron.exe 快捷方式若与安装版同 ID，任务栏会显示 Electron 图标）。
 - 安装前由 update 服务调用备份服务做"更新前备份"（FR-UPD-07）。
 - 状态机与 IPC 见 [ipc.md](ipc.md) §2.5，界面见原型 UI-17。
 

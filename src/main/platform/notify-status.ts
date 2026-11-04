@@ -1,10 +1,11 @@
 import { app, shell } from 'electron';
 import { execFile } from 'node:child_process';
+import { APP_USER_MODEL_ID } from '../app/paths';
 import { parseRegDword } from '../domain/winreg';
 
 export type NotificationStatus = 'allowed' | 'denied' | 'unknown';
 
-const AUMID = 'com.xtodoy.app';
+const AUMID = APP_USER_MODEL_ID;
 
 function regQuery(key: string, value: string): Promise<number | null> {
   return new Promise((resolve) => {

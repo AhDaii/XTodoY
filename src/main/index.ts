@@ -28,6 +28,7 @@ import { Events, type NavRequest } from '@shared/ipc';
 import { runMetricsIfRequested } from './app/metrics';
 import { readHardwareAcceleration } from './app/launch-prefs';
 import { installFileLog } from './app/log';
+import { APP_USER_MODEL_ID } from './app/paths';
 import { applyQuickAddShortcut } from './platform/shortcut';
 import { applyAutostart, startedAtLogin } from './platform/autostart';
 import { createUpdater } from './platform/updater';
@@ -54,7 +55,7 @@ installCrashGuards();
 const hardwareAcceleration = process.env['XTODOY_ENABLE_GPU'] === '1' || readHardwareAcceleration(dataDir);
 if (!hardwareAcceleration) app.disableHardwareAcceleration();
 
-app.setAppUserModelId('com.xtodoy.app');
+app.setAppUserModelId(APP_USER_MODEL_ID);
 // 自定义协议只在安装版中注册，开发环境不改动系统注册表
 if (app.isPackaged) app.setAsDefaultProtocolClient('xtodoy');
 

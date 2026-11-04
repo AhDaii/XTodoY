@@ -182,7 +182,7 @@ a { color: var(--primary); }
 .check .ring {
   --c: var(--prio, var(--control-border));
   width: var(--size-checkbox); height: var(--size-checkbox); border-radius: var(--radius-full);
-  border: 1.75px solid var(--c); display: grid; place-items: center;
+  border: 2px solid var(--c); display: grid; place-items: center;
   transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 320ms cubic-bezier(.34,1.56,.64,1);
 }
 .check .ring .icon { color: var(--primary-foreground); stroke-width: 3; }
