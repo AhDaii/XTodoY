@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { monotonePath } from '@shared/curve';
 import type { Stats, StatsLog, StatsPeriodKind, StatsSlice } from '@shared/stats';
 import { Icon } from '../components/Icon';
 import { useStats } from '../lib/data';
-import { friendlyDate, parse, WEEKDAY_LABELS } from '../lib/dates';
+import { diffDays, friendlyDate, parse, WEEKDAY_LABELS } from '../lib/dates';
 import { useUi } from '../lib/store';
 
 /** 统计页（UI-09，SRS F8；设计系统 §7.7）：摘要卡片 + 按维度切换的主图 + 标签分布 / 完成明细 */
@@ -15,6 +16,12 @@ export function StatsPage({ weekStart }: { weekStart: 0 | 1 }) {
   const switchPeriod = (p: StatsPeriodKind) => {
     setPeriod(p);
     setOffset(0);
+  };
+  /** 月视图展开某天后"在日视图中查看"（#35） */
+  const openDay = (date: string) => {
+    if (!s) return;
+    setPeriod('day');
+    setOffset(Math.min(0, diffDays(date, s.today)));
   };
   const unit = period === 'day' ? '天' : period === 'week' ? '周' : '月';
   const label = s ? periodLabel(s) : '';
@@ -65,7 +72,7 @@ export function StatsPage({ weekStart }: { weekStart: 0 | 1 }) {
         </div>
       </header>
       <div className="main-scroll">
-        {s && <StatsBody s={s} label={label} weekStart={weekStart} onDrill={setTagId} />}
+        {s && <StatsBody s={s} label={label} weekStart={weekStart} onDrill={setTagId} onOpenDay={openDay} />}
       </div>
     </main>
   );
@@ -94,11 +101,13 @@ function StatsBody({
   label,
   weekStart,
   onDrill,
+  onOpenDay,
 }: {
   s: Stats;
   label: string;
   weekStart: 0 | 1;
   onDrill(id: string | undefined): void;
+  onOpenDay(date: string): void;
 }) {
   const delta = s.total - s.prevTotal;
   const pct = s.due.total ? Math.round((s.due.done / s.due.total) * 100) : null;
@@ -119,9 +128,9 @@ function StatsBody({
     main = (
       <div className="panel">
         <h2>
-          完成日历<span className="help">颜色越深，完成越多</span>
+          完成日历<span className="help">颜色越深，完成越多；点击日期查看当天完成的事项</span>
         </h2>
-        <MonthHeatmap s={s} label={label} weekStart={weekStart} />
+        <MonthHeatmap key={s.from} s={s} label={label} weekStart={weekStart} onOpenDay={onOpenDay} />
       </div>
     );
   else
@@ -237,22 +246,6 @@ function Ring({ pct, size = 88, stroke = 9 }: { pct: number; size?: number; stro
   );
 }
 
-/** Catmull-Rom → 三次贝塞尔的平滑曲线 */
-function smooth(pts: [number, number][]): string {
-  if (pts.length < 2) return '';
-  let d = `M${pts[0]![0]},${pts[0]![1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i]!;
-    const p1 = pts[i]!;
-    const p2 = pts[i + 1]!;
-    const p3 = pts[i + 2] ?? p2;
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
-    d += ` C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
-  }
-  return d;
-}
-
 function WeekTrend({ s, label }: { s: Stats; label: string }) {
   const cur = s.daily.map((d) => ({ ...d, future: d.date > s.today }));
   const prev = s.prevDaily;
@@ -267,7 +260,7 @@ function WeekTrend({ s, label }: { s: Stats; label: string }) {
   const y = (v: number) => T + (1 - v / max) * (H - T - B);
   const pts = cur.filter((c) => !c.future).map((c, i): [number, number] => [x(i), y(c.count)]);
   const prevPts = prev.map((v, i): [number, number] => [x(i), y(v)]);
-  const area = pts.length > 1 ? `${smooth(pts)} L${pts.at(-1)![0]},${H - B} L${pts[0]![0]},${H - B} Z` : '';
+  const area = pts.length > 1 ? `${monotonePath(pts)} L${pts.at(-1)![0]},${H - B} L${pts[0]![0]},${H - B} Z` : '';
   return (
     <>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}每天完成数折线图，虚线为前一周`}>
@@ -285,9 +278,9 @@ function WeekTrend({ s, label }: { s: Stats; label: string }) {
             </text>
           </g>
         ))}
-        <path d={smooth(prevPts)} className="line-prev" />
+        <path d={monotonePath(prevPts)} className="line-prev" />
         {area && <path d={area} fill="url(#area-grad)" />}
-        {pts.length > 1 && <path d={smooth(pts)} className="line-cur" />}
+        {pts.length > 1 && <path d={monotonePath(pts)} className="line-cur" />}
         {cur.map((c, i) => {
           const isToday = c.date === s.today;
           return (
@@ -326,12 +319,56 @@ function WeekTrend({ s, label }: { s: Stats; label: string }) {
   );
 }
 
-function MonthHeatmap({ s, label, weekStart }: { s: Stats; label: string; weekStart: 0 | 1 }) {
+/**
+ * 月视图完成日历（#35 方案 A）：点击或回车展开该周下方的一行，列出当天完成的事项；
+ * 再点同一天或按 Esc 收起，可跳到日视图查看当天统计。
+ */
+function MonthHeatmap({
+  s,
+  label,
+  weekStart,
+  onOpenDay,
+}: {
+  s: Stats;
+  label: string;
+  weekStart: 0 | 1;
+  onOpenDay(date: string): void;
+}) {
+  const [sel, setSel] = useState<string | null>(null);
+  const grid = useRef<HTMLDivElement>(null);
   const pad = (parse(s.from).getDay() - weekStart + 7) % 7;
   const max = Math.max(1, ...s.daily.map((d) => d.count));
+  const selIdx = sel ? s.daily.findIndex((d) => d.date === sel) : -1;
+  // 展开行插在所选日期所在周的最后一格之后
+  const rowEnd = selIdx < 0 ? -1 : Math.min(Math.floor((pad + selIdx) / 7) * 7 + 6 - pad, s.daily.length - 1);
+
+  const toggle = (date: string) => setSel((cur) => (cur === date ? null : date));
+  const onKey = (e: KeyboardEvent<HTMLDivElement>, date: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle(date);
+    }
+  };
+  const close = () => {
+    const d = sel;
+    setSel(null);
+    if (d) grid.current?.querySelector<HTMLElement>(`[data-date="${d}"]`)?.focus();
+  };
+
   return (
     <>
-      <div className="hm" role="grid" aria-label={`${label}每日完成热力图`}>
+      <div
+        ref={grid}
+        className="hm"
+        role="grid"
+        aria-label={`${label}每日完成热力图`}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && sel) {
+            e.stopPropagation();
+            close();
+          }
+        }}
+      >
         {Array.from({ length: 7 }, (_, i) => (
           <div key={`w${i}`} className="hm-wd">
             周{WEEKDAY_LABELS[(i + weekStart) % 7]}
@@ -343,18 +380,34 @@ function MonthHeatmap({ s, label, weekStart }: { s: Stats; label: string; weekSt
         {s.daily.map((d, i) => {
           const future = d.date > s.today;
           const text = `${d.date} ${future ? '未到' : `完成 ${d.count} 项`}`;
+          const open = d.date === sel;
           return (
-            <div
-              key={d.date}
-              className={`hm-cell ${future ? 'future' : `lv${heatLevel(d.count, max)}`} ${d.date === s.today ? 'is-today' : ''}`}
-              role="gridcell"
-              tabIndex={future ? -1 : 0}
-              title={text}
-              aria-label={text}
-            >
-              <span className="dd">{i + 1}</span>
-              {!future && d.count > 0 && <span className="nn">{d.count}</span>}
-            </div>
+            <Fragment key={d.date}>
+              <div
+                className={`hm-cell ${future ? 'future' : `lv${heatLevel(d.count, max)}`} ${d.date === s.today ? 'is-today' : ''} ${open ? 'is-sel' : ''}`}
+                role="gridcell"
+                data-date={d.date}
+                tabIndex={future ? -1 : 0}
+                title={text}
+                aria-label={text}
+                aria-expanded={future ? undefined : open}
+                aria-controls={open ? 'hm-day' : undefined}
+                onClick={future ? undefined : () => toggle(d.date)}
+                onKeyDown={future ? undefined : (e) => onKey(e, d.date)}
+              >
+                <span className="dd">{i + 1}</span>
+                {!future && d.count > 0 && <span className="nn">{d.count}</span>}
+              </div>
+              {i === rowEnd && sel && (
+                <DayDrawer
+                  s={s}
+                  date={sel}
+                  count={s.daily[selIdx]!.count}
+                  arrow={(((pad + selIdx) % 7) + 0.5) / 7}
+                  onOpenDay={onOpenDay}
+                />
+              )}
+            </Fragment>
           );
         })}
       </div>
@@ -367,6 +420,62 @@ function MonthHeatmap({ s, label, weekStart }: { s: Stats; label: string; weekSt
         <span className="help">· 格内右下角数字为当天完成数</span>
       </div>
     </>
+  );
+}
+
+/** 完成日历中展开的某一天（#35） */
+function DayDrawer({
+  s,
+  date,
+  count,
+  arrow,
+  onOpenDay,
+}: {
+  s: Stats;
+  date: string;
+  count: number;
+  /** 指向所选日期的小箭头的水平位置（0–1） */
+  arrow: number;
+  onOpenDay(date: string): void;
+}) {
+  const items = s.logs.filter((l) => l.date === date).sort((a, b) => a.at - b.at);
+  // 完成明细最多返回 STATS_LOG_LIMIT 条（最近的），极端情况下较早的日期可能不全
+  const missing = count - items.length;
+  return (
+    <div
+      id="hm-day"
+      className="hm-drawer"
+      role="region"
+      aria-label={`${date} 完成的事项`}
+      style={{ '--arrow': `${arrow * 100}%` } as CSSProperties}
+    >
+      <div className="hd-head">
+        {parse(date).getMonth() + 1}月{parse(date).getDate()}日 {wd(date)}
+        <span className="sub">完成 {count} 项</span>
+        <span className="spacer" />
+        <button className="btn sm ghost" onClick={() => onOpenDay(date)}>
+          在日视图中查看
+          <Icon name="chevronRight" size={14} />
+        </button>
+      </div>
+      {items.length ? (
+        <ul className="log-list">
+          {items.map((l) => (
+            <li key={l.id}>
+              <span className="t">{hhmm(l.at)}</span>
+              <span className="ok">
+                <Icon name="checkCircle" size={14} />
+              </span>
+              <LogTitle log={l} className="lt" />
+              <TagChip log={l} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="help">这一天没有完成记录</p>
+      )}
+      {missing > 0 && items.length > 0 && <p className="help">还有 {missing} 项未列出，可在日视图中查看全部</p>}
+    </div>
   );
 }
 

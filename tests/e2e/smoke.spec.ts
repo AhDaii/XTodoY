@@ -696,3 +696,81 @@ test('#22 窄宽度标题栏：控件换到第二行且文字不换行；#24 勾
   await expect(main.locator('.todo.is-done', { hasText: '日报' })).toHaveCount(1);
   await expect(main.locator('.toast')).toContainText('已完成"日报"');
 });
+
+test('#35 月统计完成日历：点击日期展开当天完成的事项，Esc 收起，可跳到日视图', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '整理书桌');
+  await main.getByRole('checkbox', { name: '完成：整理书桌' }).click();
+  await expect(main.locator('.todo.is-done', { hasText: '整理书桌' })).toHaveCount(1);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  await main.getByRole('group', { name: '统计维度' }).getByRole('button', { name: '月' }).click();
+  const today = main.locator('.hm-cell.is-today');
+  await expect(today).toHaveAttribute('aria-expanded', 'false');
+
+  await today.click();
+  const drawer = main.getByRole('region', { name: /完成的事项$/ });
+  await expect(today).toHaveAttribute('aria-expanded', 'true');
+  await expect(drawer).toContainText('完成 1 项');
+  await expect(drawer.locator('.log-list li')).toHaveText([/整理书桌/]);
+  // 展开行在所选日期之后、整行宽度
+  const cell = (await today.boundingBox())!;
+  const row = (await drawer.boundingBox())!;
+  expect(row.y).toBeGreaterThan(cell.y + cell.height - 1);
+
+  await today.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect(today).toBeFocused();
+
+  await today.press('Enter');
+  await drawer.getByRole('button', { name: '在日视图中查看' }).click();
+  await expect(main.locator('.period')).toHaveText('今天');
+  await expect(main.locator('.timeline li')).toHaveText([/整理书桌/]);
+});
+
+test('#37 界面音效：新建、完成、全部完成、删除时发声；关闭后不再发声；设置中可切换风格与音量', async () => {
+  const main = await windowByPage('main');
+  // 统计合成的音：每个音至少创建一个振荡器或噪声源
+  await main.evaluate(() => {
+    const w = window as unknown as { __notes: number };
+    w.__notes = 0;
+    const osc = AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator = function (this: AudioContext) {
+      w.__notes++;
+      return osc.call(this);
+    };
+  });
+  const notes = () => main.evaluate(() => (window as unknown as { __notes: number }).__notes);
+
+  await addTodo(main, '浇花');
+  await expect.poll(notes).toBeGreaterThan(0);
+  let before = await notes();
+  await main.getByRole('checkbox', { name: '完成：浇花' }).click();
+  // 今天最后一项：全部完成为 4 个音（木质轻敲每个音含基音与泛音两个振荡器）
+  await expect.poll(async () => (await notes()) - before).toBe(8);
+
+  before = await notes();
+  await addTodo(main, '取快递');
+  await main.locator('.todo', { hasText: '取快递' }).click();
+  await main.getByRole('button', { name: '删除 取快递' }).click();
+  await expect.poll(async () => (await notes()) - before).toBeGreaterThan(2);
+
+  // 设置：关闭后操作不再发声
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  await expect(main.getByRole('group', { name: '音效风格' }).getByRole('button', { name: '木质轻敲' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await main.getByRole('group', { name: '音效风格' }).getByRole('button', { name: '清亮风铃' }).click();
+  await expect(main.getByRole('group', { name: '音效风格' }).getByRole('button', { name: '清亮风铃' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await main.getByRole('switch', { name: '界面音效' }).click();
+  await expect(main.getByRole('group', { name: '音效风格' })).toHaveCount(0);
+  await main.locator('.nav-item', { hasText: '今天' }).first().click();
+  before = await notes();
+  await addTodo(main, '静音时新建');
+  await main.waitForTimeout(200);
+  expect(await notes()).toBe(before);
+});

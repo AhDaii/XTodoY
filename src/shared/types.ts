@@ -77,6 +77,10 @@ export type SortMode = 'due' | 'manual' | 'priority' | 'created' | 'title';
 export type SortScope = 'today' | 'plan' | 'all' | 'tag';
 export const SORT_MODES: readonly SortMode[] = ['due', 'manual', 'priority', 'created', 'title'];
 
+/** 界面音效风格（#37）：木质轻敲 / 气泡 / 极简滴答 / 清亮风铃 */
+export type UiSoundStyle = 'mallet' | 'bubble' | 'tick' | 'chime';
+export const UI_SOUND_STYLES: readonly UiSoundStyle[] = ['mallet', 'bubble', 'tick', 'chime'];
+
 export interface TodoGroup {
   id: string;
   title: string | null;
@@ -147,6 +151,11 @@ export interface Settings {
   allDayTime: string;
   snoozeMinutes: 5 | 10 | 15 | 30 | 60;
   reminderSound: boolean;
+  /** 界面音效（#37）：新建、完成、删除等操作时的提示音，与提醒通知的声音无关 */
+  uiSound: boolean;
+  uiSoundStyle: UiSoundStyle;
+  /** 0–1 */
+  uiSoundVolume: number;
   /** 暂停提醒到该时刻（毫秒），null 表示未暂停（FR-BG-06） */
   pausedUntil: number | null;
   closeTipShown: boolean;
@@ -189,6 +198,9 @@ export const DEFAULT_SETTINGS: Settings = {
   allDayTime: '08:30',
   snoozeMinutes: 10,
   reminderSound: true,
+  uiSound: true,
+  uiSoundStyle: 'mallet',
+  uiSoundVolume: 0.6,
   pausedUntil: null,
   closeTipShown: false,
   hardwareAcceleration: false,
