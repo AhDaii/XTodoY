@@ -1,6 +1,6 @@
 import { defaultQuickAddShortcut } from '@shared/platform';
 import { isValidAccelerator } from '@shared/shortcut';
-import { DEFAULT_SETTINGS, SORT_MODES, type Settings, type SortMode } from '@shared/types';
+import { DEFAULT_SETTINGS, SORT_MODES, UI_SOUND_STYLES, type Settings, type SortMode } from '@shared/types';
 import type { ReleaseNote } from '@shared/update';
 import type { DB } from '../db/client';
 import { bus } from '../events/bus';
@@ -49,6 +49,15 @@ const validators: Validators = {
     throw invalid('稍后提醒时长取值不正确');
   },
   reminderSound: (v) => bool(v, '提醒声音'),
+  uiSound: (v) => bool(v, '界面音效'),
+  uiSoundStyle: (v) => {
+    if (UI_SOUND_STYLES.includes(v as Settings['uiSoundStyle'])) return v as Settings['uiSoundStyle'];
+    throw invalid('音效风格取值不正确');
+  },
+  uiSoundVolume: (v) => {
+    if (typeof v === 'number' && v >= 0 && v <= 1) return Math.round(v * 100) / 100;
+    throw invalid('音量应在 0 到 1 之间');
+  },
   pausedUntil: (v) => {
     if (v === null || (typeof v === 'number' && Number.isFinite(v))) return v;
     throw invalid('暂停时间取值不正确');

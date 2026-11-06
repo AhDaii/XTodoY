@@ -9,6 +9,7 @@ import { useTodoActions } from '../lib/actions';
 import { api, call } from '../lib/api';
 import { useGroups, useNotificationStatus, useReportError } from '../lib/data';
 import { friendlyDate, parse, today, weekday } from '../lib/dates';
+import { playSound } from '../lib/sounds';
 import { dropNeighbors, stepNeighbors } from '@shared/reorder';
 import { kbd } from '../lib/platform';
 import { useUi } from '../lib/store';
@@ -75,6 +76,7 @@ export function ListPage({
     if (!title) return;
     try {
       await call(api.todos.create({ title, dueDate: datedView ? today() : null, tagIds: tag ? [tag.id] : [] }));
+      playSound('add');
       setDraft('');
     } catch (e) {
       report(e);

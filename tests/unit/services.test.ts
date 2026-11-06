@@ -210,4 +210,16 @@ describe('SettingsService', () => {
     expect(() => s.set('theme', 'blue')).toThrow();
     expect(() => s.set('weekStart', 3)).toThrow();
   });
+
+  it('界面音效：默认开启木质轻敲 60%，风格与音量校验（#37）', () => {
+    const s = new SettingsService(db);
+    expect(s.get()).toMatchObject({ uiSound: true, uiSoundStyle: 'mallet', uiSoundVolume: 0.6 });
+    s.set('uiSoundStyle', 'chime');
+    s.set('uiSoundVolume', 0.333);
+    expect(new SettingsService(db).get()).toMatchObject({ uiSoundStyle: 'chime', uiSoundVolume: 0.33 });
+    expect(() => s.set('uiSoundStyle', 'piano')).toThrow();
+    expect(() => s.set('uiSoundVolume', 1.5)).toThrow();
+    expect(() => s.set('uiSoundVolume', -0.1)).toThrow();
+    expect(() => s.set('uiSound', 'yes')).toThrow();
+  });
 });

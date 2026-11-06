@@ -846,6 +846,12 @@ a {
   box-shadow: var(--shadow-sm);
   font-weight: var(--weight-medium);
 }
+/* 滑块（音效音量，#37） */
+.range {
+  width: 160px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
 
 .input,
 .select,

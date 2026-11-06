@@ -18,7 +18,7 @@ const state = {
   calMonth: null,
   settings: {
     autostart: false, closeAction: 'tray', weekStart: 1, theme: localStorage.getItem('xtodoy-theme') || 'system',
-    defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, inAppPopup: false, gpu: false,
+    defaultReminder: 0, allDayTime: '08:30', snooze: 10, sound: true, uiSound: true, uiSoundStyle: 'mallet', uiSoundVolume: 60, inAppPopup: false, gpu: false,
     floating: true, floatingOpacity: 100, floatingLock: false,
     autoCheck: true, autoDownload: true, channel: 'stable', shortcut: 'Ctrl+Alt+T',
   },
@@ -832,6 +832,9 @@ function renderSettings() {
           <div class="setting"><div class="txt"><b id="l-shortcut">快速新建快捷键</b><span>在任意程序中按下即可打开 XTodoY 并新建待办</span></div>
             <button class="btn shortcut-rec ${state.recordingShortcut ? 'recording' : ''}" aria-labelledby="l-shortcut" data-action="rec-shortcut">${state.recordingShortcut ? '请按下组合键…' : s.shortcut ? `<kbd>${s.shortcut}</kbd>` : '未设置'}</button>
             ${s.shortcut && !state.recordingShortcut ? '<button class="btn ghost" data-action="clear-shortcut">关闭</button>' : ''}</div>
+          ${sw('uiSound', '界面音效', '新建、完成、删除等操作时播放简短的提示音；与提醒通知的声音无关（试听见 sound-variants.html）')}
+          ${s.uiSound ? `<div class="setting"><div class="txt"><b>音效风格</b><span>选择后播放一次"完成"的声音</span></div><div class="seg" role="group" aria-label="音效风格">${[['mallet', '木质轻敲'], ['bubble', '气泡'], ['tick', '极简滴答'], ['chime', '清亮风铃']].map(([v, l]) => `<button aria-pressed="${s.uiSoundStyle === v}" data-action="sound-style" data-val="${v}">${l}</button>`).join('')}</div></div>
+          <div class="setting"><div class="txt"><b id="l-vol">音效音量</b><span>${s.uiSoundVolume}%</span></div><input type="range" class="range" min="0" max="100" step="5" value="${s.uiSoundVolume}" aria-labelledby="l-vol" data-set-range="uiSoundVolume"></div>` : ''}
         </div></section>
         <section><h2>外观</h2><div class="setting-card">
           <div class="setting"><div class="txt"><b>主题</b><span>跟随系统时会随 Windows 的浅色 / 深色设置自动切换</span></div>
@@ -1180,6 +1183,7 @@ document.addEventListener('click', (e) => {
     case 'rec-shortcut': state.recordingShortcut = true; render(); document.querySelector('.shortcut-rec')?.focus(); break;
     case 'clear-shortcut': state.settings.shortcut = null; render(); break;
     case 'set-toggle': state.settings[a.dataset.key] = !state.settings[a.dataset.key]; render(); break;
+    case 'sound-style': state.settings.uiSoundStyle = val; render(); break;
     case 'theme': setTheme(val); break;
     case 'toast': toast(a.dataset.msg); break;
     case 'upd-check': checkUpdate(); break;
@@ -1225,6 +1229,7 @@ function onPopoverClick(e) {
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.hasAttribute('data-sort')) { state.sort[sortScope()] = el.value; render(); return; }
+  if (el.dataset.setRange) { state.settings[el.dataset.setRange] = Number(el.value); render(); return; }
   if (el.dataset.set) { const k = el.dataset.set; state.settings[k] = /^-?\d+$/.test(el.value) ? Number(el.value) : el.value; render(); return; }
   if (!pop || !el.closest('.popover')) return;
   const t = current(); const k = el.dataset.pop;
