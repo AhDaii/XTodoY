@@ -12,6 +12,7 @@ const state = {
   search: '',
   statsTab: 'week',
   statsOffset: 0,
+  statsDay: null, // 月视图展开的日期（#35）
   sidebarCollapsed: false,
   renaming: null,
   calMonth: null,
@@ -606,15 +607,26 @@ function streaks(logs) {
   sorted.forEach((x, i) => { run = i && diffDays(x, sorted[i - 1]) === 1 ? run + 1 : 1; best = Math.max(best, run); });
   return { cur, best, last7: [...Array(7)].map((_, i) => { const day = addDays(TODAY, i - 6); return { day, on: days.has(day) }; }) };
 }
-// 平滑曲线（Catmull-Rom → 三次贝塞尔）
+// 平滑曲线：单调三次插值（Fritsch–Carlson），不会冲过相邻点；Catmull-Rom 在"5 → 0 → 0"时会弯到 0 以下（#34）
 function smooth(pts) {
-  if (pts.length < 2) return '';
+  const n = pts.length;
+  if (n < 2) return '';
+  const h = (i) => pts[i + 1][0] - pts[i][0];
+  const d = pts.slice(0, -1).map((p, i) => (pts[i + 1][1] - p[1]) / h(i));
+  const m = pts.map((_, i) => {
+    if (i === 0) return d[0];
+    if (i === n - 1) return d[n - 2];
+    const a = d[i - 1], b = d[i];
+    if (a * b <= 0) return 0;
+    const w1 = 2 * h(i) + h(i - 1), w2 = h(i) + 2 * h(i - 1);
+    return (w1 + w2) / (w1 / a + w2 / b);
+  });
+  const end = (seg, inner) => { if (seg === 0) return 0; const t = (3 * seg - inner) / 2; return t * seg <= 0 ? 0 : Math.abs(t) > 3 * Math.abs(seg) ? 3 * seg : t; };
+  if (n > 2) { m[0] = end(d[0], m[1]); m[n - 1] = end(d[n - 2], m[n - 2]); }
   let p = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
-    p += ` C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p2[0]},${p2[1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const dx = h(i) / 3;
+    p += ` C${pts[i][0] + dx},${pts[i][1] + m[i] * dx} ${pts[i + 1][0] - dx},${pts[i + 1][1] - m[i + 1] * dx} ${pts[i + 1][0]},${pts[i + 1][1]}`;
   }
   return p;
 }
@@ -673,11 +685,22 @@ function monthHeatmap(p, logs) {
   const max = Math.max(...counts, 1);
   const cells = [];
   for (let i = 0; i < pad; i++) cells.push('<div class="hm-cell blank" aria-hidden="true"></div>');
+  // 点击日期在该周下方展开当天完成的事项（#35 方案 A）
+  const sel = state.statsDay, selIdx = sel ? diffDays(sel, p.from) : -1;
+  const rowEnd = selIdx < 0 || selIdx >= days ? -1 : Math.min(Math.floor((pad + selIdx) / 7) * 7 + 6 - pad, days - 1);
   counts.forEach((n, i) => {
     const d = addDays(p.from, i);
     const future = d > TODAY;
-    cells.push(`<div class="hm-cell ${future ? 'future' : `lv${heatLevel(n, max)}`} ${d === TODAY ? 'is-today' : ''}" role="gridcell" tabindex="${future ? -1 : 0}" title="${d}：${future ? '未到' : `完成 ${n} 项`}" aria-label="${d} ${future ? '未到' : `完成 ${n} 项`}">
+    cells.push(`<div class="hm-cell ${future ? 'future' : `lv${heatLevel(n, max)}`} ${d === TODAY ? 'is-today' : ''} ${d === sel ? 'is-sel' : ''}" role="gridcell" tabindex="${future ? -1 : 0}" ${future ? '' : `data-action="stats-day" data-val="${d}" aria-expanded="${d === sel}"`} title="${d}：${future ? '未到' : `完成 ${n} 项`}" aria-label="${d} ${future ? '未到' : `完成 ${n} 项`}">
       <span class="dd">${i + 1}</span>${!future && n ? `<span class="nn">${n}</span>` : ''}</div>`);
+    if (i === rowEnd) {
+      const ls = logs.filter((l) => l.at.startsWith(sel)).sort((a, b) => a.at.localeCompare(b.at));
+      const sd = parse(sel);
+      cells.push(`<div class="hm-drawer" role="region" aria-label="${sel} 完成的事项" style="--arrow:${(((pad + selIdx) % 7) + 0.5) / 7 * 100}%">
+        <div class="hd-head">${sd.getMonth() + 1}月${sd.getDate()}日 周${WEEK[sd.getDay()]}<span class="sub">完成 ${ls.length} 项</span><span class="spacer"></span><button class="btn sm ghost" data-action="stats-open-day" data-val="${sel}">在日视图中查看${icon('chevronRight', 14)}</button></div>
+        ${ls.length ? `<ul class="log-list">${ls.map((l) => { const tg = l.tag && tagById(l.tag); return `<li><span class="t">${l.at.slice(11)}</span><span class="ok">${icon('checkCircle', 14)}</span><span class="lt">${esc(l.title)}</span>${tg ? `<span class="chip tc-${tg.color}"><span class="dot"></span><span>${esc(tg.name)}</span></span>` : ''}</li>`; }).join('')}</ul>` : '<p class="help">这一天没有完成记录</p>'}
+      </div>`);
+    }
   });
   return `
     <div class="hm" role="grid" aria-label="${p.label}每日完成热力图">
@@ -1150,8 +1173,10 @@ document.addEventListener('click', (e) => {
     case 'pop-repeat': repeatPopover(a); break;
     case 'pop-reminder': reminderPopover(a); break;
     case 'pop-tags': tagsPopover(a); break;
-    case 'stats-tab': state.statsTab = val; state.statsOffset = 0; render(); break;
-    case 'stats-nav': state.statsOffset = val === '0' ? 0 : Math.min(0, state.statsOffset + Number(val)); render(); break;
+    case 'stats-tab': state.statsTab = val; state.statsOffset = 0; state.statsDay = null; render(); break;
+    case 'stats-nav': state.statsOffset = val === '0' ? 0 : Math.min(0, state.statsOffset + Number(val)); state.statsDay = null; render(); break;
+    case 'stats-day': state.statsDay = state.statsDay === val ? null : val; render(); document.querySelector(`.hm-cell[data-val="${val}"]`)?.focus(); break;
+    case 'stats-open-day': state.statsTab = 'day'; state.statsOffset = Math.min(0, diffDays(val, TODAY)); state.statsDay = null; render(); break;
     case 'rec-shortcut': state.recordingShortcut = true; render(); document.querySelector('.shortcut-rec')?.focus(); break;
     case 'clear-shortcut': state.settings.shortcut = null; render(); break;
     case 'set-toggle': state.settings[a.dataset.key] = !state.settings[a.dataset.key]; render(); break;
@@ -1239,6 +1264,9 @@ document.addEventListener('keydown', (e) => {
     state.recordingShortcut = false; render(); toast(`快捷键已设为 ${state.settings.shortcut}`); return;
   }
   const el = e.target;
+  // 完成日历：回车 / 空格展开日期，Esc 收起（#35）
+  if (el.classList?.contains('hm-cell') && el.dataset.val && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); el.click(); return; }
+  if (state.statsDay && e.key === 'Escape' && el.closest?.('.hm')) { const d = state.statsDay; state.statsDay = null; render(); document.querySelector(`.hm-cell[data-val="${d}"]`)?.focus(); return; }
   if (el.id === 'quick-add' && e.key === 'Enter') { const v = el.value.trim(); if (v) quickAdd(v); return; }
   if (el.dataset.rename) {
     if (e.key === 'Enter' || e.key === 'Escape') {
