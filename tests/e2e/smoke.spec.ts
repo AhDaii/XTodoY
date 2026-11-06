@@ -696,3 +696,34 @@ test('#22 窄宽度标题栏：控件换到第二行且文字不换行；#24 勾
   await expect(main.locator('.todo.is-done', { hasText: '日报' })).toHaveCount(1);
   await expect(main.locator('.toast')).toContainText('已完成"日报"');
 });
+
+test('#35 月统计完成日历：点击日期展开当天完成的事项，Esc 收起，可跳到日视图', async () => {
+  const main = await windowByPage('main');
+  await addTodo(main, '整理书桌');
+  await main.getByRole('checkbox', { name: '完成：整理书桌' }).click();
+  await expect(main.locator('.todo.is-done', { hasText: '整理书桌' })).toHaveCount(1);
+
+  await main.locator('.sidebar-footer .nav-item', { hasText: '统计' }).click();
+  await main.getByRole('group', { name: '统计维度' }).getByRole('button', { name: '月' }).click();
+  const today = main.locator('.hm-cell.is-today');
+  await expect(today).toHaveAttribute('aria-expanded', 'false');
+
+  await today.click();
+  const drawer = main.getByRole('region', { name: /完成的事项$/ });
+  await expect(today).toHaveAttribute('aria-expanded', 'true');
+  await expect(drawer).toContainText('完成 1 项');
+  await expect(drawer.locator('.log-list li')).toHaveText([/整理书桌/]);
+  // 展开行在所选日期之后、整行宽度
+  const cell = (await today.boundingBox())!;
+  const row = (await drawer.boundingBox())!;
+  expect(row.y).toBeGreaterThan(cell.y + cell.height - 1);
+
+  await today.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect(today).toBeFocused();
+
+  await today.press('Enter');
+  await drawer.getByRole('button', { name: '在日视图中查看' }).click();
+  await expect(main.locator('.period')).toHaveText('今天');
+  await expect(main.locator('.timeline li')).toHaveText([/整理书桌/]);
+});
