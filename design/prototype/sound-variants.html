@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 方案对比：界面音效（#37）</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: var(--background); color: var(--foreground); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); }
+    .bar h1 { margin: 0 auto 0 0; font-size: var(--text-lg); }
+    .bar label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--foreground-muted); }
+    section.block { border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    .block > header { padding: var(--space-5) var(--space-6) var(--space-3); }
+    .block > header h2 { margin: 0 0 4px; font-size: var(--text-lg); }
+    .block > header p { margin: 0; color: var(--foreground-muted); font-size: var(--text-sm); line-height: 1.7; }
+    .variant { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-5); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--border); }
+    .variant h3 { margin: 0 0 6px; font-size: var(--text-base); display: flex; align-items: center; gap: 8px; }
+    .variant h3 .tag { padding: 1px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); }
+    .variant .desc { margin: 0 0 8px; font-size: var(--text-sm); color: var(--foreground-muted); line-height: 1.7; }
+    .variant ul.pc { margin: 0; padding-left: 16px; font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.8; }
+    .variant ul.pc li.p::marker { content: '＋ '; color: var(--success); }
+    .variant ul.pc li.c::marker { content: '－ '; color: var(--accent); }
+    .pads { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); align-content: start; }
+    .pad { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color 120ms, transform 120ms; }
+    .pad:hover { border-color: var(--primary); }
+    .pad:active { transform: scale(.97); }
+    .pad b { font-size: var(--text-sm); display: flex; align-items: center; gap: 6px; }
+    .pad span { font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.5; }
+    .pad.playing { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+    .seq { grid-column: 1 / -1; justify-self: start; }
+
+    /* 设置项样式示意 */
+    .settings-demo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--border); }
+    .settings-demo h3 { margin: 0 0 8px; font-size: var(--text-sm); display: flex; gap: 8px; align-items: center; }
+    .settings-demo h3 .tag { padding: 1px 8px; border-radius: var(--radius-full); background: var(--surface-sunken); color: var(--foreground-muted); font-size: var(--text-xs); font-weight: var(--weight-medium); }
+    .card { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+    .srow { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+    .srow:last-child { border-bottom: 0; }
+    .srow .l { flex: 1; min-width: 0; }
+    .srow .l b { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); }
+    .srow .l span { display: block; font-size: var(--text-xs); color: var(--foreground-muted); margin-top: 2px; }
+    .seg { display: inline-flex; padding: 2px; border-radius: var(--radius-md); background: var(--surface-sunken); }
+    .seg button { height: 28px; padding: 0 10px; border: 0; border-radius: calc(var(--radius-md) - 2px); background: transparent; color: var(--foreground-muted); font: inherit; font-size: var(--text-xs); cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--surface); color: var(--foreground); box-shadow: var(--shadow-sm); }
+    .sw { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--primary); flex: none; }
+    .sw::after { content: ''; position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+    input[type=range] { width: 140px; accent-color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>#37 界面音效 · 4 套声音</h1>
+      <label>音量 <input type="range" id="vol" min="0" max="1" step="0.05" value="0.6"></label>
+      <label><input type="checkbox" id="dark"> 深色</label>
+    </div>
+
+    <section class="block">
+      <header>
+        <h2>试听</h2>
+        <p>每套声音覆盖 5 个时刻：<b>新建</b>（回车添加待办）、<b>完成</b>（点勾选框）、<b>全部完成</b>（今天最后一项完成）、<b>取消完成 / 撤销</b>、<b>删除</b>（移入回收站）。声音全部由程序实时合成（Web Audio），不附带音频文件、没有版权问题，安装包只增加几 KB。点击卡片试听，或点"按顺序播放"听一遍真实使用时的节奏（新建 → 完成 → 完成 → 全部完成）。</p>
+      </header>
+      <div id="variants"></div>
+
+      <div class="settings-demo">
+        <div>
+          <h3>设置项 <span class="tag">设置 › 通用</span></h3>
+          <div class="card">
+            <div class="srow"><div class="l"><b>界面音效</b><span>新建、完成、删除等操作时播放简短的提示音；与提醒通知的声音无关</span></div><div class="sw" aria-hidden="true"></div></div>
+            <div class="srow"><div class="l"><b>音效风格</b></div><div class="seg" id="setStyle"></div></div>
+            <div class="srow"><div class="l"><b>音量</b></div><input type="range" min="0" max="1" step="0.05" value="0.6" aria-label="音效音量"></div>
+          </div>
+        </div>
+        <div>
+          <h3>说明</h3>
+          <ul class="pc" style="font-size: var(--text-sm); line-height: 1.9;">
+            <li>只在你在 XTodoY 窗口中操作时播放；后台的提醒、自动生成循环实例等不发声</li>
+            <li>连续快速勾选时同一种声音至少间隔 60 ms，避免叠成噪音</li>
+            <li>系统"减少动画"或程序最小化到托盘时不受影响（音效与动画无关）</li>
+            <li>默认开启还是关闭，请一并选择</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ---------- 合成引擎：所有声音由几个振荡器 + 包络生成 ----------
+    let ctx = null;
+    const vol = () => +document.getElementById('vol').value;
+    function ac() { ctx ??= new AudioContext(); if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+    /** 一个音：type 波形，f 频率（可从 f0 滑到 f1），t 开始偏移，d 衰减时长，g 音量 */
+    function tone({ type = 'sine', f, f1, t = 0, a = 0.004, d = 0.18, g = 0.3, detune = 0 }) {
+      const c = ac(), now = c.currentTime + t;
+      const o = c.createOscillator(), e = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, now); o.detune.value = detune;
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, now + d * 0.6);
+      e.gain.setValueAtTime(0.0001, now);
+      e.gain.exponentialRampToValueAtTime(g * vol(), now + a);
+      e.gain.exponentialRampToValueAtTime(0.0001, now + a + d);
+      o.connect(e).connect(c.destination);
+      o.start(now); o.stop(now + a + d + 0.02);
+    }
+    /** 短噪声"嗒"（用于极简风格） */
+    function click({ t = 0, d = 0.03, g = 0.25, hp = 2500 }) {
+      const c = ac(), now = c.currentTime + t;
+      const buf = c.createBuffer(1, Math.ceil(c.sampleRate * d), c.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / ch.length, 4);
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), e = c.createGain();
+      s.buffer = buf; f.type = 'highpass'; f.frequency.value = hp; e.gain.value = g * vol();
+      s.connect(f).connect(e).connect(c.destination); s.start(now);
+    }
+    // 木琴类：基音 + 4 倍泛音快速衰减
+    const mallet = (f, t = 0, g = 0.32) => { tone({ type: 'sine', f, t, d: 0.22, g }); tone({ type: 'sine', f: f * 4, t, d: 0.05, g: g * 0.25 }); };
+    // 风铃类：基音 + 非整数泛音，衰减更长
+    const bell = (f, t = 0, g = 0.2) => { tone({ type: 'sine', f, t, d: 0.9, g }); tone({ type: 'sine', f: f * 2.76, t, d: 0.35, g: g * 0.35 }); tone({ type: 'sine', f: f * 5.4, t, d: 0.15, g: g * 0.15 }); };
+
+    const N = { C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.7, E6: 1318.5, G6: 1568, C7: 2093, G4: 392, E4: 329.63, A4: 440 };
+
+    const SETS = [
+      {
+        id: 'A', name: '木质轻敲', desc: '类似木琴的短促敲击，音高按事件区分：完成上扬、取消下行、全部完成是三音琶音。',
+        pc: [['p', '温和、有"完成感"，适合高频使用'], ['p', '不同事件一听就能分辨'], ['c', '比极简风格存在感强一些']],
+        add: () => mallet(N.G5),
+        done: () => { mallet(N.C6); mallet(N.G6, 0.07, 0.24); },
+        all: () => { mallet(N.C6); mallet(N.E6, 0.09); mallet(N.G6, 0.18); mallet(N.C7, 0.27, 0.26); },
+        undo: () => { mallet(N.G5); mallet(N.C5, 0.07, 0.24); },
+        del: () => mallet(N.E4, 0, 0.3),
+      },
+      {
+        id: 'B', name: '气泡', desc: '圆润的"啵"声：正弦波快速向上滑音，像气泡浮起；全部完成是一串上升的气泡。',
+        pc: [['p', '轻快俏皮，最"有趣"'], ['p', '音量感很低，不打扰'], ['c', '风格偏可爱，可能和工具类产品的克制感不一致']],
+        add: () => tone({ f: 420, f1: 820, d: 0.12, g: 0.35 }),
+        done: () => { tone({ f: 600, f1: 1200, d: 0.1, g: 0.35 }); tone({ f: 900, f1: 1700, t: 0.08, d: 0.1, g: 0.25 }); },
+        all: () => [0, 1, 2, 3].forEach((i) => tone({ f: 500 + i * 180, f1: 1000 + i * 300, t: i * 0.07, d: 0.1, g: 0.3 })),
+        undo: () => tone({ f: 900, f1: 420, d: 0.14, g: 0.3 }),
+        del: () => tone({ f: 380, f1: 180, d: 0.16, g: 0.32 }),
+      },
+      {
+        id: 'C', name: '极简滴答', desc: '几乎只是触感反馈：很短的"嗒"和细小的高音，像机械键盘或 iOS 的点击声。',
+        pc: [['p', '最克制，长时间使用也不烦'], ['p', '适合办公室环境'], ['c', '事件之间区别较小，"全部完成"缺少庆祝感']],
+        add: () => { click({ g: 0.3 }); tone({ f: 2400, d: 0.03, g: 0.08 }); },
+        done: () => { click({ g: 0.35, hp: 3500 }); tone({ f: 3000, t: 0.02, d: 0.05, g: 0.1 }); },
+        all: () => { click({ g: 0.3 }); tone({ f: 2000, t: 0.03, d: 0.08, g: 0.1 }); tone({ f: 3000, t: 0.1, d: 0.12, g: 0.1 }); },
+        undo: () => click({ g: 0.28, hp: 1500 }),
+        del: () => click({ g: 0.35, hp: 800, d: 0.05 }),
+      },
+      {
+        id: 'D', name: '清亮风铃', desc: '带泛音的铃声，余音较长；全部完成是一段明亮的大三和弦琶音。',
+        pc: [['p', '最有仪式感，"全部完成"很有成就感'], ['p', '音色精致'], ['c', '余音约 1 秒，连续勾选时会叠在一起'], ['c', '安静环境下存在感偏强']],
+        add: () => bell(N.E6, 0, 0.16),
+        done: () => { bell(N.G5); bell(N.D6, 0.08, 0.16); },
+        all: () => { bell(N.C6); bell(N.E6, 0.1); bell(N.G6, 0.2); bell(N.C7, 0.32, 0.18); },
+        undo: () => { bell(N.D6, 0, 0.16); bell(N.G5, 0.08, 0.14); },
+        del: () => bell(N.A4, 0, 0.18),
+      },
+    ];
+    const EVENTS = [['add', '新建', '回车添加待办'], ['done', '完成', '点击勾选框'], ['all', '全部完成', '今天最后一项完成'], ['undo', '取消完成 / 撤销', '取消勾选、点"撤销"'], ['del', '删除', '移入回收站']];
+
+    const host = document.getElementById('variants');
+    host.innerHTML = SETS.map((s) => `
+      <div class="variant">
+        <div>
+          <h3><span class="tag">${s.id}</span>${s.name}</h3>
+          <p class="desc">${s.desc}</p>
+          <ul class="pc">${s.pc.map(([k, t]) => `<li class="${k}">${t}</li>`).join('')}</ul>
+        </div>
+        <div class="pads">
+          ${EVENTS.map(([k, n, h]) => `<button class="pad" data-set="${s.id}" data-ev="${k}"><b>▶ ${n}</b><span>${h}</span></button>`).join('')}
+          <button class="btn sm seq" data-seq="${s.id}">▶ 按顺序播放：新建 → 完成 → 完成 → 全部完成</button>
+        </div>
+      </div>`).join('');
+    host.addEventListener('click', (e) => {
+      const p = e.target.closest('.pad');
+      if (p) {
+        SETS.find((s) => s.id === p.dataset.set)[p.dataset.ev]();
+        p.classList.add('playing'); setTimeout(() => p.classList.remove('playing'), 250);
+        return;
+      }
+      const q = e.target.closest('[data-seq]');
+      if (q) {
+        const s = SETS.find((x) => x.id === q.dataset.seq);
+        [['add', 0], ['done', 900], ['done', 1500], ['all', 2200]].forEach(([k, ms]) => setTimeout(() => s[k](), ms));
+      }
+    });
+    document.getElementById('setStyle').innerHTML = SETS.map((s, i) => `<button aria-pressed="${i === 0}" data-pick="${s.id}">${s.name}</button>`).join('');
+    document.getElementById('setStyle').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]'); if (!b) return;
+      document.querySelectorAll('#setStyle button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+      SETS.find((s) => s.id === b.dataset.pick).done();
+    });
+    document.getElementById('dark').addEventListener('change', (e) => document.documentElement.classList.toggle('dark', e.target.checked));
+  </script>
+</body>
+</html>

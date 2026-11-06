@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AppInfo, DataInfo } from '@shared/ipc';
 import { acceleratorLabel, isMac } from '@shared/platform';
 import { acceleratorFromEvent } from '@shared/shortcut';
-import type { Settings } from '@shared/types';
+import { UI_SOUND_STYLES, type Settings, type UiSoundStyle } from '@shared/types';
 import { holidayYears } from '@shared/workdays';
 import type { UpdateStatus } from '@shared/update';
 import { Icon, type IconName } from '../components/Icon';
@@ -12,6 +12,7 @@ import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
 import { useNotificationStatus, useReportError } from '../lib/data';
 import { platform } from '../lib/platform';
+import { playSound } from '../lib/sounds';
 import { useUi } from '../lib/store';
 
 /** 设置页（UI-10，FR-SET-02） */
@@ -28,6 +29,44 @@ function Switch(p: { id: string; label: string; hint: string; checked: boolean; 
         aria-checked={p.checked}
         aria-labelledby={`l-${p.id}`}
         onClick={() => p.onChange(!p.checked)}
+      />
+    </div>
+  );
+}
+
+const SOUND_STYLE_LABELS: Record<UiSoundStyle, string> = {
+  mallet: '木质轻敲',
+  bubble: '气泡',
+  tick: '极简滴答',
+  chime: '清亮风铃',
+};
+
+/** 音量：拖动时只改本地显示，松开后保存并试听（#37） */
+function VolumeSetting({ value, onCommit }: { value: number; onCommit(v: number): void }) {
+  // 外部值变化时由 key 重建组件（见调用处），这里只保存拖动中的值
+  const [v, setV] = useState(value);
+  const commit = () => {
+    if (v !== value) onCommit(v);
+  };
+  return (
+    <div className="setting">
+      <div className="txt">
+        <b id="l-ui-volume">音效音量</b>
+        <span>{Math.round(v * 100)}%</span>
+      </div>
+      <input
+        type="range"
+        className="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={v}
+        aria-labelledby="l-ui-volume"
+        aria-valuetext={`${Math.round(v * 100)}%`}
+        onChange={(e) => setV(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
       />
     </div>
   );
@@ -115,6 +154,45 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
               checked={settings.holidayAutoUpdate}
               onChange={(v) => set('holidayAutoUpdate', v)}
             />
+            <Switch
+              id="ui-sound"
+              label="界面音效"
+              hint="新建、完成、删除等操作时播放简短的提示音；与提醒通知的声音无关"
+              checked={settings.uiSound}
+              onChange={(v) => set('uiSound', v)}
+            />
+            {settings.uiSound && (
+              <>
+                <div className="setting">
+                  <div className="txt">
+                    <b>音效风格</b>
+                    <span>选择后播放一次"完成"的声音</span>
+                  </div>
+                  <div className="seg" role="group" aria-label="音效风格">
+                    {UI_SOUND_STYLES.map((v) => (
+                      <button
+                        key={v}
+                        aria-pressed={settings.uiSoundStyle === v}
+                        onClick={() => {
+                          playSound('done', v, true);
+                          set('uiSoundStyle', v);
+                        }}
+                      >
+                        {SOUND_STYLE_LABELS[v]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <VolumeSetting
+                  key={settings.uiSoundVolume}
+                  value={settings.uiSoundVolume}
+                  onCommit={(v) => {
+                    set('uiSoundVolume', v);
+                    if (v > 0) setTimeout(() => playSound('done', settings.uiSoundStyle, true), 30);
+                  }}
+                />
+              </>
+            )}
           </div>
         </section>
 

@@ -8,6 +8,7 @@ import { api, call } from './lib/api';
 import { updateNeedsAttention } from '@shared/update';
 import { InstallingOverlay, UpdateDialog } from './components/Update';
 import { useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
+import { setSoundPrefs } from './lib/sounds';
 import { kbd, mod } from './lib/platform';
 import { useUi } from './lib/store';
 import { ListPage } from './pages/ListPage';
@@ -33,6 +34,16 @@ export function App() {
     [collapsed, report],
   );
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // 界面音效设置（#37）
+  useEffect(() => {
+    if (settings)
+      setSoundPrefs({
+        uiSound: settings.uiSound,
+        uiSoundStyle: settings.uiSoundStyle,
+        uiSoundVolume: settings.uiSoundVolume,
+      });
+  }, [settings]);
 
   // 托盘 / 通知 / 悬浮窗要求跳转（nav:open）
   useEffect(

@@ -131,6 +131,9 @@
 | TC-SET-07-1 | FR-SET-07 自动备份 | U | backup：每日备份每天只做一次，保留最近 7 份 |
 | TC-SET-08-1 | FR-SET-08 全局快捷键 | E | 全局快捷键：默认 Ctrl+Alt+T，可录制新组合或关闭 |
 | TC-SET-08-2 | FR-SET-08 | U | shortcut：校验 Accelerator；从键盘事件生成；platform：各平台默认值 |
+| TC-SET-09-1 | FR-SET-09 界面音效（#37） | U | SettingsService：界面音效默认值，风格与音量校验 |
+| TC-SET-09-2 | FR-SET-09 | E | #37 界面音效：新建、完成、全部完成、删除时发声；关闭后不再发声；设置中可切换风格 |
+| TC-SET-09-3 | FR-SET-09 | M | M-27 真机试听各风格与音量 |
 
 ## F10 更新
 
