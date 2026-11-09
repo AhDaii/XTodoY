@@ -110,7 +110,7 @@ describe('HolidayService', () => {
     const y2027 = { year: 2027, days: [{ name: '元旦', date: '2027-01-01', isOffDay: true }] };
     const onChange = vi.fn();
     const svc = new HolidayService(dir, store, onChange, respond({ 2026: bundled[2], 2027: y2027 }), now);
-    expect(await svc.refresh()).toBe(true);
+    expect(await svc.refresh()).toEqual({ ok: true, changed: true });
     expect(onChange).toHaveBeenCalledOnce();
     expect(isWorkday('2027-01-01')).toBe(false);
     expect(settings.holidayCheckedAt).toBe(now());
@@ -128,7 +128,9 @@ describe('HolidayService', () => {
       throw new Error('getaddrinfo ENOTFOUND');
     };
     const svc = new HolidayService(dir, store, onChange, failing, now);
-    expect(await svc.refresh()).toBe(false);
+    expect(await svc.refresh()).toEqual({ ok: false, changed: false });
+    // 失败时不记录"更新于"的时间（#42）
+    expect(settings.holidayCheckedAt).toBeNull();
     const bad = new HolidayService(
       dir,
       store,
@@ -136,7 +138,8 @@ describe('HolidayService', () => {
       respond({ 2026: { year: 2026, days: 'x' }, 2027: { year: 2027, days: [] } }),
       now,
     );
-    expect(await bad.refresh()).toBe(false);
+    // 2027 年为空文件（尚未公布）也算获取成功，但数据没有变化
+    expect(await bad.refresh()).toEqual({ ok: true, changed: false });
     expect(onChange).not.toHaveBeenCalled();
     expect(isWorkday('2026-10-01')).toBe(false); // 内置数据仍然有效
   });

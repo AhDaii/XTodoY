@@ -841,6 +841,7 @@ function renderSettings() {
             <div class="seg" role="group" aria-label="主题">
               ${[['light', 'sun', '浅色'], ['dark', 'moon', '深色'], ['system', 'laptop', '跟随系统']].map(([v, ic, l]) => `<button aria-pressed="${s.theme === v}" data-action="theme" data-val="${v}">${icon(ic, 14)}${l}</button>`).join('')}
             </div></div>
+          <div class="setting"><div class="txt"><b>背景图</b><span>铺满整个窗口，侧边栏与列表变为半透明；内置 6 个背景或上传图片，可调模糊、暗化 / 提亮、面板不透明度与显示位置（交互见 background-variants.html）</span></div><a class="btn" href="background-variants.html">打开方案页</a></div>
           ${sw('gpu', '硬件加速', '使用显卡渲染界面，滚动与动画更流畅；关闭可减少约 10–20 MB 常驻内存。修改后需重启')}
           ${s.gpu ? `<div class="setting restart-hint" role="status"><div class="txt"><b>${icon('info', 14)}重启后生效</b><span>当前仍未使用硬件加速，重启 XTodoY 后切换</span></div><button class="btn primary" data-action="toast" data-msg="（原型）XTodoY 将重启">${icon('restore', 14)}立即重启</button></div>` : ''}
         </div></section>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import type { SmartView } from '@shared/types';
 import { DetailPanel } from './components/DetailPanel';
 import { Icon, Logo } from './components/Icon';
@@ -7,7 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { api, call } from './lib/api';
 import { updateNeedsAttention } from '@shared/update';
 import { InstallingOverlay, UpdateDialog } from './components/Update';
-import { useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
+import { useBackgroundUrl, useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
 import { setSoundPrefs } from './lib/sounds';
 import { kbd, mod } from './lib/platform';
 import { useUi } from './lib/store';
@@ -100,8 +100,23 @@ export function App() {
     <StatsPage weekStart={settings?.weekStart ?? 1} />
   );
 
+  // 窗口背景图（#41 方案 A）：背景层铺满窗口，侧边栏与内容区变为半透明面板
+  const bg = settings?.background;
+  const bgUrl = useBackgroundUrl(bg?.image);
+  const bgStyle =
+    bg && bgUrl
+      ? ({
+          '--bg-img': bgUrl,
+          '--bg-blur': `${bg.blur}px`,
+          '--bg-dim': bg.dim,
+          '--bg-panel': `${Math.round(bg.panel * 100)}%`,
+          '--bg-pos': bg.position,
+        } as CSSProperties)
+      : undefined;
+
   return (
-    <div className="window">
+    <div className={`window ${bgStyle ? 'has-bg' : ''}`} style={bgStyle}>
+      {bgStyle && <div className="app-bg" aria-hidden="true" />}
       <header className="titlebar">
         <div className="brand">
           <Logo />

@@ -2,15 +2,22 @@ import { useEffect, useState } from 'react';
 import type { AppInfo, DataInfo } from '@shared/ipc';
 import { acceleratorLabel, isMac } from '@shared/platform';
 import { acceleratorFromEvent } from '@shared/shortcut';
+import {
+  BACKGROUND_POSITIONS,
+  BACKGROUND_PRESETS,
+  presetImageUrl,
+  type BackgroundPosition,
+  type BackgroundSettings,
+} from '@shared/background';
 import { UI_SOUND_STYLES, type Settings, type UiSoundStyle } from '@shared/types';
-import { holidayYears } from '@shared/workdays';
 import type { UpdateStatus } from '@shared/update';
 import { Icon, type IconName } from '../components/Icon';
 import { Dialog } from '../components/Overlay';
 import { UpdateSection } from '../components/Update';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
-import { useNotificationStatus, useReportError } from '../lib/data';
+import { useBackgroundUrl, useNotificationStatus, useReportError } from '../lib/data';
+import { friendlyDate, ymd } from '../lib/dates';
 import { platform } from '../lib/platform';
 import { playSound } from '../lib/sounds';
 import { useUi } from '../lib/store';
@@ -34,6 +41,54 @@ function Switch(p: { id: string; label: string; hint: string; checked: boolean; 
   );
 }
 
+/**
+ * 节假日数据（#42）：说明上次联网更新的时间，而不是列出内置数据的年份；可立即更新。
+ * 时间只在获取成功后记录（HolidayService.refresh）。
+ */
+function HolidaySetting(p: { auto: boolean; checkedAt: number | null; onAuto(v: boolean): void }) {
+  const report = useReportError();
+  const showToast = useUi((u) => u.showToast);
+  const [busy, setBusy] = useState(false);
+  const status =
+    p.checkedAt === null
+      ? '尚未联网更新，使用安装包内置的数据'
+      : `节假日数据更新于 ${friendlyDate(ymd(new Date(p.checkedAt)))} ${new Date(p.checkedAt).toTimeString().slice(0, 5)}`;
+  const refresh = () => {
+    setBusy(true);
+    void call(api.holidays.refresh())
+      .then((r) =>
+        showToast(
+          !r.ok ? '无法获取节假日数据，请检查网络后重试' : r.changed ? '已更新节假日数据' : '节假日数据已是最新',
+        ),
+      )
+      .catch(report)
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="setting">
+      <div className="txt">
+        <b id="l-holidays">自动更新节假日</b>
+        <span>
+          用于"每个工作日""工作日第一天"循环（法定节假日与调休），每周从 holiday-cn 获取最新安排
+          <br />
+          <span className="status">{status}</span>
+        </span>
+      </div>
+      <button className="btn sm" onClick={refresh} disabled={busy}>
+        <Icon name="refresh" size={14} />
+        {busy ? '更新中…' : '立即更新'}
+      </button>
+      <button
+        className="switch"
+        role="switch"
+        aria-checked={p.auto}
+        aria-labelledby="l-holidays"
+        onClick={() => p.onAuto(!p.auto)}
+      />
+    </div>
+  );
+}
+
 const SOUND_STYLE_LABELS: Record<UiSoundStyle, string> = {
   mallet: '木质轻敲',
   bubble: '气泡',
@@ -41,34 +96,143 @@ const SOUND_STYLE_LABELS: Record<UiSoundStyle, string> = {
   chime: '清亮风铃',
 };
 
-/** 音量：拖动时只改本地显示，松开后保存并试听（#37） */
-function VolumeSetting({ value, onCommit }: { value: number; onCommit(v: number): void }) {
-  // 外部值变化时由 key 重建组件（见调用处），这里只保存拖动中的值
-  const [v, setV] = useState(value);
+/** 滑块：拖动时只改本地显示，松开后保存（音效音量 #37、背景参数 #41）。外部值变化时由 key 重建 */
+function RangeSetting(p: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format(v: number): string;
+  onCommit(v: number): void;
+}) {
+  const [v, setV] = useState(p.value);
   const commit = () => {
-    if (v !== value) onCommit(v);
+    if (v !== p.value) p.onCommit(v);
   };
   return (
     <div className="setting">
       <div className="txt">
-        <b id="l-ui-volume">音效音量</b>
-        <span>{Math.round(v * 100)}%</span>
+        <b id={`l-${p.id}`}>{p.label}</b>
+        <span>{p.format(v)}</span>
       </div>
       <input
         type="range"
         className="range"
-        min={0}
-        max={1}
-        step={0.05}
+        min={p.min}
+        max={p.max}
+        step={p.step}
         value={v}
-        aria-labelledby="l-ui-volume"
-        aria-valuetext={`${Math.round(v * 100)}%`}
+        aria-labelledby={`l-${p.id}`}
+        aria-valuetext={p.format(v)}
         onChange={(e) => setV(Number(e.target.value))}
         onPointerUp={commit}
         onKeyUp={commit}
         onBlur={commit}
       />
     </div>
+  );
+}
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const POSITION_LABELS: Record<BackgroundPosition, string> = { center: '居中', top: '顶部', bottom: '底部' };
+
+/** 背景图（#41 方案 A）：无 / 6 个内置 / 上传；模糊、暗化 / 提亮、面板不透明度、显示位置 */
+function BackgroundSetting({ value, onChange }: { value: BackgroundSettings; onChange(v: BackgroundSettings): void }) {
+  const report = useReportError();
+  const customUrl = useBackgroundUrl(value.image?.startsWith('custom:') ? value.image : null);
+  const patch = (x: Partial<BackgroundSettings>) => onChange({ ...value, ...x });
+  const upload = () =>
+    void call(api.background.choose())
+      .then((image) => image && patch({ image }))
+      .catch(report);
+  return (
+    <>
+      <div className="setting bg-setting">
+        <div className="txt">
+          <b id="l-bg">背景图</b>
+          <span>铺满整个窗口，侧边栏与列表变为半透明；可上传 JPG、PNG 或 WebP 图片</span>
+        </div>
+        <div className="bg-presets" role="group" aria-labelledby="l-bg">
+          <button className="bg-thumb none" aria-pressed={value.image === null} onClick={() => patch({ image: null })}>
+            <span className="bg-name">无</span>
+          </button>
+          {BACKGROUND_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              className="bg-thumb"
+              aria-pressed={value.image === `preset:${p.id}`}
+              aria-label={p.name}
+              style={{ backgroundImage: presetImageUrl(p.id) ?? undefined }}
+              onClick={() => patch({ image: `preset:${p.id}` })}
+            >
+              <span className="bg-name">{p.name}</span>
+            </button>
+          ))}
+          <button
+            className={`bg-thumb upload ${customUrl ? 'has-img' : ''}`}
+            aria-pressed={value.image?.startsWith('custom:') ?? false}
+            aria-label={customUrl ? '更换自定义图片' : '上传图片'}
+            style={customUrl ? { backgroundImage: customUrl } : undefined}
+            onClick={upload}
+          >
+            {!customUrl && <Icon name="upload" size={16} />}
+            <span className="bg-name">{customUrl ? '更换图片' : '上传图片'}</span>
+          </button>
+        </div>
+      </div>
+      {value.image && (
+        <>
+          <RangeSetting
+            key={`blur-${value.blur}`}
+            id="bg-blur"
+            label="模糊"
+            value={value.blur}
+            min={0}
+            max={40}
+            step={1}
+            format={(v) => `${v} px`}
+            onCommit={(blur) => patch({ blur })}
+          />
+          <RangeSetting
+            key={`dim-${value.dim}`}
+            id="bg-dim"
+            label="暗化 / 提亮"
+            value={value.dim}
+            min={0}
+            max={0.7}
+            step={0.05}
+            format={(v) => `${pct(v)}（浅色主题提亮，深色主题压暗）`}
+            onCommit={(dim) => patch({ dim })}
+          />
+          <RangeSetting
+            key={`panel-${value.panel}`}
+            id="bg-panel"
+            label="面板不透明度"
+            value={value.panel}
+            min={0.4}
+            max={1}
+            step={0.05}
+            format={(v) => `${pct(v)}，越低背景透出越多`}
+            onCommit={(panel) => patch({ panel })}
+          />
+          <div className="setting">
+            <div className="txt">
+              <b>显示位置</b>
+              <span>图片比例与窗口不同时，保留哪一部分</span>
+            </div>
+            <div className="seg" role="group" aria-label="背景显示位置">
+              {BACKGROUND_POSITIONS.map((v) => (
+                <button key={v} aria-pressed={value.position === v} onClick={() => patch({ position: v })}>
+                  {POSITION_LABELS[v]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -145,14 +309,10 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
               />
             </div>
             <ShortcutSetting value={settings.quickAddShortcut} />
-            <Switch
-              id="holidays"
-              label="自动更新节假日"
-              hint={`用于"每个工作日""工作日第一天"循环（法定节假日与调休）；${
-                holidayYears().length ? `已有 ${holidayYears()[0]}–${holidayYears().at(-1)} 年的安排，` : ''
-              }每周从 holiday-cn 获取最新安排`}
-              checked={settings.holidayAutoUpdate}
-              onChange={(v) => set('holidayAutoUpdate', v)}
+            <HolidaySetting
+              auto={settings.holidayAutoUpdate}
+              checkedAt={settings.holidayCheckedAt}
+              onAuto={(v) => set('holidayAutoUpdate', v)}
             />
             <Switch
               id="ui-sound"
@@ -183,9 +343,15 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
                     ))}
                   </div>
                 </div>
-                <VolumeSetting
+                <RangeSetting
                   key={settings.uiSoundVolume}
+                  id="ui-volume"
+                  label="音效音量"
                   value={settings.uiSoundVolume}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  format={pct}
                   onCommit={(v) => {
                     set('uiSoundVolume', v);
                     if (v > 0) setTimeout(() => playSound('done', settings.uiSoundStyle, true), 30);
@@ -213,6 +379,7 @@ export function SettingsPage({ settings, update }: { settings: Settings; update:
                 ))}
               </div>
             </div>
+            <BackgroundSetting value={settings.background} onChange={(v) => set('background', v)} />
             <Switch
               id="gpu"
               label="硬件加速"
