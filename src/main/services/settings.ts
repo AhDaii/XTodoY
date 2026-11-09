@@ -1,3 +1,4 @@
+import { parseBackground } from '@shared/background';
 import { defaultQuickAddShortcut } from '@shared/platform';
 import { isValidAccelerator } from '@shared/shortcut';
 import { DEFAULT_SETTINGS, SORT_MODES, UI_SOUND_STYLES, type Settings, type SortMode } from '@shared/types';
@@ -53,6 +54,13 @@ const validators: Validators = {
   uiSoundStyle: (v) => {
     if (UI_SOUND_STYLES.includes(v as Settings['uiSoundStyle'])) return v as Settings['uiSoundStyle'];
     throw invalid('音效风格取值不正确');
+  },
+  background: (v) => {
+    try {
+      return parseBackground(v);
+    } catch (e) {
+      throw invalid((e as Error).message);
+    }
   },
   uiSoundVolume: (v) => {
     if (typeof v === 'number' && v >= 0 && v <= 1) return Math.round(v * 100) / 100;

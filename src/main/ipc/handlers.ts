@@ -1,5 +1,6 @@
 import { app, dialog, ipcMain, Menu, nativeTheme, shell, type IpcMainInvokeEvent } from 'electron';
 import { readFile, stat, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Events, Invoke, Send, type AppInfo, type NavRequest, type Result } from '@shared/ipc';
 import type { StatsPeriodKind } from '@shared/stats';
 import { LIMITS, type ListQuery, type Settings, type SmartView } from '@shared/types';
@@ -16,6 +17,7 @@ import type { TodoService } from '../services/todos';
 import type { Scheduler } from '../services/scheduler';
 import * as v from '../services/validate';
 import { localDate } from '../domain/time';
+import { chooseBackground, loadBackground } from '../platform/background';
 import { showReminder } from '../platform/notifier';
 import { notificationStatus, openNotificationSettings } from '../platform/notify-status';
 import { destroyFloatingWindow, moveFloatingBy, showMainWindow, snapFloating, windows } from '../platform/windows';
@@ -245,6 +247,10 @@ export function registerIpc(d: Deps): void {
   // ---- 法定节假日（工作日循环） ----
   handle(Invoke.holidaysGet, () => d.holidays.all);
   handle(Invoke.holidaysRefresh, () => d.holidays.refresh());
+  // 窗口背景图（#41）：图片保存在数据目录下，不随备份导出
+  const bgDir = join(d.dataDir, 'backgrounds');
+  handle(Invoke.backgroundChoose, () => chooseBackground(windows.main ?? undefined, bgDir));
+  handle(Invoke.backgroundLoad, (name) => loadBackground(bgDir, String(name)));
 
   // ---- 系统：通知权限（FR-REM-09） ----
   handle(Invoke.notificationStatus, () => notificationStatus());

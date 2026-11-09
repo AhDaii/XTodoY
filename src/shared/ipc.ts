@@ -108,6 +108,8 @@ export const Invoke = {
   openNotificationSettings: 'system:openNotificationSettings',
   holidaysGet: 'holidays:get',
   holidaysRefresh: 'holidays:refresh',
+  backgroundChoose: 'background:choose',
+  backgroundLoad: 'background:load',
 } as const;
 
 /** 单向消息（ipcRenderer.send），用于悬浮窗 */
@@ -174,10 +176,15 @@ export interface XtodoyApi {
   /** 通知是否被系统关闭（FR-REM-09）；Windows 以外返回 unknown */
   notificationStatus(): R<'allowed' | 'denied' | 'unknown'>;
   openNotificationSettings(): R<void>;
-  /** 法定节假日数据（工作日循环）；refresh 立即联网更新，返回是否有变化 */
+  /** 法定节假日数据（工作日循环）；refresh 立即联网更新：ok 为是否获取成功，changed 为数据是否有变化 */
   holidays: {
     get(): R<HolidayYear[]>;
-    refresh(): R<boolean>;
+    refresh(): R<{ ok: boolean; changed: boolean }>;
+  };
+  /** 窗口背景图（#41）：choose 打开文件对话框并保存，返回 'custom:<文件名>'（取消时 null）；load 返回 data URL */
+  background: {
+    choose(): R<string | null>;
+    load(name: string): R<string | null>;
   };
   /** 统计页数据（SRS F8） */
   stats(q: StatsQuery): R<Stats>;

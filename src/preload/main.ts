@@ -51,6 +51,10 @@ const api: XtodoyApi = {
     get: () => call(Invoke.holidaysGet),
     refresh: () => call(Invoke.holidaysRefresh),
   },
+  background: {
+    choose: () => call(Invoke.backgroundChoose),
+    load: (name) => call(Invoke.backgroundLoad, name),
+  },
   relaunch: () => call(Invoke.relaunch),
   stats: (q) => call(Invoke.statsGet, q),
   data: {

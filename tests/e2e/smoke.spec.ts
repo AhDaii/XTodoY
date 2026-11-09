@@ -259,7 +259,6 @@ test('下拉选择：主题化列表，支持鼠标与键盘选择', async () =>
   await expect(main.getByRole('option', { name: '退出程序' })).toBeFocused();
   await main.keyboard.press('Enter');
   await expect(close).toContainText('退出程序');
-  await expect.poll(() => main.evaluate(async () => (await window.xtodoy.settings.get()).ok)).toBe(true);
   const saved = await main.evaluate(async () => {
     const r = await window.xtodoy.settings.get();
     return r.ok ? [r.data.weekStart, r.data.closeAction] : null;
@@ -773,4 +772,74 @@ test('#37 界面音效：新建、完成、全部完成、删除时发声；关�
   await addTodo(main, '静音时新建');
   await main.waitForTimeout(200);
   expect(await notes()).toBe(before);
+});
+
+test('#42 节假日设置显示上次更新时间而不是内置数据的年份', async () => {
+  const main = await windowByPage('main');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const row = main.locator('.setting', { has: main.getByRole('switch', { name: '自动更新节假日' }) });
+  await expect(row).toContainText('尚未联网更新，使用安装包内置的数据');
+  await expect(row).not.toContainText('年的安排');
+  await expect(row.getByRole('button', { name: '立即更新' })).toBeEnabled();
+  // 记录过更新时间后显示具体时间
+  await main.evaluate(() => window.xtodoy.settings.set('holidayCheckedAt', new Date().setHours(9, 5, 0, 0)));
+  await expect(row).toContainText('节假日数据更新于 今天 09:05');
+});
+
+test('#41 背景图：内置背景铺满窗口、面板半透明；上传图片缩放后保存；可调参数并取消', async () => {
+  const main = await windowByPage('main');
+  await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
+  const presets = main.getByRole('group', { name: '背景图' });
+  await expect(presets.getByRole('button', { name: '无' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(main.locator('.app-bg')).toHaveCount(0);
+
+  await presets.getByRole('button', { name: '远山' }).click();
+  await expect(main.locator('.window')).toHaveClass(/has-bg/);
+  expect(await main.locator('.app-bg').evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+  // 面板半透明（默认 72%）
+  expect(await main.locator('.sidebar').evaluate((e) => getComputedStyle(e).backgroundColor)).toMatch(
+    /0\.72|oklab|color\(/,
+  );
+
+  // 调整参数：方向键改变滑块后保存
+  const blur = main.getByRole('slider', { name: '模糊' });
+  await blur.focus();
+  await blur.press('ArrowRight');
+  await expect
+    .poll(async () =>
+      main.evaluate(async () => {
+        const r = await window.xtodoy.settings.get();
+        return r.ok ? r.data.background.blur : -1;
+      }),
+    )
+    .toBe(7);
+  await main.getByRole('group', { name: '背景显示位置' }).getByRole('button', { name: '顶部' }).click();
+  await expect(main.locator('.window')).toHaveAttribute('style', /--bg-pos: top/);
+
+  // 上传：替换文件对话框，生成一张 4000×1000 的图片，保存后最长边缩到 2560
+  const file = join(dataDir, 'wide.png');
+  await app.evaluate(({ dialog, nativeImage }, path) => {
+    const w = 4000;
+    const h = 1000;
+    const buf = Buffer.alloc(w * h * 4, 0x80);
+    const fs = process.getBuiltinModule('node:fs');
+    fs.writeFileSync(path, nativeImage.createFromBitmap(buf, { width: w, height: h }).toPNG());
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as typeof dialog.showOpenDialog;
+  }, file);
+  await presets.getByRole('button', { name: '上传图片' }).click();
+  await expect(presets.getByRole('button', { name: '更换自定义图片' })).toHaveAttribute('aria-pressed', 'true');
+  const saved = readdirSync(join(dataDir, 'backgrounds'));
+  expect(saved).toHaveLength(1);
+  const size = await app.evaluate(
+    ({ nativeImage }, p) => nativeImage.createFromPath(p).getSize(),
+    join(dataDir, 'backgrounds', saved[0]!),
+  );
+  expect(size).toEqual({ width: 2560, height: 640 });
+  expect(await main.locator('.app-bg').evaluate((e) => getComputedStyle(e).backgroundImage)).toContain(
+    'data:image/jpeg',
+  );
+
+  await presets.getByRole('button', { name: '无' }).click();
+  await expect(main.locator('.app-bg')).toHaveCount(0);
+  await expect(main.getByRole('slider', { name: '模糊' })).toHaveCount(0);
 });

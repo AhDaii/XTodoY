@@ -93,6 +93,40 @@ a {
   grid-template-rows: 40px 1fr;
   background: var(--background);
 }
+/*
+ * 窗口背景图（#41 方案 A，设计系统 §7.12）：背景层铺满窗口，标题栏、侧边栏、内容区、详情面板变为半透明。
+ * 模糊用 filter 作用在静态背景层上（只栅格化一次），不使用 backdrop-filter——默认关闭硬件加速时也流畅。
+ * 遮罩用与主题同色的 --background：浅色主题提亮、深色主题压暗，保证文字对比度。
+ */
+.window.has-bg {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--background);
+}
+.app-bg {
+  position: absolute;
+  inset: calc(var(--bg-blur) * -2);
+  z-index: -1;
+  background: var(--bg-img) var(--bg-pos) / cover no-repeat;
+  filter: blur(var(--bg-blur));
+  pointer-events: none;
+}
+.app-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--background);
+  opacity: var(--bg-dim);
+}
+.has-bg .titlebar,
+.has-bg .sidebar {
+  background: color-mix(in srgb, var(--surface-sunken) var(--bg-panel), transparent);
+}
+.has-bg .main,
+.has-bg .detail {
+  background: color-mix(in srgb, var(--surface) var(--bg-panel), transparent);
+}
 .titlebar {
   -webkit-app-region: drag;
   padding-right: 140px;
@@ -845,6 +879,54 @@ a {
   color: var(--foreground);
   box-shadow: var(--shadow-sm);
   font-weight: var(--weight-medium);
+}
+/* 背景图选择（#41）：标题在上、缩略图在下整行排列 */
+.setting.bg-setting {
+  flex-wrap: wrap;
+}
+.setting.bg-setting .txt {
+  flex-basis: 100%;
+}
+.bg-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px var(--space-3); /* 行间留出名称的位置 */
+  padding-bottom: 22px;
+}
+.bg-thumb {
+  position: relative;
+  width: 76px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-sunken) center / cover no-repeat;
+  display: grid;
+  place-items: center;
+  color: var(--foreground-muted);
+}
+.bg-thumb:hover {
+  border-color: var(--border-strong);
+}
+.bg-thumb[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--primary);
+}
+.bg-thumb.upload:not(.has-img) {
+  border-style: dashed;
+}
+.bg-thumb .bg-name {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  transform: translateX(-50%);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  white-space: nowrap;
+}
+.bg-thumb.none .bg-name {
+  position: static;
+  transform: none;
 }
 /* 滑块（音效音量，#37） */
 .range {
@@ -2540,6 +2622,9 @@ a {
   font-family: var(--font-num);
   font-size: var(--text-xs);
   letter-spacing: 0.02em;
+}
+.setting .txt .status {
+  color: var(--foreground-subtle);
 }
 .setting .txt span.error-text {
   color: var(--destructive);
