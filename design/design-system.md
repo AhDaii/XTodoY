@@ -1,4 +1,4 @@
-# XTodoY 设计系统 v1.10
+# XTodoY 设计系统 v1.11
 
 > 阶段：P2 界面原型 · 依据：[SRS v1.1](../docs/srs/SRS.md) · 工具：ui-ux-pro-max
 > 令牌源文件：[`tokens.css`](tokens.css)（前端直接引用）· 原型：[`prototype/index.html`](prototype/index.html)、[`prototype/system.html`](prototype/system.html)
@@ -258,6 +258,15 @@ ui-ux-pro-max 推荐 Plus Jakarta Sans（friendly / modern / productivity）。�
 
 - **快捷键录制**：设置 › 通用「快速新建快捷键」右侧是 140 px 宽的按钮，显示当前组合（`<kbd>`，等宽数字字体），未设置时显示"未设置"。单击进入录制态：主色边框 + 3 px `--primary-soft` 外发光，文字"请按下组合键…"；按下合法组合（含 Ctrl / Alt / Win 之一 + 字母、数字或功能键）即保存，Esc 取消。不合法或被其他程序占用时，在说明行用 `--destructive` 显示原因（`role="alert"`），不保存。已设置时右侧有「关闭」幽灵按钮。
 - **数据**：导出 / 导入 / 自动备份 / 回收站保留 四行。导入前弹确认对话框（警示图标 + "导入备份将覆盖当前数据"，主按钮为危险色"选择文件并导入"），说明覆盖前会自动备份。导入、导出结果用提示条反馈。
+
+### 7.12 窗口背景图（v1.11，#41）
+
+从 4 种布局（`prototype/background-variants.html`）中选定 **A 全窗口背景**。
+
+- **结构**：`.window.has-bg` 内最底层是 `.app-bg`（背景图 + `filter: blur()` + 与主题同色的 `--background` 遮罩）；标题栏、侧边栏用 `--surface-sunken`、内容区与详情面板用 `--surface`，按「面板不透明度」与透明色 `color-mix`。弹层、对话框、卡片保持不透明。
+- **性能**：模糊作用在静态背景层上，只栅格化一次；不使用 `backdrop-filter`（默认关闭硬件加速时代价高）。
+- **内置背景**：6 张 SVG（`src/shared/background.ts`），1600×1000 视框、`slice` 铺满；晨雾 / 远山 / 海浪 / 暖沙为浅色，极光 / 星空为深色。
+- **设置 › 外观「背景图」**：76×48 缩略图横排（无 · 6 个内置 · 上传图片），选中为主色外环，名称在缩略图下方；上传后该格显示图片本身、名称变为"更换图片"。选择了背景时下方出现：模糊（默认 6 px）、暗化 / 提亮（默认 10%）、面板不透明度（默认 72%）三个滑块（松开后保存）与显示位置分段按钮。
 
 ## 8 页面清单与原型对应
 

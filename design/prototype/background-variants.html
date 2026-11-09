@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 方案对比：背景图（#41）</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: var(--background); color: var(--foreground); }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); position: sticky; top: 8px; z-index: 10; box-shadow: var(--shadow-sm); }
+    .bar h1 { margin: 0 auto 0 0; font-size: var(--text-lg); }
+    .bar label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--foreground-muted); }
+    .bar input[type=range] { width: 110px; accent-color: var(--primary); }
+    .bar .val { width: 34px; font-variant-numeric: tabular-nums; color: var(--foreground-subtle); font-size: var(--text-xs); }
+    .presets { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .presets button { width: 64px; height: 40px; border-radius: var(--radius-sm); border: 2px solid transparent; background-size: cover; background-position: center; cursor: pointer; position: relative; }
+    .presets button[aria-pressed="true"] { border-color: var(--primary); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+    .presets button span { position: absolute; left: 0; right: 0; bottom: -18px; font-size: 11px; color: var(--foreground-muted); text-align: center; white-space: nowrap; }
+    .presets .up { display: grid; place-items: center; background: var(--surface-sunken); border: 1px dashed var(--border-strong); color: var(--foreground-muted); font-size: 18px; }
+    .presets .none { display: grid; place-items: center; background: var(--background); border: 1px solid var(--border); color: var(--foreground-subtle); font-size: 11px; }
+    .presets-row { padding-bottom: 14px; }
+
+    section.block { border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    .variant { display: grid; grid-template-columns: 250px 1fr; gap: var(--space-5); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--border); }
+    .variant:first-child { border-top: 0; }
+    .variant h3 { margin: 0 0 6px; font-size: var(--text-base); display: flex; align-items: center; gap: 8px; }
+    .variant h3 .tag { padding: 1px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); }
+    .variant .desc { margin: 0 0 8px; font-size: var(--text-sm); color: var(--foreground-muted); line-height: 1.7; }
+    .variant ul.pc { margin: 0; padding-left: 16px; font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.8; }
+    .variant ul.pc li.p::marker { content: '＋ '; color: var(--success); }
+    .variant ul.pc li.c::marker { content: '－ '; color: var(--accent); }
+
+    /* ---------- 迷你主窗口 ---------- */
+    .app { --bg-img: none; --blur: 0px; --dim: 0; --panel: 0.82; position: relative; height: 420px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; display: grid; grid-template-columns: 170px 1fr; background: var(--background); isolation: isolate; }
+    /* 背景层：模糊只做一次（静态），不使用 backdrop-filter，软件渲染下也流畅 */
+    .bg { position: absolute; inset: calc(var(--blur) * -2); background: var(--bg-img) center / cover no-repeat; filter: blur(var(--blur)); z-index: -2; }
+    .bg::after { content: ''; position: absolute; inset: 0; background: var(--dim-color, #000); opacity: var(--dim); }
+    .side { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); background: var(--surface); }
+    .side .logo { font-weight: 700; font-size: 13px; padding: 4px 8px 10px; }
+    .side .it { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 6px; font-size: 12px; color: var(--foreground-muted); }
+    .side .it.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .mainc { display: flex; flex-direction: column; min-width: 0; background: var(--background); }
+    .hdr { padding: 16px 20px 12px; }
+    .hdr h4 { margin: 0; font-size: 18px; }
+    .hdr div { font-size: 12px; color: var(--foreground-muted); margin-top: 2px; }
+    .qa { margin: 0 20px 10px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: var(--foreground-subtle); }
+    .list { margin: 0 20px; border-radius: 10px; }
+    .row { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .row:last-child { border-bottom: 0; }
+    .row i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--control-border); flex: none; }
+    .row i.p3 { border-color: var(--priority-high); } .row i.p2 { border-color: var(--priority-medium); }
+    .row i.done { background: var(--primary); border-color: var(--primary); }
+    .row.done span { color: var(--foreground-subtle); text-decoration: line-through; }
+    .row em { margin-left: auto; font-style: normal; font-size: 11px; color: var(--foreground-subtle); }
+
+    /* 半透明面板：透明度由"面板不透明度"控制 */
+    .glass { background: color-mix(in srgb, var(--surface) calc(var(--panel) * 100%), transparent) !important; }
+    .glass-bg { background: color-mix(in srgb, var(--background) calc(var(--panel) * 100%), transparent) !important; }
+
+    /* A 全窗口：背景铺满，侧边栏与内容区都是半透明面板 */
+    .va .side { composes: glass; }
+    /* B 仅内容区：侧边栏保持不透明 */
+    /* C 顶部横幅：背景只在标题区域，向下渐隐 */
+    .vc .bg { inset: 0 0 auto 170px; height: 150px; filter: none; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+    .vc .bg::after { opacity: calc(var(--dim) * 0.8); }
+    .vc .mainc { background: transparent; }
+    .vc .mainc::before { content: ''; position: absolute; inset: 0 0 0 170px; background: var(--background); z-index: -3; }
+    .vc .hdr h4, .vc .hdr div { color: var(--banner-fg, #fff); text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+    /* D 卡片悬浮：背景铺满，列表等内容放在居中的卡片里，四周露出背景 */
+    .vd .mainc { background: transparent; padding: 14px 16px; }
+    .vd .card { flex: 1; display: flex; flex-direction: column; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); box-shadow: 0 10px 30px rgba(0,0,0,.18); overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>#41 背景图 · 4 种布局</h1>
+      <label>模糊 <input type="range" id="blur" min="0" max="40" value="6"><span class="val" id="blurV"></span></label>
+      <label>暗化 <input type="range" id="dim" min="0" max="70" value="10"><span class="val" id="dimV"></span></label>
+      <label>面板不透明度 <input type="range" id="panel" min="40" max="100" value="72"><span class="val" id="panelV"></span></label>
+      <label><input type="checkbox" id="dark"> 深色</label>
+    </div>
+    <div class="bar presets-row" style="position: static">
+      <span style="font-size: var(--text-sm); color: var(--foreground-muted)">背景：</span>
+      <div class="presets" id="presets"></div>
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+
+    <section class="block" id="variants"></section>
+  </div>
+
+  <script>
+    // ---------- 预设：全部是代码绘制的矢量图（SVG），任意分辨率都清晰，没有版权问题 ----------
+    const svg = (body, w = 1600, h = 1000) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w} ${h}' preserveAspectRatio='xMidYMid slice'>${body}</svg>`)}")`;
+    const PRESETS = [
+      { id: 'mist', name: '晨雾', dark: false, img: svg(`<defs><filter id='b'><feGaussianBlur stdDeviation='120'/></filter></defs><rect width='1600' height='1000' fill='#eef2ff'/><g filter='url(#b)'><circle cx='300' cy='250' r='380' fill='#c7d2fe'/><circle cx='1250' cy='200' r='420' fill='#fbcfe8'/><circle cx='900' cy='850' r='450' fill='#bae6fd'/><circle cx='200' cy='900' r='300' fill='#ddd6fe'/></g>`) },
+      { id: 'aurora', name: '极光', dark: true, img: svg(`<defs><filter id='b'><feGaussianBlur stdDeviation='60'/></filter><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#020617'/><stop offset='1' stop-color='#0b1d3a'/></linearGradient></defs><rect width='1600' height='1000' fill='url(#s)'/><g filter='url(#b)' opacity='.85'><path d='M-100 520 C 300 300, 600 650, 1000 420 S 1600 300, 1800 450 L1800 620 C 1400 520, 1100 760, 700 640 S 100 560, -100 700Z' fill='#10b981'/><path d='M-100 380 C 400 200, 800 480, 1200 300 S 1700 260, 1800 320 L1800 420 C 1300 380, 900 600, 500 470 S 0 420,-100 500Z' fill='#6366f1'/></g><g fill='#fff' opacity='.7'><circle cx='180' cy='120' r='1.6'/><circle cx='520' cy='80' r='1.2'/><circle cx='860' cy='160' r='1.4'/><circle cx='1300' cy='90' r='1.8'/><circle cx='1480' cy='210' r='1.1'/><circle cx='1100' cy='60' r='1.2'/></g>`) },
+      { id: 'hills', name: '远山', dark: false, img: svg(`<defs><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#dbeafe'/><stop offset='1' stop-color='#fef3c7'/></linearGradient></defs><rect width='1600' height='1000' fill='url(#s)'/><circle cx='1180' cy='360' r='90' fill='#fde68a' opacity='.9'/><path d='M0 640 L220 470 L420 590 L700 380 L980 560 L1220 430 L1600 600 V1000 H0Z' fill='#93c5fd' opacity='.7'/><path d='M0 760 L260 600 L520 720 L820 560 L1100 700 L1380 580 L1600 680 V1000 H0Z' fill='#60a5fa' opacity='.8'/><path d='M0 880 L300 760 L640 860 L960 740 L1300 850 L1600 780 V1000 H0Z' fill='#2563eb' opacity='.85'/>`) },
+      { id: 'waves', name: '海浪', dark: false, img: svg(`<rect width='1600' height='1000' fill='#ecfeff'/><g fill='none' stroke-width='3'>${[...Array(14)].map((_, i) => `<path d='M-50 ${180 + i * 60} C 300 ${120 + i * 60}, 500 ${260 + i * 60}, 800 ${180 + i * 60} S 1300 ${110 + i * 60}, 1650 ${190 + i * 60}' stroke='hsl(${190 + i * 3} 70% ${78 - i * 2.5}%)'/>`).join('')}</g>`) },
+      { id: 'sand', name: '暖沙', dark: false, img: svg(`<defs><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .45  0 0 0 0 .35  0 0 0 .08 0'/></filter><radialGradient id='g' cx='.3' cy='.2' r='1'><stop offset='0' stop-color='#fffbeb'/><stop offset='1' stop-color='#f5e6cc'/></radialGradient></defs><rect width='1600' height='1000' fill='url(#g)'/><rect width='1600' height='1000' filter='url(#n)'/>`) },
+      { id: 'night', name: '星空', dark: true, img: svg(`<defs><radialGradient id='g' cx='.7' cy='.1' r='1.1'><stop offset='0' stop-color='#1e3a8a'/><stop offset='.6' stop-color='#0f172a'/><stop offset='1' stop-color='#020617'/></radialGradient></defs><rect width='1600' height='1000' fill='url(#g)'/><g fill='#fff'>${[...Array(90)].map((_, i) => { const x = (i * 337) % 1600, y = (i * 211) % 1000, r = ((i * 7) % 10) / 6 + 0.4; return `<circle cx='${x}' cy='${y}' r='${r.toFixed(2)}' opacity='${(0.35 + ((i * 13) % 60) / 100).toFixed(2)}'/>`; }).join('')}</g>`) },
+    ];
+    let current = PRESETS[2].img, currentDark = false, sel = 'hills';
+
+    const VARIANTS = [
+      { id: 'va', tag: 'A', name: '全窗口背景', desc: '背景铺满整个窗口，侧边栏和内容区都是半透明面板，背景隐约透出。', pc: [['p', '氛围感最强，最接近"换壁纸"的预期'], ['p', '面板不透明度可调，可读性可控'], ['c', '背景越花，越需要调高面板不透明度']], side: 'glass', main: 'glass-bg' },
+      { id: 'vb', tag: 'B', name: '仅内容区', desc: '侧边栏保持原样（不透明），只有中间的列表区域显示背景。', pc: [['p', '导航区始终清晰'], ['p', '背景面积更大、更完整'], ['c', '左右两部分风格差异较大']], side: '', main: 'glass-bg' },
+      { id: 'vc', tag: 'C', name: '顶部横幅', desc: '背景只出现在列表顶部的标题区域，向下渐隐到正常底色；列表本身不受影响。', pc: [['p', '最克制，完全不影响列表可读性'], ['p', '像日历 / 笔记软件的封面图'], ['c', '背景只露出一小部分']], side: '', main: '' },
+      { id: 'vd', tag: 'D', name: '悬浮卡片', desc: '背景铺满窗口，内容放在居中的圆角卡片中，四周留出背景边框。', pc: [['p', '有"桌面小组件"的精致感'], ['p', '卡片不透明时可读性和现在一样'], ['c', '四周留白占用约 30 px 空间']], side: 'glass', main: '', card: true },
+    ];
+    const ROWS = [['p3', '回复客户邮件', '今天 10:00'], ['p2', '评审界面原型', '今天'], ['', '整理周报', '今天'], ['', '交水电费', '明天'], ['done', '晨跑 5 公里', '']];
+    const content = () => `
+      <div class="hdr"><h4>今天</h4><div>11月9日 周一 · 4 项待办</div></div>
+      <div class="qa">＋ 添加待办，回车保存</div>
+      <div class="list">${ROWS.map(([c, t, m]) => `<div class="row ${c === 'done' ? 'done' : ''}"><i class="${c}"></i><span>${t}</span><em>${m}</em></div>`).join('')}</div>`;
+    document.getElementById('variants').innerHTML = VARIANTS.map((v) => `
+      <div class="variant ${v.id}">
+        <div><h3><span class="tag">${v.tag}</span>${v.name}</h3><p class="desc">${v.desc}</p><ul class="pc">${v.pc.map(([k, t]) => `<li class="${k}">${t}</li>`).join('')}</ul></div>
+        <div class="app ${v.id}">
+          <div class="bg"></div>
+          <div class="side ${v.side}"><div class="logo">XTodoY</div><div class="it on">今天 <b>4</b></div><div class="it">计划 <b>9</b></div><div class="it">全部 <b>23</b></div><div class="it">已完成</div><div class="it">回收站</div></div>
+          <div class="mainc ${v.main}">${v.card ? `<div class="card glass-bg">${content()}</div>` : content()}</div>
+        </div>
+      </div>`).join('');
+
+    function apply() {
+      const blur = +document.getElementById('blur').value, dim = +document.getElementById('dim').value, panel = +document.getElementById('panel').value;
+      document.getElementById('blurV').textContent = `${blur}px`; document.getElementById('dimV').textContent = `${dim}%`; document.getElementById('panelV').textContent = `${panel}%`;
+      const dark = document.documentElement.classList.contains('dark');
+      document.querySelectorAll('.app').forEach((a) => {
+        a.style.setProperty('--bg-img', current);
+        a.style.setProperty('--blur', `${blur}px`);
+        a.style.setProperty('--dim', dim / 100);
+        a.style.setProperty('--panel', panel / 100);
+        // 暗化层颜色跟随主题：浅色主题用白色"提亮"，深色主题用黑色"压暗"，保证文字对比度
+        a.style.setProperty('--dim-color', dark ? '#000' : '#fff');
+        a.style.setProperty('--banner-fg', currentDark || dark ? '#fff' : '#0f172a');
+      });
+    }
+    function presets() {
+      const host = document.getElementById('presets');
+      host.innerHTML = `<button class="none" data-id="none" aria-pressed="${sel === 'none'}">无<span>无背景</span></button>` +
+        PRESETS.map((p) => `<button data-id="${p.id}" aria-pressed="${sel === p.id}"><span>${p.name}</span></button>`).join('') +
+        `<button class="up" data-id="upload" aria-pressed="${sel === 'upload'}" title="上传图片">＋<span>自定义</span></button>`;
+      // 缩略图在脚本中设置：SVG 数据地址里的引号不能放进 style 属性
+      PRESETS.forEach((p) => (host.querySelector(`[data-id="${p.id}"]`).style.backgroundImage = p.img));
+    }
+    document.getElementById('presets').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.id === 'upload') return document.getElementById('file').click();
+      sel = b.dataset.id;
+      const p = PRESETS.find((x) => x.id === sel);
+      current = p ? p.img : 'none'; currentDark = p?.dark ?? false;
+      presets(); apply();
+    });
+    document.getElementById('file').addEventListener('change', (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { current = `url("${r.result}")`; sel = 'upload'; currentDark = false; presets(); apply(); };
+      r.readAsDataURL(f);
+    });
+    ['blur', 'dim', 'panel'].forEach((id) => document.getElementById(id).addEventListener('input', apply));
+    document.getElementById('dark').addEventListener('change', (e) => { document.documentElement.classList.toggle('dark', e.target.checked); apply(); });
+    presets(); apply();
+  </script>
+</body>
+</html>

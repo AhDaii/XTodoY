@@ -1,3 +1,4 @@
+import { presetImageUrl } from '@shared/background';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Settings, TagNode, TodoGroup, ViewCounts } from '@shared/types';
 import type { Stats, StatsQuery } from '@shared/stats';
@@ -112,4 +113,21 @@ export function useNotificationStatus(): 'allowed' | 'denied' | 'unknown' | null
     };
   }, []);
   return s;
+}
+
+/**
+ * 背景图地址（#41）：内置背景直接生成 data URL；上传的图片向主进程读取（按文件名缓存，换图时文件名会变）。
+ * 返回 CSS 的 url(...)，无背景或读取失败时为 null。
+ */
+export function useBackgroundUrl(image: string | null | undefined): string | null {
+  const kind = image?.slice(0, image.indexOf(':'));
+  const ref = image?.slice(image.indexOf(':') + 1) ?? '';
+  const custom = useLive<string | null>(
+    () => (kind === 'custom' ? call(api.background.load(ref)) : Promise.resolve(null)),
+    null,
+    [],
+    kind === 'custom' ? ref : '',
+  );
+  if (kind === 'preset') return presetImageUrl(ref);
+  return kind === 'custom' && custom ? `url("${custom}")` : null;
 }

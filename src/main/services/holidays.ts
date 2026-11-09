@@ -6,6 +6,8 @@ import bundled from '../data/holidays.json';
 
 const WEEK = 7 * 24 * 3600_000;
 const FIRST_CHECK_DELAY = 90_000;
+/** 联网失败后的重试间隔 */
+const RETRY_DELAY = 6 * 3600_000;
 /** 只请求 holiday-cn 的公开数据文件（不发送任何用户数据）；jsDelivr 在国内更快，失败时退回 GitHub */
 const SOURCES = [
   (y: number) => `https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/${y}.json`,
@@ -21,6 +23,8 @@ export type Fetcher = (url: string) => Promise<{ ok: boolean; json(): Promise<un
 export class HolidayService {
   private timer: NodeJS.Timeout | null = null;
   private data = new Map<number, HolidayYear>();
+  /** 上次联网失败的时间：失败后隔一段时间重试，不按启动延迟反复请求 */
+  private failedAt: number | null = null;
 
   constructor(
     private readonly dir: string,
@@ -76,18 +80,25 @@ export class HolidayService {
     this.stop();
     if (!this.settings.get().holidayAutoUpdate) return;
     const last = this.settings.get().holidayCheckedAt;
-    const delay = last === null ? FIRST_CHECK_DELAY : Math.max(FIRST_CHECK_DELAY, last + WEEK - this.now());
+    let delay = last === null ? FIRST_CHECK_DELAY : Math.max(FIRST_CHECK_DELAY, last + WEEK - this.now());
+    if (this.failedAt !== null) delay = Math.max(delay, this.failedAt + RETRY_DELAY - this.now());
     this.timer = setTimeout(() => void this.refresh().finally(() => this.arm()), Math.min(delay, WEEK));
     this.timer.unref?.();
   }
 
-  /** 获取本年与下一年；有变化时更新并通知。网络失败静默，下个周期再试 */
-  async refresh(): Promise<boolean> {
+  /**
+   * 获取本年与下一年；有变化时更新并通知。
+   * ok：至少一年获取成功（只有成功时才记录"更新于"的时间，#42）；changed：数据有变化。
+   * 自动更新时失败静默，6 小时后重试。
+   */
+  async refresh(): Promise<{ ok: boolean; changed: boolean }> {
     const thisYear = new Date(this.now()).getFullYear();
     let changed = false;
+    let ok = false;
     for (const year of [thisYear, thisYear + 1]) {
       const y = await this.download(year);
       if (!y) continue;
+      ok = true;
       mkdirSync(this.dir, { recursive: true });
       writeFileSync(join(this.dir, `${year}.json`), JSON.stringify(y));
       if (y.days.length && JSON.stringify(this.data.get(year)?.days) !== JSON.stringify(y.days)) {
@@ -95,13 +106,16 @@ export class HolidayService {
         changed = true;
       }
     }
-    this.settings.set('holidayCheckedAt', this.now());
+    if (ok) {
+      this.settings.set('holidayCheckedAt', this.now());
+      this.failedAt = null;
+    } else this.failedAt = this.now();
     if (changed) {
       this.apply();
       this.onChange(this.all);
       console.info('[holidays] updated', this.all.map((y) => y.year).join(','));
     }
-    return changed;
+    return { ok, changed };
   }
 
   private async download(year: number): Promise<HolidayYear | null> {

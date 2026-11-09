@@ -1,3 +1,4 @@
+import { DEFAULT_BACKGROUND, type BackgroundSettings } from './background';
 import type { ReleaseNote } from './update';
 // 主进程与渲染进程共用的领域类型
 
@@ -156,6 +157,8 @@ export interface Settings {
   uiSoundStyle: UiSoundStyle;
   /** 0–1 */
   uiSoundVolume: number;
+  /** 窗口背景图（#41） */
+  background: BackgroundSettings;
   /** 暂停提醒到该时刻（毫秒），null 表示未暂停（FR-BG-06） */
   pausedUntil: number | null;
   closeTipShown: boolean;
@@ -201,6 +204,7 @@ export const DEFAULT_SETTINGS: Settings = {
   uiSound: true,
   uiSoundStyle: 'mallet',
   uiSoundVolume: 0.6,
+  background: DEFAULT_BACKGROUND,
   pausedUntil: null,
   closeTipShown: false,
   hardwareAcceleration: false,

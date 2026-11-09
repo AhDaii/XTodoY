@@ -19,6 +19,8 @@ const PATHS = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   chevronRight: '<path d="m9 18 6-6-6-6"/>',
+  refresh:
+    '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   chevronLeft: '<path d="m15 18-6-6 6-6"/>',
   chevronDown: '<path d="m6 9 6 6 6-6"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
