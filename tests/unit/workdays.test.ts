@@ -7,6 +7,7 @@ import { HolidayService, type Fetcher } from '../../src/main/services/holidays';
 import { fromRRule, nextOccurrence, previewOccurrences, toRRule } from '../../src/shared/recurrence';
 import { DEFAULT_SETTINGS, type Settings } from '../../src/shared/types';
 import {
+  holidayCoverage,
   holidayName,
   isFirstWorkday,
   isWorkday,
@@ -149,5 +150,14 @@ describe('HolidayService', () => {
     writeFileSync(join(dir, '2026.json'), '{ not json');
     const svc = new HolidayService(dir, store, vi.fn(), respond({}), now);
     expect(svc.all.find((y) => y.year === 2026)?.days.length).toBeGreaterThan(30);
+  });
+});
+
+describe('节假日数据覆盖到哪一年（#46）', () => {
+  it('说明已包含到的年份；下一年未公布或缺少本年时说明', () => {
+    expect(holidayCoverage([2024, 2025, 2026, 2027], 2026)).toBe('已包含到 2027 年的放假安排');
+    expect(holidayCoverage([2025, 2026], 2026)).toBe('已包含到 2026 年的放假安排（2027 年尚未公布）');
+    expect(holidayCoverage([2024, 2025], 2026)).toBe('缺少 2026 年的放假安排，暂按周一至周五计算');
+    expect(holidayCoverage([], 2026)).toMatch('缺少 2026 年');
   });
 });

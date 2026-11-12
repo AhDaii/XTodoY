@@ -774,20 +774,23 @@ test('#37 界面音效：新建、完成、全部完成、删除时发声；关�
   expect(await notes()).toBe(before);
 });
 
-test('#42 节假日设置显示上次更新时间而不是内置数据的年份', async () => {
+test('#42 / #46 节假日设置显示已包含到哪一年与上次更新时间', async () => {
   const main = await windowByPage('main');
   await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
   const row = main.locator('.setting', { has: main.getByRole('switch', { name: '自动更新节假日' }) });
   await expect(row).toContainText('尚未联网更新，使用安装包内置的数据');
+  // #46：显示已包含到哪一年（内置数据至少包含本年）
+  await expect(row).toContainText(/已包含到 20\d\d 年的放假安排/);
   await expect(row).not.toContainText('年的安排');
   await expect(row.getByRole('button', { name: '立即更新' })).toBeEnabled();
   // 记录过更新时间后显示具体时间
   await main.evaluate(() => window.xtodoy.settings.set('holidayCheckedAt', new Date().setHours(9, 5, 0, 0)));
-  await expect(row).toContainText('节假日数据更新于 今天 09:05');
+  await expect(row).toContainText('更新于 今天 09:05');
 });
 
 test('#41 背景图：内置背景铺满窗口、面板半透明；上传图片缩放后保存；可调参数并取消', async () => {
   const main = await windowByPage('main');
+  await main.evaluate(() => window.xtodoy.settings.set('theme', 'light')); // 主色按浅色主题断言
   await main.locator('.sidebar-footer .nav-item', { hasText: '设置' }).click();
   const presets = main.getByRole('group', { name: '背景图' });
   await expect(presets.getByRole('button', { name: '无' })).toHaveAttribute('aria-pressed', 'true');
@@ -796,6 +799,13 @@ test('#41 背景图：内置背景铺满窗口、面板半透明；上传图片�
   await presets.getByRole('button', { name: '远山' }).click();
   await expect(main.locator('.window')).toHaveClass(/has-bg/);
   expect(await main.locator('.app-bg').evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('svg');
+  // #47：主色取自背景（远山为品牌蓝），换成暖沙后控件主色随之改变
+  const primary = () => main.locator('.main').evaluate((e) => getComputedStyle(e).getPropertyValue('--primary').trim());
+  await presets.getByRole('button', { name: '暖沙' }).click();
+  await expect.poll(primary).toMatch(/^#(b45309|[0-9a-f]{6})$/);
+  expect(await primary()).not.toBe('#2563eb');
+  await presets.getByRole('button', { name: '远山' }).click();
+  await expect.poll(primary).toBe('#2563eb');
   // 面板半透明（默认 72%）
   expect(await main.locator('.sidebar').evaluate((e) => getComputedStyle(e).backgroundColor)).toMatch(
     /0\.72|oklab|color\(/,

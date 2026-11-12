@@ -181,9 +181,9 @@ export interface XtodoyApi {
     get(): R<HolidayYear[]>;
     refresh(): R<{ ok: boolean; changed: boolean }>;
   };
-  /** 窗口背景图（#41）：choose 打开文件对话框并保存，返回 'custom:<文件名>'（取消时 null）；load 返回 data URL */
+  /** 窗口背景图（#41）：choose 打开文件对话框并保存，返回 'custom:<文件名>' 与提取的主色（#47，取消时 null）；load 返回 data URL */
   background: {
-    choose(): R<string | null>;
+    choose(): R<{ image: string; accent: string | null } | null>;
     load(name: string): R<string | null>;
   };
   /** 统计页数据（SRS F8） */

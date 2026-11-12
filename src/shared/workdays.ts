@@ -82,3 +82,13 @@ export function parseHolidayYear(raw: unknown, expectYear: number): HolidayYear 
   }
   return { year: expectYear, days };
 }
+
+/**
+ * 节假日数据覆盖到哪一年（#46）。下一年的安排通常在 11 月前后公布，未公布时说明，按周一至周五计算。
+ */
+export function holidayCoverage(years: readonly number[], thisYear: number): string {
+  const last = years.at(-1);
+  if (last === undefined || last < thisYear) return `缺少 ${thisYear} 年的放假安排，暂按周一至周五计算`;
+  if (last === thisYear) return `已包含到 ${last} 年的放假安排（${last + 1} 年尚未公布）`;
+  return `已包含到 ${last} 年的放假安排`;
+}

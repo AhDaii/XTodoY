@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { api, call } from './lib/api';
 import { updateNeedsAttention } from '@shared/update';
 import { InstallingOverlay, UpdateDialog } from './components/Update';
+import { backgroundAccent, accentTokens, type BackgroundSettings } from '@shared/background';
 import { useBackgroundUrl, useCounts, useReportError, useSettings, useTagTree, useUpdateStatus } from './lib/data';
 import { setSoundPrefs } from './lib/sounds';
 import { kbd, mod } from './lib/platform';
@@ -103,16 +104,7 @@ export function App() {
   // 窗口背景图（#41 方案 A）：背景层铺满窗口，侧边栏与内容区变为半透明面板
   const bg = settings?.background;
   const bgUrl = useBackgroundUrl(bg?.image);
-  const bgStyle =
-    bg && bgUrl
-      ? ({
-          '--bg-img': bgUrl,
-          '--bg-blur': `${bg.blur}px`,
-          '--bg-dim': bg.dim,
-          '--bg-panel': `${Math.round(bg.panel * 100)}%`,
-          '--bg-pos': bg.position,
-        } as CSSProperties)
-      : undefined;
+  const bgStyle = bg && bgUrl ? ({ ...backgroundVars(bg), '--bg-img': bgUrl } as CSSProperties) : undefined;
 
   return (
     <div className={`window ${bgStyle ? 'has-bg' : ''}`} style={bgStyle}>
@@ -149,4 +141,29 @@ export function App() {
       {installing && <InstallingOverlay version={upd?.latest} />}
     </div>
   );
+}
+
+/**
+ * 背景图的 CSS 变量（#41）与取自背景的主色（#47 方案 B）：同时给出浅色 / 深色主题下调整过对比度的主色，
+ * 由 app.css 按当前主题选用；没有主色（黑白照片）时沿用品牌蓝。
+ */
+function backgroundVars(bg: BackgroundSettings): Record<string, string | number> {
+  const vars: Record<string, string | number> = {
+    '--bg-blur': `${bg.blur}px`,
+    '--bg-dim': bg.dim,
+    '--bg-panel': `${Math.round(bg.panel * 100)}%`,
+    '--bg-pos': bg.position,
+  };
+  const accent = backgroundAccent(bg);
+  if (accent)
+    for (const [suffix, dark] of [
+      ['l', false],
+      ['d', true],
+    ] as const) {
+      const t = accentTokens(accent, dark);
+      vars[`--acc-${suffix}`] = t.primary;
+      vars[`--acc-${suffix}-hover`] = t.hover;
+      vars[`--acc-${suffix}-soft-fg`] = t.softFg;
+    }
+  return vars;
 }

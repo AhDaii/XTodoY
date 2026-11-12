@@ -1,7 +1,7 @@
 import { dialog, nativeImage, type BrowserWindow } from 'electron';
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CUSTOM_BACKGROUND_FILE } from '@shared/background';
+import { CUSTOM_BACKGROUND_FILE, dominantAccent } from '@shared/background';
 import { AppError } from '../services/errors';
 
 /** 保存时的最长边：足够铺满 2K 屏，同时控制解码后的内存（2560×1600 约 16 MB） */
@@ -10,9 +10,12 @@ const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 
 /**
  * 选择背景图（#41）：缩放到最长边不超过 2560 px，以 JPEG 保存到 <数据目录>/backgrounds/，
- * 并删除之前上传的图片。返回设置中使用的 'custom:<文件名>'；取消时返回 null。
+ * 并删除之前上传的图片；同时提取主色（#47）。返回设置中使用的 'custom:<文件名>' 与主色；取消时返回 null。
  */
-export async function chooseBackground(owner: BrowserWindow | undefined, dir: string): Promise<string | null> {
+export async function chooseBackground(
+  owner: BrowserWindow | undefined,
+  dir: string,
+): Promise<{ image: string; accent: string | null } | null> {
   const opts = {
     title: '选择背景图片',
     properties: ['openFile' as const],
@@ -32,7 +35,9 @@ export async function chooseBackground(owner: BrowserWindow | undefined, dir: st
   const name = `custom-${Date.now()}.jpg`;
   await writeFile(join(dir, name), img.toJPEG(88));
   for (const f of await readdir(dir)) if (f !== name) await rm(join(dir, f), { force: true });
-  return `custom:${name}`;
+  // nativeImage.toBitmap() 为 BGRA；缩小到 64 px 宽再取色，足够且很快
+  const accent = dominantAccent(img.resize({ width: 64, quality: 'good' }).toBitmap(), 'bgra');
+  return { image: `custom:${name}`, accent };
 }
 
 /** 读取上传的背景图，返回 data URL（主窗口 CSP 只允许 'self' 与 data: 图片）；文件不存在时返回 null */
