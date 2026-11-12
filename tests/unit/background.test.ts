@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BACKGROUND_PRESETS, DEFAULT_BACKGROUND, parseBackground, presetImageUrl } from '../../src/shared/background';
+import {
+  accentTokens,
+  BACKGROUND_PRESETS,
+  backgroundAccent,
+  contrastRatio,
+  DEFAULT_BACKGROUND,
+  dominantAccent,
+  parseBackground,
+  presetImageUrl,
+} from '../../src/shared/background';
 
 describe('窗口背景图设置（#41）', () => {
   it('默认无背景；接受内置背景与上传图片的引用，参数四舍五入到百分位', () => {
@@ -31,5 +40,54 @@ describe('窗口背景图设置（#41）', () => {
       expect(decodeURIComponent(url.slice(24, -2))).toMatch(/^<svg xmlns='http:\/\/www.w3.org\/2000\/svg'.*<\/svg>$/s);
     }
     expect(presetImageUrl('nope')).toBeNull();
+  });
+});
+
+describe('背景主色（#47）', () => {
+  it('每个内置背景都有主色；按主题调整后与白字 / 深色底对比度 ≥ 4.5', () => {
+    for (const p of BACKGROUND_PRESETS) {
+      expect(p.accent).toMatch(/^#[0-9a-f]{6}$/);
+      expect(contrastRatio(accentTokens(p.accent, false).primary, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(accentTokens(p.accent, true).primary, '#0a1020')).toBeGreaterThanOrEqual(4.5);
+    }
+    // 已满足对比度的颜色不改动
+    expect(accentTokens('#2563eb', false).primary).toBe('#2563eb');
+  });
+
+  it('从像素中取饱和度高、数量多的颜色；黑白图片没有主色', () => {
+    const px = (colors: [number, number, number, number][]) =>
+      new Uint8Array(colors.flatMap(([r, g, b, n]) => Array.from({ length: n }, () => [r, g, b, 255]).flat()));
+    // 大片灰白中有一块橙色：取橙色
+    expect(
+      dominantAccent(
+        px([
+          [240, 240, 240, 80],
+          [234, 88, 12, 20],
+        ]),
+      ),
+    ).toBe('#ea580c');
+    // BGRA 顺序（Electron nativeImage.toBitmap）
+    expect(dominantAccent(px([[12, 88, 234, 20]]), 'bgra')).toBe('#ea580c');
+    expect(
+      dominantAccent(
+        px([
+          [128, 128, 128, 100],
+          [30, 30, 30, 50],
+        ]),
+      ),
+    ).toBeNull();
+  });
+
+  it('当前背景的主色：内置用预设，上传用提取的颜色，无背景为 null', () => {
+    expect(backgroundAccent({ ...DEFAULT_BACKGROUND, image: 'preset:sand' })).toBe('#b45309');
+    expect(
+      backgroundAccent({ ...DEFAULT_BACKGROUND, image: 'custom:custom-1762675200000.jpg', accent: '#123456' }),
+    ).toBe('#123456');
+    expect(backgroundAccent(DEFAULT_BACKGROUND)).toBeNull();
+    expect(() => parseBackground({ ...DEFAULT_BACKGROUND, accent: 'red' })).toThrow();
+    // 旧版本保存的设置没有 accent 字段
+    const old: Partial<typeof DEFAULT_BACKGROUND> = { ...DEFAULT_BACKGROUND };
+    delete old.accent;
+    expect(parseBackground(old).accent).toBeNull();
   });
 });

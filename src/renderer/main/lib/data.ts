@@ -131,3 +131,18 @@ export function useBackgroundUrl(image: string | null | undefined): string | nul
   if (kind === 'preset') return presetImageUrl(ref);
   return kind === 'custom' && custom ? `url("${custom}")` : null;
 }
+
+/** 已公布放假安排的年份（升序，#46）：联网更新后随 holidays:changed 刷新 */
+export function useHolidayYears(): number[] {
+  return useLive(
+    () =>
+      call(api.holidays.get()).then((list) =>
+        list
+          .filter((y) => y.days.length)
+          .map((y) => y.year)
+          .sort((a, b) => a - b),
+      ),
+    [],
+    [api.on.holidaysChanged],
+  );
+}

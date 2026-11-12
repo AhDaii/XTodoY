@@ -119,13 +119,63 @@ a {
   background: var(--background);
   opacity: var(--bg-dim);
 }
+/* 面板颜色在 .window 上按原主题色算好（自定义属性在声明处求值），下层再覆盖控件用的变量也不受影响 */
+.window.has-bg {
+  --bg-panel-sunken: color-mix(in srgb, var(--surface-sunken) var(--bg-panel), transparent);
+  --bg-panel-surface: color-mix(in srgb, var(--surface) var(--bg-panel), transparent);
+  /* 吸顶的分组标题需要几乎不透明，否则滚动时下方文字会透出 */
+  --bg-sticky: color-mix(in srgb, var(--surface) 94%, transparent);
+  /* 主色：取自背景（--acc-l / --acc-d 由 App 设置），没有时沿用品牌蓝 */
+  --acc: var(--acc-l, var(--primary));
+  --acc-hover: var(--acc-l-hover, var(--primary-hover));
+  --acc-soft-fg: var(--acc-l-soft-fg, var(--primary-soft-foreground));
+}
+.dark .window.has-bg {
+  --acc: var(--acc-d, var(--primary));
+  --acc-hover: var(--acc-d-hover, var(--primary-hover));
+  --acc-soft-fg: var(--acc-d-soft-fg, var(--primary-soft-foreground));
+}
 .has-bg .titlebar,
 .has-bg .sidebar {
-  background: color-mix(in srgb, var(--surface-sunken) var(--bg-panel), transparent);
+  background: var(--bg-panel-sunken);
 }
 .has-bg .main,
 .has-bg .detail {
-  background: color-mix(in srgb, var(--surface) var(--bg-panel), transparent);
+  background: var(--bg-panel-surface);
+}
+/*
+ * 背景下的控件（#47 方案 B，设计系统 §7.12）：输入框、分段按钮、下拉、缩略图等的实色底改为半透明白 / 黑，
+ * 选中、悬停、边框随背景着色；主色、选中底、开关、滑块、勾选框、焦点环使用背景主色。
+ * 只作用于标题栏与主体，弹层、菜单、对话框（--surface-raised）保持不透明。
+ */
+.has-bg > .titlebar,
+.has-bg > .body {
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-sunken: rgba(255, 255, 255, 0.35);
+  --surface-hover: rgba(15, 23, 42, 0.05);
+  --border: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --control-border: rgba(15, 23, 42, 0.32);
+  --primary: var(--acc);
+  --primary-hover: var(--acc-hover);
+  --primary-soft: color-mix(in srgb, var(--acc) 16%, transparent);
+  --primary-soft-foreground: var(--acc-soft-fg);
+  --surface-selected: color-mix(in srgb, var(--acc) 18%, transparent);
+  --ring: var(--acc);
+}
+.has-bg .lg-head {
+  background: var(--bg-sticky);
+}
+.dark .has-bg > .titlebar,
+.dark .has-bg > .body {
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-sunken: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --control-border: rgba(255, 255, 255, 0.34);
+  --primary-soft: color-mix(in srgb, var(--acc) 24%, transparent);
+  --surface-selected: color-mix(in srgb, var(--acc) 26%, transparent);
 }
 .titlebar {
   -webkit-app-region: drag;
