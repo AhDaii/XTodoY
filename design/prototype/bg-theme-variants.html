@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTodoY · 方案对比：背景图下的配色（#47）</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: var(--background); color: var(--foreground); }
+    .wrap { max-width: 1340px; margin: 0 auto; padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); position: sticky; top: 8px; z-index: 10; box-shadow: var(--shadow-sm); }
+    .bar h1 { margin: 0 auto 0 0; font-size: var(--text-lg); }
+    .bar label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--foreground-muted); }
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+    .presets button { width: 56px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background-size: cover; background-position: center; cursor: pointer; }
+    .presets button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+    .presets .up { display: grid; place-items: center; background: var(--surface-sunken); border-style: dashed; font-size: 16px; color: var(--foreground-muted); }
+    .note { margin: 0; font-size: var(--text-sm); color: var(--foreground-muted); line-height: 1.7; }
+    section.block { border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    .variant { display: grid; grid-template-columns: 250px 1fr; gap: var(--space-5); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--border); }
+    .variant:first-child { border-top: 0; }
+    .variant h3 { margin: 0 0 6px; font-size: var(--text-base); display: flex; align-items: center; gap: 8px; }
+    .variant h3 .tag { padding: 1px 8px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); }
+    .variant .desc { margin: 0 0 8px; font-size: var(--text-sm); color: var(--foreground-muted); line-height: 1.7; }
+    .variant ul.pc { margin: 0; padding-left: 16px; font-size: var(--text-xs); color: var(--foreground-muted); line-height: 1.8; }
+    .variant ul.pc li.p::marker { content: '＋ '; color: var(--success); }
+    .variant ul.pc li.c::marker { content: '－ '; color: var(--accent); }
+    .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid rgba(127,127,127,.4); }
+
+    /* ---------- 迷你主窗口（变量在 .app 上按方案覆盖） ---------- */
+    .app { position: relative; height: 430px; border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: 38px 1fr; isolation: isolate; color: var(--foreground); background: var(--background); border: 1px solid var(--border); font-size: 13px; }
+    .app .bgl { position: absolute; inset: -12px; z-index: -1; background: var(--bg-img) center / cover; filter: blur(6px); }
+    .app .bgl::after { content: ''; position: absolute; inset: 0; background: var(--background); opacity: .1; }
+    .t-bar { display: grid; grid-template-columns: 180px 1fr 120px; align-items: center; background: color-mix(in srgb, var(--surface-sunken) var(--panel), transparent); border-bottom: 1px solid var(--border); }
+    .t-bar b { padding-left: 14px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+    .t-bar b i { width: 16px; height: 16px; border-radius: 4px; background: var(--primary); display: inline-block; }
+    .t-search { height: 26px; border-radius: 6px; background: var(--control-bg); border: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; color: var(--foreground-subtle); font-size: 12px; max-width: 360px; justify-self: center; width: 100%; }
+    .t-win { justify-self: end; display: flex; height: 100%; }
+    .t-win span { width: 40px; display: grid; place-items: center; color: var(--foreground-muted); }
+    .t-body { display: grid; grid-template-columns: 180px 1fr; min-height: 0; }
+    .t-side { background: color-mix(in srgb, var(--surface-sunken) var(--panel), transparent); border-right: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .t-side .it { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 6px; color: var(--foreground); }
+    .t-side .it em { font-style: normal; color: var(--foreground-subtle); font-size: 12px; }
+    .t-side .it.hover { background: var(--surface-hover); }
+    .t-side .it.on { background: var(--surface-selected); color: var(--primary-soft-foreground); font-weight: 600; }
+    .t-side .grp { margin: 10px 10px 4px; font-size: 11px; color: var(--foreground-subtle); }
+    .t-side .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); display: inline-block; margin-right: 8px; }
+    .t-main { background: color-mix(in srgb, var(--surface) var(--panel), transparent); padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow: hidden; }
+    .t-hd { display: flex; align-items: center; gap: 10px; }
+    .t-hd h4 { margin: 0 auto 0 0; font-size: 18px; }
+    .t-seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; background: var(--control-bg); border: 1px solid var(--border); }
+    .t-seg span { padding: 3px 10px; border-radius: 4px; color: var(--foreground-muted); font-size: 12px; }
+    .t-seg span.on { background: var(--seg-on); color: var(--foreground); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+    .t-btn { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--control-bg); display: inline-flex; align-items: center; font-size: 12px; color: var(--foreground); }
+    .t-btn.pri { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); font-weight: 600; }
+    .t-qa { height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--control-bg); display: flex; align-items: center; padding: 0 12px; color: var(--foreground-subtle); font-size: 12px; }
+    .t-row { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 8px; border-radius: 6px; border-bottom: 1px solid var(--border); }
+    .t-row.hover { background: var(--surface-hover); }
+    .t-row.sel { background: var(--surface-selected); }
+    .t-row i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--control-border); flex: none; display: grid; place-items: center; }
+    .t-row i.done { background: var(--primary); border-color: var(--primary); }
+    .t-row i.done::after { content: ''; width: 6px; height: 3px; border-left: 2px solid var(--primary-foreground); border-bottom: 2px solid var(--primary-foreground); transform: rotate(-45deg) translate(1px, -1px); }
+    .t-row.done span { color: var(--foreground-subtle); text-decoration: line-through; }
+    .t-row .chip { margin-left: auto; padding: 1px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary-soft-foreground); font-size: 11px; }
+    .t-ctl { display: flex; align-items: center; gap: 14px; padding-top: 4px; }
+    .t-sw { width: 34px; height: 18px; border-radius: 9px; background: var(--primary); position: relative; }
+    .t-sw::after { content: ''; position: absolute; right: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+    .t-range { flex: 1; max-width: 200px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary) 60%, var(--control-track) 60%); position: relative; }
+    .t-range::after { content: ''; position: absolute; left: 60%; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); transform: translate(-50%, -50%); }
+    .t-thumb { width: 46px; height: 28px; border-radius: 5px; background: var(--control-bg); border: 1px solid var(--border); }
+    .t-thumb.on { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary); }
+    .t-legend { font-size: 11px; color: var(--foreground-subtle); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <h1>#47 背景图下的配色 · 4 个方案</h1>
+      <div class="presets" id="presets"></div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <label><input type="radio" name="th" value="light"> 浅色</label>
+      <label><input type="radio" name="th" value="dark" checked> 深色</label>
+    </div>
+    <p class="note">问题：选择背景后，侧边栏选中项、分段按钮、输入框、缩略图等仍是不透明的固定蓝色 / 深蓝色，和背景图的色调、明暗都不搭（截图中为深色主题 + 浅色"晨雾"）。下面每个窗口里：侧边栏"今天"为<b>选中</b>、"计划"为<b>悬停</b>；列表第二行为悬停、第三行为选中。切换上方的背景与主题，或上传一张自己的图片比较。</p>
+    <section class="block" id="variants"></section>
+  </div>
+
+  <script>
+    const svg = (body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMid slice'>${body}</svg>`)}")`;
+    // 与 src/shared/background.ts 相同的内置背景；accent 为该背景的主色（方案 B / C / D 使用），dark 为图片本身偏深
+    const PRESETS = [
+      { id: 'none', name: '无', accent: null, dark: null, img: 'none' },
+      { id: 'mist', name: '晨雾', accent: '#8b5cf6', dark: false, img: svg(`<defs><filter id='b'><feGaussianBlur stdDeviation='120'/></filter></defs><rect width='1600' height='1000' fill='#eef2ff'/><g filter='url(#b)'><circle cx='300' cy='250' r='380' fill='#c7d2fe'/><circle cx='1250' cy='200' r='420' fill='#fbcfe8'/><circle cx='900' cy='850' r='450' fill='#bae6fd'/><circle cx='200' cy='900' r='300' fill='#ddd6fe'/></g>`) },
+      { id: 'aurora', name: '极光', accent: '#10b981', dark: true, img: svg(`<defs><filter id='b'><feGaussianBlur stdDeviation='60'/></filter><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#020617'/><stop offset='1' stop-color='#0b1d3a'/></linearGradient></defs><rect width='1600' height='1000' fill='url(#s)'/><g filter='url(#b)' opacity='.85'><path d='M-100 520 C 300 300, 600 650, 1000 420 S 1600 300, 1800 450 L1800 620 C 1400 520, 1100 760, 700 640 S 100 560, -100 700Z' fill='#10b981'/><path d='M-100 380 C 400 200, 800 480, 1200 300 S 1700 260, 1800 320 L1800 420 C 1300 380, 900 600, 500 470 S 0 420,-100 500Z' fill='#6366f1'/></g>`) },
+      { id: 'hills', name: '远山', accent: '#2563eb', dark: false, img: svg(`<defs><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#dbeafe'/><stop offset='1' stop-color='#fef3c7'/></linearGradient></defs><rect width='1600' height='1000' fill='url(#s)'/><circle cx='1180' cy='360' r='90' fill='#fde68a' opacity='.9'/><path d='M0 640 L220 470 L420 590 L700 380 L980 560 L1220 430 L1600 600 V1000 H0Z' fill='#93c5fd' opacity='.7'/><path d='M0 760 L260 600 L520 720 L820 560 L1100 700 L1380 580 L1600 680 V1000 H0Z' fill='#60a5fa' opacity='.8'/><path d='M0 880 L300 760 L640 860 L960 740 L1300 850 L1600 780 V1000 H0Z' fill='#2563eb' opacity='.85'/>`) },
+      { id: 'waves', name: '海浪', accent: '#0891b2', dark: false, img: svg(`<rect width='1600' height='1000' fill='#ecfeff'/><g fill='none' stroke-width='3'>${[...Array(14)].map((_, i) => `<path d='M-50 ${180 + i * 60} C 300 ${120 + i * 60}, 500 ${260 + i * 60}, 800 ${180 + i * 60} S 1300 ${110 + i * 60}, 1650 ${190 + i * 60}' stroke='hsl(${190 + i * 3} 70% ${78 - i * 2.5}%)'/>`).join('')}</g>`) },
+      { id: 'sand', name: '暖沙', accent: '#b45309', dark: false, img: svg(`<defs><radialGradient id='g' cx='.3' cy='.2' r='1'><stop offset='0' stop-color='#fffbeb'/><stop offset='1' stop-color='#f5e6cc'/></radialGradient></defs><rect width='1600' height='1000' fill='url(#g)'/>`) },
+      { id: 'night', name: '星空', accent: '#6366f1', dark: true, img: svg(`<defs><radialGradient id='g' cx='.7' cy='.1' r='1.1'><stop offset='0' stop-color='#1e3a8a'/><stop offset='.6' stop-color='#0f172a'/><stop offset='1' stop-color='#020617'/></radialGradient></defs><rect width='1600' height='1000' fill='url(#g)'/>`) },
+    ];
+    let cur = PRESETS[1];
+    let custom = null; // { img, accent, dark }
+
+    // ---------- 颜色工具 ----------
+    const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const rgb2hex = (r) => '#' + r.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+    const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+    /** 主色按主题调整到可读：浅色主题与白字对比 ≥ 4.5，深色主题与深底对比 ≥ 4.5 */
+    function fitAccent(hex, dark) {
+      let c = hex2rgb(hex);
+      if (!dark) { for (let i = 0; i < 20 && contrast(c, [255, 255, 255]) < 4.5; i++) c = mix(c, [0, 0, 0], 0.08); }
+      else { for (let i = 0; i < 20 && contrast(c, [10, 16, 32]) < 4.5; i++) c = mix(c, [255, 255, 255], 0.1); }
+      return rgb2hex(c);
+    }
+    /** 从图片取主色：缩小采样，按色相分桶，取饱和度 × 数量最高的一桶；同时得出平均明暗 */
+    function analyze(url) {
+      return new Promise((res) => {
+        const im = new Image();
+        im.onload = () => {
+          const c = document.createElement('canvas'); c.width = 64; c.height = 40;
+          const x = c.getContext('2d'); x.drawImage(im, 0, 0, 64, 40);
+          const d = x.getImageData(0, 0, 64, 40).data;
+          const buckets = Array.from({ length: 24 }, () => ({ w: 0, r: 0, g: 0, b: 0 }));
+          let L = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
+            L += lum([r, g, b]);
+            const mx = Math.max(r, g, b), mn = Math.min(r, g, b), s = mx ? (mx - mn) / mx : 0;
+            if (s < 0.2 || mx < 40) continue;
+            let h = 0; const dd = mx - mn;
+            if (mx === r) h = ((g - b) / dd) % 6; else if (mx === g) h = (b - r) / dd + 2; else h = (r - g) / dd + 4;
+            const k = Math.floor((((h * 60) + 360) % 360) / 15), w = s * s;
+            Object.assign(buckets[k], { w: buckets[k].w + w, r: buckets[k].r + r * w, g: buckets[k].g + g * w, b: buckets[k].b + b * w });
+          }
+          const best = buckets.reduce((a, b) => (b.w > a.w ? b : a));
+          const accent = best.w ? rgb2hex([best.r / best.w, best.g / best.w, best.b / best.w]) : '#2563eb';
+          res({ accent, dark: L / (d.length / 4) < 0.25 });
+        };
+        im.src = url.slice(5, -2);
+      });
+    }
+
+    // ---------- 4 个方案：在主题变量之上覆盖 ----------
+    const glass = (dark) => ({
+      '--control-bg': dark ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.55)',
+      '--seg-on': dark ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.95)',
+      '--surface-hover': dark ? 'rgba(255,255,255,.07)' : 'rgba(15,23,42,.05)',
+      '--border': dark ? 'rgba(255,255,255,.10)' : 'rgba(15,23,42,.09)',
+      '--border-strong': dark ? 'rgba(255,255,255,.18)' : 'rgba(15,23,42,.16)',
+      '--control-track': dark ? 'rgba(255,255,255,.16)' : 'rgba(15,23,42,.14)',
+    });
+    const accentVars = (a, dark) => {
+      const p = fitAccent(a, dark);
+      return {
+        '--primary': p,
+        '--primary-foreground': dark ? '#0a1020' : '#ffffff',
+        '--primary-soft': `color-mix(in srgb, ${p} ${dark ? 24 : 16}%, transparent)`,
+        '--primary-soft-foreground': dark ? rgb2hex(mix(hex2rgb(p), [255, 255, 255], 0.55)) : rgb2hex(mix(hex2rgb(p), [0, 0, 0], 0.35)),
+        '--surface-selected': `color-mix(in srgb, ${p} ${dark ? 26 : 18}%, transparent)`,
+      };
+    };
+    const VARIANTS = [
+      { id: 'A', name: '中性玻璃', desc: '有背景时，选中 / 悬停 / 输入框 / 分段按钮等所有实色填充改为半透明的白或黑，随背景着色；主色仍为品牌蓝。',
+        pc: [['p', '改动最小，任何背景都不会"撞色"'], ['p', '品牌色统一'], ['c', '蓝色主色与暖色背景（暖沙）仍略有反差']],
+        vars: (bg, dark) => ({ ...glass(dark), '--surface-selected': dark ? 'rgba(96,165,250,.22)' : 'rgba(37,99,235,.14)', '--primary-soft': dark ? 'rgba(96,165,250,.20)' : 'rgba(37,99,235,.12)' }) },
+      { id: 'B', name: '背景取色', desc: '在 A 的基础上，主色（选中、开关、滑块、勾选框、按钮）取自背景：内置背景各有配色，上传的图片自动提取主色，并按主题调整到满足对比度。',
+        pc: [['p', '整体最协调，每个背景都有自己的"主题色"'], ['p', '自动保证文字对比度 ≥ 4.5'], ['c', '主色随背景变化，品牌蓝只在无背景时出现']],
+        vars: (bg, dark) => ({ ...glass(dark), ...(bg.accent ? accentVars(bg.accent, dark) : {}) }) },
+      { id: 'C', name: '取色 + 自动明暗', desc: '在 B 的基础上，主题自动跟随背景明暗：浅色图（晨雾、远山…）用浅色主题，深色图（极光、星空）用深色主题；设置中可关闭"跟随背景"。',
+        pc: [['p', '解决截图中"深色主题 + 浅色背景"发灰的问题'], ['p', '不需要用户自己搭配'], ['c', '选背景会顺带改变主题，需要在设置中说明']],
+        vars: (bg, dark) => ({ ...glass(bg.dark ?? dark), ...(bg.accent ? accentVars(bg.accent, bg.dark ?? dark) : {}) }), followTheme: true },
+      { id: 'D', name: '全面着色', desc: '在 B 的基础上，底色、面板、边框、次要文字都混入背景主色（类似 Material You），整个界面是一个色调。',
+        pc: [['p', '沉浸感最强'], ['c', '中性灰消失，长时间看列表略累'], ['c', '标签、优先级颜色与底色可能接近']],
+        vars: (bg, dark) => {
+          if (!bg.accent) return glass(dark);
+          const a = fitAccent(bg.accent, dark);
+          return { ...glass(dark), ...accentVars(bg.accent, dark),
+            '--surface': `color-mix(in srgb, ${a} ${dark ? 10 : 6}%, ${dark ? '#0f172a' : '#ffffff'})`,
+            '--surface-sunken': `color-mix(in srgb, ${a} ${dark ? 14 : 10}%, ${dark ? '#0c1324' : '#f4f7ff'})`,
+            '--background': `color-mix(in srgb, ${a} ${dark ? 12 : 8}%, ${dark ? '#0a1020' : '#f4f7ff'})`,
+            '--foreground-muted': `color-mix(in srgb, ${a} 25%, ${dark ? '#a3b1c8' : '#44536b'})`,
+            '--border': `color-mix(in srgb, ${a} 22%, ${dark ? 'rgba(255,255,255,.10)' : 'rgba(15,23,42,.09)'})` };
+        } },
+    ];
+
+    const appHtml = () => `
+      <div class="bgl"></div>
+      <div class="t-bar"><b><i></i>XTodoY</b><div class="t-search">⌕ 搜索待办　　　　　　　　　Ctrl+F</div><div class="t-win"><span>—</span><span>☐</span><span>✕</span></div></div>
+      <div class="t-body">
+        <div class="t-side">
+          <div class="it on">今天 <em>4</em></div><div class="it hover">计划 <em>9</em></div><div class="it">全部 <em>23</em></div><div class="it">已完成 <em>15</em></div>
+          <div class="grp">标签</div><div class="it"><span><span class="dot"></span>工作</span><em>4</em></div>
+        </div>
+        <div class="t-main">
+          <div class="t-hd"><h4>今天</h4><div class="t-seg"><span>浅色</span><span>深色</span><span class="on">跟随系统</span></div><span class="t-btn">按截止时间 ▾</span><span class="t-btn pri">立即更新</span></div>
+          <div class="t-qa">＋ 添加待办，回车保存</div>
+          <div class="t-row"><i></i><span>回复客户邮件</span><span class="chip">工作</span></div>
+          <div class="t-row hover"><i></i><span>评审界面原型（悬停）</span></div>
+          <div class="t-row sel"><i></i><span>整理周报（选中）</span><span class="chip">日常</span></div>
+          <div class="t-row done"><i class="done"></i><span>晨跑 5 公里</span></div>
+          <div class="t-ctl"><span class="t-sw"></span><span class="t-range"></span><span class="t-thumb"></span><span class="t-thumb on"></span><span class="t-legend" data-legend></span></div>
+        </div>
+      </div>`;
+
+    document.getElementById('variants').innerHTML = VARIANTS.map((v) => `
+      <div class="variant">
+        <div><h3><span class="tag">${v.id}</span>${v.name}</h3><p class="desc">${v.desc}</p><ul class="pc">${v.pc.map(([k, t]) => `<li class="${k}">${t}</li>`).join('')}</ul></div>
+        <div class="app" data-v="${v.id}">${appHtml()}</div>
+      </div>`).join('');
+
+    function render() {
+      const bg = custom && cur.id === 'custom' ? { ...custom, img: custom.img } : cur;
+      const userDark = document.querySelector('input[name=th]:checked').value === 'dark';
+      for (const v of VARIANTS) {
+        const el = document.querySelector(`.app[data-v="${v.id}"]`);
+        const dark = v.followTheme && bg.dark !== null && bg.dark !== undefined ? bg.dark : userDark;
+        el.classList.toggle('dark', dark);
+        el.removeAttribute('style');
+        const vars = bg.img === 'none' ? { '--control-bg': 'var(--surface-sunken)', '--seg-on': 'var(--surface)', '--control-track': 'var(--border-strong)' } : v.vars(bg, dark);
+        el.style.setProperty('--bg-img', bg.img);
+        el.style.setProperty('--panel', bg.img === 'none' ? '100%' : '72%');
+        for (const [k, val] of Object.entries(vars)) el.style.setProperty(k, val);
+        const p = getComputedStyle(el).getPropertyValue('--primary').trim();
+        el.querySelector('[data-legend]').innerHTML = `<span class="swatch" style="background:${p}"></span>主色 ${p}${v.followTheme && bg.dark !== null && bg.dark !== undefined ? ` · 自动${dark ? '深色' : '浅色'}` : ''}`;
+      }
+    }
+    function presetsBar() {
+      const host = document.getElementById('presets');
+      host.innerHTML = PRESETS.map((p) => `<button data-id="${p.id}" title="${p.name}" aria-pressed="${cur.id === p.id}" ${p.id === 'none' ? 'style="display:grid;place-items:center;font-size:11px;color:var(--foreground-muted)"' : ''}>${p.id === 'none' ? '无' : ''}</button>`).join('') +
+        `<button class="up" data-id="custom" aria-pressed="${cur.id === 'custom'}" title="上传图片">${custom ? '' : '＋'}</button>`;
+      PRESETS.forEach((p) => p.id !== 'none' && (host.querySelector(`[data-id="${p.id}"]`).style.backgroundImage = p.img));
+      if (custom) host.querySelector('[data-id="custom"]').style.backgroundImage = custom.img;
+    }
+    document.getElementById('presets').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.id === 'custom' && !custom) return document.getElementById('file').click();
+      cur = b.dataset.id === 'custom' ? { id: 'custom' } : PRESETS.find((p) => p.id === b.dataset.id);
+      presetsBar(); render();
+    });
+    document.getElementById('presets').addEventListener('dblclick', (e) => { if (e.target.closest('[data-id="custom"]')) document.getElementById('file').click(); });
+    document.getElementById('file').addEventListener('change', (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = async () => { const img = `url("${r.result}")`; custom = { img, ...(await analyze(img)) }; cur = { id: 'custom' }; presetsBar(); render(); };
+      r.readAsDataURL(f);
+    });
+    document.querySelectorAll('input[name=th]').forEach((x) => x.addEventListener('change', render));
+    presetsBar(); render();
+  </script>
+</body>
+</html>

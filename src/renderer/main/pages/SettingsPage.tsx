@@ -11,12 +11,13 @@ import {
 } from '@shared/background';
 import { UI_SOUND_STYLES, type Settings, type UiSoundStyle } from '@shared/types';
 import type { UpdateStatus } from '@shared/update';
+import { holidayCoverage } from '@shared/workdays';
 import { Icon, type IconName } from '../components/Icon';
 import { Dialog } from '../components/Overlay';
 import { UpdateSection } from '../components/Update';
 import { Select } from '../components/Select';
 import { api, call } from '../lib/api';
-import { useBackgroundUrl, useNotificationStatus, useReportError } from '../lib/data';
+import { useBackgroundUrl, useHolidayYears, useNotificationStatus, useReportError } from '../lib/data';
 import { friendlyDate, ymd } from '../lib/dates';
 import { platform } from '../lib/platform';
 import { playSound } from '../lib/sounds';
@@ -49,10 +50,11 @@ function HolidaySetting(p: { auto: boolean; checkedAt: number | null; onAuto(v: 
   const report = useReportError();
   const showToast = useUi((u) => u.showToast);
   const [busy, setBusy] = useState(false);
-  const status =
+  const coverage = holidayCoverage(useHolidayYears(), new Date().getFullYear());
+  const updated =
     p.checkedAt === null
       ? '尚未联网更新，使用安装包内置的数据'
-      : `节假日数据更新于 ${friendlyDate(ymd(new Date(p.checkedAt)))} ${new Date(p.checkedAt).toTimeString().slice(0, 5)}`;
+      : `更新于 ${friendlyDate(ymd(new Date(p.checkedAt)))} ${new Date(p.checkedAt).toTimeString().slice(0, 5)}`;
   const refresh = () => {
     setBusy(true);
     void call(api.holidays.refresh())
@@ -71,7 +73,9 @@ function HolidaySetting(p: { auto: boolean; checkedAt: number | null; onAuto(v: 
         <span>
           用于"每个工作日""工作日第一天"循环（法定节假日与调休），每周从 holiday-cn 获取最新安排
           <br />
-          <span className="status">{status}</span>
+          <span className="status">
+            {coverage} · {updated}
+          </span>
         </span>
       </div>
       <button className="btn sm" onClick={refresh} disabled={busy}>
@@ -145,7 +149,7 @@ function BackgroundSetting({ value, onChange }: { value: BackgroundSettings; onC
   const patch = (x: Partial<BackgroundSettings>) => onChange({ ...value, ...x });
   const upload = () =>
     void call(api.background.choose())
-      .then((image) => image && patch({ image }))
+      .then((r) => r && patch(r))
       .catch(report);
   return (
     <>
