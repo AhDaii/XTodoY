@@ -54,6 +54,8 @@ export interface Todo {
   id: string;
   title: string;
   note: string;
+  /** 时间跨度的开始日期（YYYY-MM-DD）；null 表示单日或无日期（#51） */
+  startDate: string | null;
   dueDate: string | null; // YYYY-MM-DD
   dueTime: string | null; // HH:mm；null 表示全天
   priority: Priority;
@@ -122,6 +124,7 @@ export interface TagNode {
 
 export interface TodoCreate {
   title: string;
+  startDate?: string | null;
   dueDate?: string | null;
   dueTime?: string | null;
   tagIds?: string[];
@@ -131,6 +134,7 @@ export interface TodoCreate {
 export interface TodoPatch {
   title?: string;
   note?: string;
+  startDate?: string | null;
   dueDate?: string | null;
   dueTime?: string | null;
   priority?: Priority;

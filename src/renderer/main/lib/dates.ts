@@ -41,4 +41,46 @@ export function nextMonday(base = today()): string {
   return addDays(base, (8 - dow) % 7 || 7);
 }
 
+/** 本周最后一天（weekStart：0 周日 / 1 周一） */
+export function weekEndDate(base: string, weekStart: 0 | 1): string {
+  const dow = parse(base).getDay();
+  const offset = (dow - weekStart + 7) % 7;
+  return addDays(base, 6 - offset);
+}
+
+/** 紧凑日期：今天 / 明天 / 11/23 / 2027/1/5 */
+export function shortDate(s: string, base = today()): string {
+  const n = diffDays(s, base);
+  if (n === 0) return '今天';
+  if (n === 1) return '明天';
+  if (n === -1) return '昨天';
+  const d = parse(s);
+  const md = `${d.getMonth() + 1}/${d.getDate()}`;
+  return d.getFullYear() === parse(base).getFullYear() ? md : `${d.getFullYear()}/${md}`;
+}
+
+export interface SpanProgress {
+  total: number;
+  elapsed: number;
+  remain: number;
+  started: boolean;
+  lastDay: boolean;
+  overdue: boolean;
+  pct: number;
+}
+
+/** 计算时间跨度进度（#51）；非跨度返回 null */
+export function spanProgress(startDate: string | null, dueDate: string | null, base = today()): SpanProgress | null {
+  if (!startDate || !dueDate || startDate >= dueDate) return null;
+  const total = diffDays(dueDate, startDate) + 1;
+  const elapsed = diffDays(base, startDate) + 1;
+  const remain = diffDays(dueDate, base);
+  const started = base >= startDate;
+  const lastDay = base === dueDate;
+  const overdue = base > dueDate;
+  const clamped = Math.max(0, Math.min(total, elapsed));
+  const pct = Math.max(0, Math.min(100, Math.round((clamped / total) * 100)));
+  return { total, elapsed, remain, started, lastDay, overdue, pct };
+}
+
 export const WEEKDAY_LABELS = WEEK;

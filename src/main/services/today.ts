@@ -28,15 +28,21 @@ export class TodayService {
   }
 
   refresh(): TodayCount {
+    const today = localDate(new Date());
     const row = this.db
       .prepare(
         `SELECT
            SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open,
            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done,
            COUNT(*) AS total
-         FROM todos WHERE deleted_at IS NULL AND due_date = ?`,
+         FROM todos
+         WHERE deleted_at IS NULL
+           AND (
+             (start_date IS NULL AND due_date = @today)
+             OR (start_date IS NOT NULL AND start_date <= @today AND due_date >= @today)
+           )`,
       )
-      .get(localDate(new Date())) as { open: number | null; done: number | null; total: number };
+      .get({ today }) as { open: number | null; done: number | null; total: number };
     const next = { open: row.open ?? 0, done: row.done ?? 0, total: row.total };
     if (next.open !== this.last.open || next.done !== this.last.done || next.total !== this.last.total) {
       this.last = next;

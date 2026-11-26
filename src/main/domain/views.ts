@@ -47,6 +47,18 @@ export function byDue(a: Todo, b: Todo): number {
   );
 }
 
+/** 某天是否落在该待办的活跃范围内（单日为当天，跨度为 [startDate, dueDate]） */
+export function isActiveOn(t: Pick<Todo, 'startDate' | 'dueDate'>, day: string): boolean {
+  if (t.dueDate === null) return false;
+  if (t.startDate && t.startDate < t.dueDate) return t.startDate <= day && day <= t.dueDate;
+  return t.dueDate === day;
+}
+
+/** 计划视图的归属锚点：未来跨度按开始日期提前进入视野，其余按截止日期 */
+function planAnchor(t: Pick<Todo, 'startDate' | 'dueDate'>): string {
+  return t.startDate && t.dueDate && t.startDate < t.dueDate ? t.startDate : t.dueDate!;
+}
+
 export function groupForView(
   view: SmartView,
   todos: Todo[],
@@ -58,7 +70,7 @@ export function groupForView(
   const cmp = comparator(sort);
   switch (view) {
     case 'today': {
-      const items = live.filter((t) => t.dueDate === today).sort(cmp);
+      const items = live.filter((t) => isActiveOn(t, today)).sort(cmp);
       return [
         { id: 'today-open', title: null, items: items.filter((t) => t.status === 'open') },
         { id: 'today-done', title: '今日已完成', collapsible: true, items: items.filter((t) => t.status === 'done') },
@@ -70,10 +82,26 @@ export function groupForView(
       const end = weekEnd(today, weekStart);
       return [
         { id: 'overdue', title: '逾期', tone: 'overdue', items: open.filter((t) => t.dueDate! < today) },
-        { id: 'plan-today', title: '今天', items: open.filter((t) => t.dueDate === today) },
-        { id: 'plan-tomorrow', title: '明天', items: open.filter((t) => t.dueDate === tomorrow) },
-        { id: 'plan-week', title: '本周', items: open.filter((t) => t.dueDate! > tomorrow && t.dueDate! <= end) },
-        { id: 'plan-later', title: '以后', items: open.filter((t) => t.dueDate! > end && t.dueDate! > tomorrow) },
+        { id: 'plan-today', title: '今天', items: open.filter((t) => isActiveOn(t, today)) },
+        {
+          id: 'plan-tomorrow',
+          title: '明天',
+          items: open.filter((t) => !isActiveOn(t, today) && t.dueDate! >= today && planAnchor(t) === tomorrow),
+        },
+        {
+          id: 'plan-week',
+          title: '本周',
+          items: open.filter(
+            (t) => !isActiveOn(t, today) && t.dueDate! >= today && planAnchor(t) > tomorrow && planAnchor(t) <= end,
+          ),
+        },
+        {
+          id: 'plan-later',
+          title: '以后',
+          items: open.filter(
+            (t) => !isActiveOn(t, today) && t.dueDate! >= today && planAnchor(t) > end && planAnchor(t) > tomorrow,
+          ),
+        },
       ];
     }
     case 'all': {

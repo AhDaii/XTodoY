@@ -22,7 +22,8 @@
 | id | TEXT | PK | |
 | title | TEXT | NOT NULL, 1–200 字符 | |
 | note | TEXT | NOT NULL DEFAULT '' | |
-| due_date | TEXT | NULL | 无日期事项为 NULL |
+| start_date | TEXT | NULL | 时间跨度的开始日期（#51，迁移 0003）；NULL 表示单日或无日期。有值时必有 due_date 且 start_date < due_date |
+| due_date | TEXT | NULL | 无日期事项为 NULL；跨度事项为结束日期 |
 | due_time | TEXT | NULL | NULL 表示全天 |
 | rrule | TEXT | NULL | RFC 5545 RRULE；NULL 表示不循环 |
 | rrule_month_day | INTEGER | NULL | 每月指定日（1–31 或 -1 表示最后一天），用于月末规则 FR-REC-04 |
