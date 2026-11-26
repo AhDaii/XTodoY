@@ -5,7 +5,18 @@ import { LIMITS, type Priority, type TagNode, type Todo } from '@shared/types';
 import { api, call } from '../lib/api';
 import { useTodoActions } from '../lib/actions';
 import { useReportError } from '../lib/data';
-import { addDays, friendlyDate, nextMonday, parse, today, WEEKDAY_LABELS, ymd } from '../lib/dates';
+import {
+  addDays,
+  friendlyDate,
+  nextMonday,
+  parse,
+  shortDate,
+  spanProgress,
+  today,
+  WEEKDAY_LABELS,
+  weekEndDate,
+  ymd,
+} from '../lib/dates';
 import { useUi } from '../lib/store';
 import { CheckButton } from './CheckButton';
 import { Icon } from './Icon';
@@ -50,7 +61,9 @@ export function DetailPanel({
   if (!todo) return null;
   const patch = (p: Parameters<typeof api.todos.update>[1]) =>
     call(api.todos.update(todo.id, p)).then(setTodo).catch(report);
-  const overdue = todo.status === 'open' && todo.dueDate !== null && todo.dueDate < today();
+  const now = today();
+  const overdue = todo.status === 'open' && todo.dueDate !== null && todo.dueDate < now;
+  const span = spanProgress(todo.startDate, todo.dueDate, now);
 
   return (
     <aside className="detail" aria-label="待办详情" key={todo.id}>
@@ -77,12 +90,28 @@ export function DetailPanel({
               日期
             </span>
             <span className={`v ${todo.dueDate ? (overdue ? 'overdue' : '') : 'placeholder'}`}>
-              {todo.dueDate
-                ? `${overdue ? '逾期 · ' : ''}${friendlyDate(todo.dueDate)}（${todo.dueDate}）${todo.dueTime ? ` ${todo.dueTime}` : ' · 全天'}`
-                : '添加截止日期'}
+              {span
+                ? `${overdue ? '逾期 · ' : ''}${shortDate(todo.startDate!, now)} → ${shortDate(todo.dueDate!, now)}（共 ${span.total} 天）${todo.dueTime ? ` ${todo.dueTime}` : ' · 全天'}`
+                : todo.dueDate
+                  ? `${overdue ? '逾期 · ' : ''}${friendlyDate(todo.dueDate)}（${todo.dueDate}）${todo.dueTime ? ` ${todo.dueTime}` : ' · 全天'}`
+                  : '添加截止日期'}
             </span>
             <Icon name="chevronRight" size={14} className="chev" />
           </button>
+          {span && todo.status === 'open' && (span.started || overdue) && (
+            <div className="detail-progress">
+              <div className="detail-progress-head">
+                <span>跨度进度</span>
+                <span>{overdue ? `已逾期 ${Math.abs(span.remain)} 天` : `第 ${span.elapsed} / ${span.total} 天`}</span>
+              </div>
+              <div className="todo-progress-track">
+                <div
+                  className={`todo-progress-fill ${overdue ? 'overdue' : span.remain <= 1 ? 'soon' : ''}`}
+                  style={{ width: `${overdue ? 100 : span.pct}%` }}
+                />
+              </div>
+            </div>
+          )}
           <button className="prop" onClick={(e) => setPop({ kind: 'repeat', anchor: e.currentTarget })}>
             <span className="k">
               <Icon name="repeat" size={14} />
@@ -255,10 +284,15 @@ function DatePicker({
 }: {
   todo: Todo;
   weekStart: 0 | 1;
-  onChange(p: { dueDate?: string | null; dueTime?: string | null }): void;
+  onChange(p: { startDate?: string | null; dueDate?: string | null; dueTime?: string | null }): void;
   onDone(): void;
 }) {
-  const base = todo.dueDate ?? today();
+  const now = today();
+  const hasSpan = Boolean(todo.startDate && todo.dueDate && todo.startDate < todo.dueDate);
+  const [mode, setMode] = useState<'single' | 'span'>(hasSpan ? 'span' : 'single');
+  const [draftStart, setDraftStart] = useState<string | null>(null);
+  const [hoverDate, setHoverDate] = useState<string | null>(null);
+  const base = (hasSpan ? todo.startDate : todo.dueDate) ?? now;
   const [month, setMonth] = useState(base.slice(0, 7));
   // 时间先在本地更新（勾选"全天"立即生效），再在后台保存；保存结果回来后与之同步
   const [time, setTimeLocal] = useState(todo.dueTime);
@@ -275,31 +309,126 @@ function DatePicker({
   const pad = (new Date(y, m - 1, 1).getDay() - weekStart + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, i) => ymd(new Date(y, m - 1, 1 - pad + i)));
   const shift = (n: number) => setMonth(ymd(new Date(y, m - 1 + n, 1)).slice(0, 7));
-  const pick = (d: string | null) => {
-    onChange({ dueDate: d });
+
+  const pickSingle = (d: string | null) => {
+    setDraftStart(null);
+    onChange({ startDate: null, dueDate: d });
     onDone();
   };
-  const now = today();
+
+  const pickSpan = (startDate: string, dueDate: string) => {
+    setDraftStart(null);
+    if (startDate === dueDate) onChange({ startDate: null, dueDate });
+    else onChange({ startDate, dueDate });
+    onDone();
+  };
+
+  // 跨度模式下过去的日期不可选；进行中跨度的原开始日期例外，便于只调整结束日期
+  const isPast = (d: string) => d < now && !(hasSpan && d === todo.startDate);
+
+  const onCellClick = (d: string) => {
+    if (mode === 'single') {
+      pickSingle(d);
+      return;
+    }
+    if (isPast(d)) return;
+    if (!draftStart) {
+      setDraftStart(d);
+      setHoverDate(d);
+    } else if (d < draftStart) {
+      pickSpan(d, draftStart);
+    } else {
+      pickSpan(draftStart, d);
+    }
+  };
+
+  const thisWeekEnd = weekEndDate(now, weekStart);
+  const thisWeekDue = thisWeekEnd > now ? thisWeekEnd : addDays(now, 1);
+  const nextMon = nextMonday(now);
+
+  // 日历区间高亮计算（跨度模式下支持悬停预览）
+  let rangeStart: string | null = null;
+  let rangeEnd: string | null = null;
+  if (mode === 'span') {
+    if (draftStart) {
+      const end = hoverDate && !isPast(hoverDate) ? hoverDate : draftStart;
+      rangeStart = end < draftStart ? end : draftStart;
+      rangeEnd = end < draftStart ? draftStart : end;
+    } else if (hasSpan) {
+      rangeStart = todo.startDate;
+      rangeEnd = todo.dueDate;
+    } else if (todo.dueDate) {
+      rangeStart = todo.dueDate;
+      rangeEnd = todo.dueDate;
+    }
+  }
+
   return (
     <div className="stack">
-      <div className="quick-dates">
-        <button onClick={() => pick(now)}>
-          <Icon name="sun" />
-          今天
+      <div className="seg date-mode-seg" role="group" aria-label="日期模式">
+        <button
+          type="button"
+          aria-pressed={mode === 'single'}
+          onClick={() => {
+            setMode('single');
+            setDraftStart(null);
+            if (todo.startDate) onChange({ startDate: null });
+          }}
+        >
+          单日
         </button>
-        <button onClick={() => pick(addDays(now, 1))}>
-          <Icon name="calendar" />
-          明天
-        </button>
-        <button onClick={() => pick(nextMonday(now))}>
-          <Icon name="calendar" />
-          下周一
-        </button>
-        <button onClick={() => pick(null)}>
-          <Icon name="x" />
-          清除
+        <button
+          type="button"
+          aria-pressed={mode === 'span'}
+          onClick={() => {
+            setMode('span');
+            setDraftStart(null);
+          }}
+        >
+          时间跨度
         </button>
       </div>
+
+      {mode === 'single' ? (
+        <div className="quick-dates">
+          <button onClick={() => pickSingle(now)}>
+            <Icon name="sun" />
+            今天
+          </button>
+          <button onClick={() => pickSingle(addDays(now, 1))}>
+            <Icon name="calendar" />
+            明天
+          </button>
+          <button onClick={() => pickSingle(nextMon)}>
+            <Icon name="calendar" />
+            下周一
+          </button>
+          <button onClick={() => pickSingle(null)}>
+            <Icon name="x" />
+            清除
+          </button>
+        </div>
+      ) : (
+        <div className="quick-dates">
+          <button onClick={() => pickSpan(now, addDays(now, 2))}>
+            <Icon name="sun" />
+            今起3天
+          </button>
+          <button onClick={() => pickSpan(now, thisWeekDue)}>
+            <Icon name="calendar" />
+            本周内
+          </button>
+          <button onClick={() => pickSpan(nextMon, addDays(nextMon, 4))}>
+            <Icon name="calendar" />
+            下周
+          </button>
+          <button onClick={() => pickSingle(null)}>
+            <Icon name="x" />
+            清除
+          </button>
+        </div>
+      )}
+
       <div>
         <div className="cal-head">
           <button className="icon-btn" onClick={() => shift(-1)} aria-label="上个月">
@@ -312,24 +441,54 @@ function DatePicker({
             <Icon name="chevronRight" />
           </button>
         </div>
-        <div className="cal" role="grid">
+        <div className="cal" role="grid" onMouseLeave={() => draftStart && setHoverDate(null)}>
           {Array.from({ length: 7 }, (_, i) => (
             <span className="wd" key={i}>
               {WEEKDAY_LABELS[(i + weekStart) % 7]}
             </span>
           ))}
-          {cells.map((d) => (
-            <button
-              key={d}
-              className={`${d.slice(0, 7) !== month ? 'out' : ''} ${d === now ? 'is-today' : ''}`}
-              aria-pressed={todo.dueDate === d}
-              aria-label={`${d} 周${WEEKDAY_LABELS[parse(d).getDay()]}`}
-              onClick={() => pick(d)}
-            >
-              {Number(d.slice(8))}
-            </button>
-          ))}
+          {cells.map((d) => {
+            const past = mode === 'span' && isPast(d);
+            const isSingleSelected = mode === 'single' && todo.dueDate === d;
+            const isStart = mode === 'span' && rangeStart === d && rangeEnd !== d;
+            const isEnd = mode === 'span' && rangeEnd === d && rangeStart !== d;
+            const isOnly = mode === 'span' && rangeStart === d && rangeEnd === d;
+            const inRange =
+              mode === 'span' && rangeStart !== null && rangeEnd !== null && d > rangeStart && d < rangeEnd;
+            const cls = [
+              d.slice(0, 7) !== month ? 'out' : '',
+              d === now ? 'is-today' : '',
+              past ? 'is-past' : '',
+              isStart ? 'range-start' : '',
+              isEnd ? 'range-end' : '',
+              inRange ? 'in-range' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+            return (
+              <button
+                key={d}
+                type="button"
+                className={cls}
+                disabled={past}
+                aria-pressed={isSingleSelected || isStart || isEnd || isOnly}
+                aria-label={`${d} 周${WEEKDAY_LABELS[parse(d).getDay()]}`}
+                title={past ? '时间跨度不能早于今天' : undefined}
+                onMouseEnter={() => draftStart && !past && setHoverDate(d)}
+                onClick={() => onCellClick(d)}
+              >
+                {Number(d.slice(8))}
+              </button>
+            );
+          })}
         </div>
+        {mode === 'span' && (
+          <p className="cal-hint">
+            {draftStart
+              ? `起点 ${shortDate(draftStart, now)}，请点选结束日期`
+              : '时间跨度不能早于今天，依次点选起止日期'}
+          </p>
+        )}
       </div>
       <label className="check-row">
         <input

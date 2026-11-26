@@ -25,6 +25,7 @@ interface TodoRow {
   id: string;
   title: string;
   note: string;
+  start_date: string | null;
   due_date: string | null;
   due_time: string | null;
   priority: Priority;
@@ -51,6 +52,17 @@ interface ReminderRow {
 type TodoSettings = Pick<Settings, 'weekStart' | 'defaultReminder'> & Partial<Pick<Settings, 'listSort'>>;
 
 const DAY_MS = 86_400_000;
+
+function shiftDate(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];
+  return localDate(new Date(y, m - 1, d + days));
+}
+
+function spanDays(start: string, end: string): number {
+  const [y1, m1, d1] = start.split('-').map(Number) as [number, number, number];
+  const [y2, m2, d2] = end.split('-').map(Number) as [number, number, number];
+  return Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / DAY_MS);
+}
 
 /** 待办服务（FR-TODO）：所有写操作在主进程完成，完成后发出 todos.changed */
 export class TodoService {
@@ -108,6 +120,7 @@ export class TodoService {
       id: r.id,
       title: r.title,
       note: r.note,
+      startDate: r.start_date,
       dueDate: r.due_date,
       dueTime: r.due_time,
       priority: r.priority,
@@ -167,7 +180,8 @@ export class TodoService {
     }
     const view = q.view ?? 'today';
     const where = {
-      today: 'deleted_at IS NULL AND due_date = @today',
+      today:
+        'deleted_at IS NULL AND ((start_date IS NULL AND due_date = @today) OR (start_date IS NOT NULL AND start_date <= @today AND due_date >= @today))',
       plan: "deleted_at IS NULL AND status = 'open' AND due_date IS NOT NULL",
       all: "deleted_at IS NULL AND status = 'open'",
       done: "deleted_at IS NULL AND status = 'done'",
@@ -182,7 +196,12 @@ export class TodoService {
     const r = this.db
       .prepare(
         `SELECT
-           SUM(deleted_at IS NULL AND status = 'open' AND due_date = @today) AS today,
+           SUM(
+             deleted_at IS NULL AND status = 'open' AND (
+               (start_date IS NULL AND due_date = @today)
+               OR (start_date IS NOT NULL AND start_date <= @today AND due_date >= @today)
+             )
+           ) AS today,
            SUM(deleted_at IS NULL AND status = 'open' AND due_date IS NOT NULL) AS plan,
            SUM(deleted_at IS NULL AND status = 'open') AS "all",
            SUM(deleted_at IS NULL AND status = 'done') AS done,
@@ -201,6 +220,26 @@ export class TodoService {
     };
   }
 
+  /**
+   * 校验并规范化时间跨度（#51）：
+   * - 无截止日期时自动清空开始日期；开始日期等于截止日期时规范为单日（startDate = null）。
+   * - 新建或修改开始日期时，开始日期不能早于今天；已有历史跨度仅调整截止日期时，截止日期不能早于今天且不能早于开始日期。
+   */
+  private normalizeSpan(
+    startDate: string | null,
+    dueDate: string | null,
+    startChanged: boolean,
+    dueChanged: boolean,
+  ): string | null {
+    if (!dueDate || !startDate) return null;
+    if (startDate > dueDate) throw invalid('开始日期不能晚于截止日期');
+    // 先校验再规范为单日，避免把进行中的跨度悄悄改成过去的单日
+    const today = this.today();
+    if (startChanged && startDate < today) throw invalid('时间跨度不能早于今天');
+    if (dueChanged && dueDate < today) throw invalid('时间跨度不能早于今天');
+    return startDate === dueDate ? null : startDate;
+  }
+
   // ---------- 写操作 ----------
 
   create(input: TodoCreate): Todo {
@@ -209,17 +248,20 @@ export class TodoService {
     const first = this.db.prepare('SELECT MIN(sort_key) FROM todos').pluck().get() as string | null;
     const tagIds = input.tagIds ?? [];
     this.assertTags(tagIds);
+    const dueDate = input.dueDate ?? null;
+    const startDate = this.normalizeSpan(input.startDate ?? null, dueDate, Boolean(input.startDate), Boolean(dueDate));
     const tx = this.db.transaction(() => {
       this.db
         .prepare(
-          `INSERT INTO todos (id, title, due_date, due_time, priority, sort_key, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO todos (id, title, start_date, due_date, due_time, priority, sort_key, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
           input.title,
-          input.dueDate ?? null,
-          input.dueDate ? (input.dueTime ?? null) : null,
+          startDate,
+          dueDate,
+          dueDate ? (input.dueTime ?? null) : null,
           input.priority ?? 0,
           generateKeyBetween(null, first),
           now,
@@ -227,7 +269,7 @@ export class TodoService {
         );
       const link = this.db.prepare('INSERT INTO todo_tags (todo_id, tag_id) VALUES (?, ?)');
       for (const t of tagIds) link.run(id, t);
-      if (input.dueDate && input.dueTime) this.addDefaultReminder(id);
+      if (dueDate && input.dueTime) this.addDefaultReminder(id);
     });
     tx();
     this.changed(id);
@@ -245,18 +287,23 @@ export class TodoService {
   update(id: string, patch: TodoPatch): Todo {
     const cur = this.get(id);
     const dueDate = patch.dueDate !== undefined ? patch.dueDate : cur.dueDate;
+    const rawStart = patch.startDate !== undefined ? patch.startDate : cur.startDate;
+    const startChanged = patch.startDate !== undefined && patch.startDate !== cur.startDate;
+    const dueChanged = patch.dueDate !== undefined && patch.dueDate !== cur.dueDate;
+    const startDate = this.normalizeSpan(rawStart, dueDate, startChanged, dueChanged);
     // 清除日期时一并清除时间；未设日期时不能单独设时间
     let dueTime = patch.dueTime !== undefined ? patch.dueTime : cur.dueTime;
     if (!dueDate) dueTime = null;
     const tx = this.db.transaction(() => {
       this.db
         .prepare(
-          `UPDATE todos SET title = ?, note = ?, due_date = ?, due_time = ?, priority = ?, updated_at = ?
+          `UPDATE todos SET title = ?, note = ?, start_date = ?, due_date = ?, due_time = ?, priority = ?, updated_at = ?
            WHERE id = ?`,
         )
         .run(
           patch.title ?? cur.title,
           patch.note ?? cur.note,
+          startDate,
           dueDate,
           dueTime,
           patch.priority ?? cur.priority,
@@ -344,10 +391,14 @@ export class TodoService {
       cur.repeatCountDone,
     );
     if (!next) throw new AppError('REPEAT_ENDED', '这是最后一次，无法跳过');
-    this.db.prepare('UPDATE todos SET due_date = ?, updated_at = ? WHERE id = ?').run(next, Date.now(), id);
+    const nextStart =
+      cur.startDate && cur.startDate < cur.dueDate ? shiftDate(next, -spanDays(cur.startDate, cur.dueDate)) : null;
+    this.db
+      .prepare('UPDATE todos SET start_date = ?, due_date = ?, updated_at = ? WHERE id = ?')
+      .run(nextStart, next, Date.now(), id);
     this.changed(id);
     const undoToken = this.undoStore.add(() => {
-      this.db.prepare('UPDATE todos SET due_date = ? WHERE id = ?').run(cur.dueDate, id);
+      this.db.prepare('UPDATE todos SET start_date = ?, due_date = ? WHERE id = ?').run(cur.startDate, cur.dueDate, id);
       this.changed(id);
     });
     return { todo: this.get(id), undoToken };
@@ -388,13 +439,17 @@ export class TodoService {
     const rule = fromRRule(cur.rrule!);
     const done = cur.repeatCountDone + 1;
     const next = advanceAfterComplete(rule, cur.repeatAnchor ?? cur.dueDate!, cur.dueDate!, localDate(now), done);
+    const nextStart =
+      next && cur.startDate && cur.startDate < cur.dueDate!
+        ? shiftDate(next, -spanDays(cur.startDate, cur.dueDate!))
+        : null;
     let logId = '';
     const tx = this.db.transaction(() => {
       logId = this.writeLog(cur, now);
       if (next) {
         this.db
-          .prepare('UPDATE todos SET due_date = ?, repeat_count_done = ?, updated_at = ? WHERE id = ?')
-          .run(next, done, now.getTime(), cur.id);
+          .prepare('UPDATE todos SET start_date = ?, due_date = ?, repeat_count_done = ?, updated_at = ? WHERE id = ?')
+          .run(nextStart, next, done, now.getTime(), cur.id);
       } else {
         this.db
           .prepare(
@@ -409,9 +464,9 @@ export class TodoService {
       const undo = this.db.transaction(() => {
         this.db
           .prepare(
-            "UPDATE todos SET status = 'open', completed_at = NULL, due_date = ?, repeat_count_done = ? WHERE id = ?",
+            "UPDATE todos SET status = 'open', completed_at = NULL, start_date = ?, due_date = ?, repeat_count_done = ? WHERE id = ?",
           )
-          .run(cur.dueDate, cur.repeatCountDone, cur.id);
+          .run(cur.startDate, cur.dueDate, cur.repeatCountDone, cur.id);
         this.db.prepare('DELETE FROM completion_logs WHERE id = ?').run(logId);
       });
       undo();

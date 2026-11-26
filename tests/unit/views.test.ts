@@ -11,6 +11,7 @@ function todo(p: Partial<Todo>): Todo {
     id: `t${n}`,
     title: `t${n}`,
     note: '',
+    startDate: null,
     dueDate: null,
     dueTime: null,
     priority: 0,
@@ -90,5 +91,32 @@ describe('全部 / 已完成 / 回收站', () => {
   });
   it('回收站只含已删除', () => {
     expect(ids(groupForView('trash', [a, x], TODAY, 1)[0]!)).toEqual(['trashed']);
+  });
+});
+
+describe('时间跨度待办（#51）', () => {
+  const list = [
+    todo({ title: 'overdue-span', startDate: '2026-10-29', dueDate: '2026-11-01' }),
+    todo({ title: 'ongoing-span', startDate: '2026-11-01', dueDate: '2026-11-05' }),
+    todo({ title: 'today-span', startDate: TODAY, dueDate: '2026-11-04' }),
+    todo({ title: 'tomorrow-span', startDate: '2026-11-03', dueDate: '2026-11-06' }),
+    todo({ title: 'week-span', startDate: '2026-11-05', dueDate: '2026-11-10' }),
+    todo({ title: 'later-span', startDate: '2026-11-09', dueDate: '2026-11-12' }),
+  ];
+
+  it('今天视图包含覆盖今天的跨度任务，不含逾期与尚未开始的跨度', () => {
+    const [open] = groupForView('today', list, TODAY, 1);
+    expect(ids(open!)).toEqual(['today-span', 'ongoing-span']);
+  });
+
+  it('计划视图：进行中跨度归今天，未来跨度按开始日期提前分组', () => {
+    const g = groupForView('plan', list, TODAY, 1);
+    expect(g.map((x) => [x.id, ids(x)])).toEqual([
+      ['overdue', ['overdue-span']],
+      ['plan-today', ['today-span', 'ongoing-span']],
+      ['plan-tomorrow', ['tomorrow-span']],
+      ['plan-week', ['week-span']],
+      ['plan-later', ['later-span']],
+    ]);
   });
 });

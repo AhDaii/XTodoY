@@ -23,7 +23,10 @@ export function useTodoActions() {
       });
     /** 完成音效（#37）：今天到期的最后一项完成时播放"全部完成" */
     const completeSound = (t: Todo) => {
-      if (t.dueDate !== today()) return playSound('done');
+      const d = today();
+      // 时间跨度（#51）覆盖今天时也计入今天
+      const activeToday = t.startDate && t.dueDate ? t.startDate <= d && d <= t.dueDate : t.dueDate === d;
+      if (!activeToday) return playSound('done');
       void call(api.todos.counts()).then(
         (c) => playSound(c.today <= 1 ? 'all' : 'done'),
         () => playSound('done'),
