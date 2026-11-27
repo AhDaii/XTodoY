@@ -33,6 +33,55 @@ describe('TodoService', () => {
     expect(todos.counts()).toMatchObject({ today: 1, all: 2, plan: 1, done: 0 });
   });
 
+  it('时间跨度待办：校验不能早于今天、规范单日、计入今日并支持清除（#51）', () => {
+    // 合法跨度：今天起 4 天
+    const span = todos.create({ title: '做原型', startDate: '2026-11-02', dueDate: '2026-11-05' });
+    expect(span.startDate).toBe('2026-11-02');
+    expect(span.dueDate).toBe('2026-11-05');
+    expect(titles(todos.list({ view: 'today' }))).toEqual(['做原型']);
+    expect(todos.counts()).toMatchObject({ today: 1, plan: 1 });
+
+    // 开始日期等于截止日期时规范化为单日（startDate = null）
+    const single = todos.create({ title: '同日', startDate: '2026-11-03', dueDate: '2026-11-03' });
+    expect(single.startDate).toBeNull();
+    expect(single.dueDate).toBe('2026-11-03');
+
+    // 不能早于今天
+    expect(() => todos.create({ title: '过去', startDate: '2026-11-01', dueDate: '2026-11-04' })).toThrow(
+      /不能早于今天/,
+    );
+    expect(() => todos.update(single.id, { startDate: '2026-11-01', dueDate: '2026-11-04' })).toThrow(/不能早于今天/);
+    // 开始日期不能晚于截止日期
+    expect(() => todos.create({ title: '倒挂', startDate: '2026-11-06', dueDate: '2026-11-04' })).toThrow(
+      /不能晚于截止日期/,
+    );
+
+    // 清除截止日期时一并清除开始日期
+    const cleared = todos.update(span.id, { dueDate: null });
+    expect(cleared.startDate).toBeNull();
+    expect(cleared.dueDate).toBeNull();
+  });
+
+  it('进行中的跨度只改截止日期时保留已过去的开始日期（#51）', () => {
+    const t = todos.create({ title: '跨度', startDate: '2026-11-02', dueDate: '2026-11-04' });
+    // 模拟跨度已开始一天：开始日期落在今天之前
+    db.prepare("UPDATE todos SET start_date = '2026-11-01' WHERE id = ?").run(t.id);
+    const u = todos.update(t.id, { dueDate: '2026-11-06' });
+    expect(u).toMatchObject({ startDate: '2026-11-01', dueDate: '2026-11-06' });
+    expect(() => todos.update(t.id, { dueDate: '2026-11-01' })).toThrow(/不能早于今天/);
+  });
+
+  it('循环的跨度待办：跳过与完成后保持相同天数，撤销恢复（#51）', () => {
+    const t = todos.create({ title: '周报周期', startDate: '2026-11-02', dueDate: '2026-11-04' });
+    todos.setRepeat(t.id, { freq: 'weekly', interval: 1, end: { type: 'never' } });
+    const { todo: skipped, undoToken } = todos.skip(t.id);
+    expect(skipped).toMatchObject({ startDate: '2026-11-09', dueDate: '2026-11-11' });
+    todos.undo(undoToken);
+    expect(todos.get(t.id)).toMatchObject({ startDate: '2026-11-02', dueDate: '2026-11-04' });
+    const { todo: next } = todos.toggle(t.id);
+    expect(next).toMatchObject({ status: 'open', startDate: '2026-11-09', dueDate: '2026-11-11' });
+  });
+
   it('跳过本次：循环事项移到下一次实例，不写完成记录，可撤销（FR-REC-06）', () => {
     const t = todos.create({ title: '晨跑', dueDate: '2026-11-02' });
     todos.setRepeat(t.id, { freq: 'daily', interval: 1, end: { type: 'never' } });

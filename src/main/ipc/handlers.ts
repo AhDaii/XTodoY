@@ -160,9 +160,10 @@ export function registerIpc(d: Deps): void {
   handle(Invoke.todoCounts, () => d.todos.counts());
   handle(Invoke.todoGet, (id) => d.todos.get(v.id(id)));
   handle(Invoke.todoCreate, (input) => {
-    const o = v.obj(input, ['title', 'dueDate', 'dueTime', 'tagIds', 'priority']);
+    const o = v.obj(input, ['title', 'startDate', 'dueDate', 'dueTime', 'tagIds', 'priority']);
     return d.todos.create({
       title: v.title(o.title),
+      startDate: v.date(o.startDate),
       dueDate: v.date(o.dueDate),
       dueTime: v.time(o.dueTime),
       tagIds: o.tagIds === undefined ? [] : v.idList(o.tagIds, '标签', LIMITS.tagsPerTodo),
@@ -170,10 +171,11 @@ export function registerIpc(d: Deps): void {
     });
   });
   handle(Invoke.todoUpdate, (id, patch) => {
-    const o = v.obj(patch, ['title', 'note', 'dueDate', 'dueTime', 'priority']);
+    const o = v.obj(patch, ['title', 'note', 'startDate', 'dueDate', 'dueTime', 'priority']);
     return d.todos.update(v.id(id), {
       ...(o.title !== undefined && { title: v.title(o.title) }),
       ...(o.note !== undefined && { note: v.note(o.note) }),
+      ...('startDate' in o && { startDate: v.date(o.startDate) }),
       ...('dueDate' in o && { dueDate: v.date(o.dueDate) }),
       ...('dueTime' in o && { dueTime: v.time(o.dueTime) }),
       ...(o.priority !== undefined && { priority: v.priority(o.priority) }),

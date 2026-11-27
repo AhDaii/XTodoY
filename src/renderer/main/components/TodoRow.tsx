@@ -2,7 +2,7 @@ import type { HTMLAttributes, KeyboardEvent } from 'react';
 import { fromRRule, repeatSummary } from '@shared/recurrence';
 import type { Todo } from '@shared/types';
 import { LIMITS } from '@shared/types';
-import { diffDays, friendlyDate, today, ymd } from '../lib/dates';
+import { diffDays, friendlyDate, shortDate, spanProgress, today, ymd } from '../lib/dates';
 import { useUi } from '../lib/store';
 import { CheckButton } from './CheckButton';
 import { Icon } from './Icon';
@@ -26,9 +26,30 @@ interface Props {
 export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, ...h }: Props) {
   const now = today();
   const overdue = t.status === 'open' && t.dueDate !== null && t.dueDate < now;
+  const span = spanProgress(t.startDate, t.dueDate, now);
   const shown = t.tags.slice(0, 2);
   const completing = useUi((u) => u.completing.has(t.id));
   const done = t.status === 'done' || completing;
+
+  const spanTone = span
+    ? overdue
+      ? 'overdue'
+      : span.started && span.remain <= 1
+        ? 'soon'
+        : span.started
+          ? 'today'
+          : ''
+    : '';
+
+  const spanStatus = span
+    ? overdue
+      ? `逾期 ${Math.abs(span.remain)} 天`
+      : !span.started
+        ? `${diffDays(t.startDate!, now)} 天后开始 · 共 ${span.total} 天`
+        : span.lastDay
+          ? `今天截止（第 ${span.total}/${span.total} 天）`
+          : `剩 ${span.remain} 天（第 ${span.elapsed}/${span.total} 天）`
+    : '';
   return (
     <li
       className={`todo ${done ? 'is-done' : ''} ${drag?.className ?? ''}`}
@@ -55,13 +76,21 @@ export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, .
         </div>
         {t.note && <div className="todo-note">{t.note.split('\n')[0]}</div>}
         <div className="todo-meta">
-          {t.dueDate && (
-            <span className={`when ${overdue ? 'overdue' : t.dueDate === now ? 'today' : ''}`}>
+          {span ? (
+            <span className={`when ${spanTone}`}>
               <Icon name="calendar" size={12} />
-              {overdue && '逾期 · '}
-              {friendlyDate(t.dueDate)}
-              {t.dueTime && ` ${t.dueTime}`}
+              {shortDate(t.startDate!, now)} – {shortDate(t.dueDate!, now)}
+              {t.dueTime && ` ${t.dueTime}`} · {spanStatus}
             </span>
+          ) : (
+            t.dueDate && (
+              <span className={`when ${overdue ? 'overdue' : t.dueDate === now ? 'today' : ''}`}>
+                <Icon name="calendar" size={12} />
+                {overdue && '逾期 · '}
+                {friendlyDate(t.dueDate)}
+                {t.dueTime && ` ${t.dueTime}`}
+              </span>
+            )
           )}
           {t.rrule && (
             <span className="ico" title={`循环：${repeatSummary(fromRRule(t.rrule))}`}>
@@ -100,6 +129,17 @@ export function TodoRow({ todo: t, selected, inTrash, showCompletedTime, drag, .
             <span>{LIMITS.trashDays - diffDays(now, ymd(new Date(t.deletedAt)))} 天后自动清理</span>
           )}
         </div>
+        {span && !done && !inTrash && (span.started || overdue) && (
+          <div className="todo-progress" aria-label={`跨度进度 ${overdue ? '已逾期' : `${span.pct}%`}`}>
+            <div className="todo-progress-track">
+              <div
+                className={`todo-progress-fill ${overdue ? 'overdue' : span.remain <= 1 ? 'soon' : ''}`}
+                style={{ width: `${overdue ? 100 : span.pct}%` }}
+              />
+            </div>
+            <span className="todo-progress-pct">{overdue ? '已逾期' : `${span.pct}%`}</span>
+          </div>
+        )}
       </div>
       <div className="todo-actions">
         {inTrash ? (

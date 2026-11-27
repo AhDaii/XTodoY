@@ -630,12 +630,62 @@ a {
   color: var(--accent);
   font-weight: var(--weight-medium);
 }
+.todo-meta .when.soon {
+  color: var(--warning);
+  font-weight: var(--weight-medium);
+}
 .todo-meta .when.today {
   color: var(--primary);
 }
 .todo-meta .ico {
   display: inline-flex;
   color: var(--foreground-subtle);
+}
+/* 时间跨度迷你进度条（#51） */
+.todo-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+.todo-progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  overflow: hidden;
+}
+.todo-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  transition: width var(--duration-base) var(--ease-out);
+}
+.todo-progress-fill.soon {
+  background: var(--warning);
+}
+.todo-progress-fill.overdue {
+  background: var(--accent);
+}
+.todo-progress-pct {
+  font-size: 11px;
+  color: var(--foreground-subtle);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.detail-progress {
+  padding: 6px var(--space-3) 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.detail-progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--foreground-subtle);
+  font-variant-numeric: tabular-nums;
 }
 .todo-actions {
   display: flex;
@@ -1258,6 +1308,39 @@ a {
 .cal button.is-today {
   color: var(--primary);
   font-weight: var(--weight-bold);
+}
+.date-mode-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+}
+.date-mode-seg button {
+  justify-content: center;
+}
+.cal button.is-past {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+.cal button.is-past:hover {
+  background: transparent;
+}
+.cal button.in-range {
+  border-radius: 0;
+  background: var(--primary-soft);
+  color: var(--primary-soft-foreground);
+}
+.cal button.range-start {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.cal button.range-end {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.cal-hint {
+  margin: 6px 0 0;
+  font-size: var(--text-xs);
+  color: var(--foreground-subtle);
+  text-align: center;
 }
 .cal button[aria-pressed='true'] {
   background: var(--primary);
